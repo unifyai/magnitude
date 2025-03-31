@@ -1,5 +1,5 @@
 import { Page, Browser } from "playwright";
-import { ClickAction, TypeAction, WebAction } from '@/web/types';
+import { ClickWebAction, TypeWebAction, WebAction } from '@/web/types';
 
 export class WebHarness {
     /**
@@ -37,13 +37,13 @@ export class WebHarness {
         await this.page.goto(url);
     }
 
-    async click({ x, y }: ClickAction) {
+    async click({ x, y }: ClickWebAction) {
         await this.visualizeAction(x, y);
         this.page.mouse.click(x, y);
         //await this.removeActionVisuals();
     }
 
-    async type({ x, y, content }: TypeAction) {
+    async type({ x, y, content }: TypeWebAction) {
         // TODO: Implement string placeholders and special chars e.g. <enter>
         //this.page.mouse.click(x, y);
         await this.visualizeAction(x, y);

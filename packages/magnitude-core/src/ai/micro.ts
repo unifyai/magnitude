@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { ClickAction, PixelCoordinate, Screenshot, TypeAction, WebAction } from '@/web/types';
+import { ClickWebAction, PixelCoordinate, Screenshot, TypeWebAction, WebAction } from '@/web/types';
 import { b } from "@/ai/baml_client/async_client";
 import { Collector, Image } from "@boundaryml/baml";
 import sharp from 'sharp';
@@ -77,7 +77,7 @@ export class MicroAgent {
             { collector: this.collector }
         );
 
-        console.log("Check response:", response);
+        //console.log("Check response:", response);
 
         const answer = response.trim().toLowerCase();
 
@@ -118,7 +118,7 @@ export class MicroAgent {
         throw Error(`Unhandled ingredient variant: ${(ingredient as any).variant}`);
     }
 
-    async convertClick(screenshot: Screenshot, click: ClickIngredient): Promise<ClickAction> {
+    async convertClick(screenshot: Screenshot, click: ClickIngredient): Promise<ClickWebAction> {
         // todo: nondet-detection
 
         // Convert semantic target to coordinates
@@ -131,7 +131,7 @@ export class MicroAgent {
         }
     }
 
-    async convertType(screenshot: Screenshot, ing: TypeIngredient): Promise<TypeAction> {
+    async convertType(screenshot: Screenshot, ing: TypeIngredient): Promise<TypeWebAction> {
         // todo: nondet-detection
 
         // Convert semantic target to coordinates

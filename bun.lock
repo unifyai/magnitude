@@ -19,13 +19,16 @@
         "@boundaryml/baml": "^0.80.0",
         "commander": "^13.1.0",
         "openai": "^4.87.3",
-        "playwright": "^1.51.0",
         "sharp": "^0.33.5",
       },
       "devDependencies": {
         "@types/node": "^22.13.4",
         "pkgroll": "^2.10.0",
+        "playwright": "^1.51.0",
         "typescript": "~5.7.2",
+      },
+      "peerDependencies": {
+        "playwright": "^1.51.0",
       },
     },
     "packages/magnitude-test": {
@@ -43,12 +46,18 @@
         "esbuild": "^0.25.1",
         "glob": "^11.0.1",
         "log-update": "^6.1.0",
+        "magnitude-core": "workspace:*",
+        "playwright": "^1.51.1",
         "zod": "^3.24.2",
       },
       "devDependencies": {
         "@types/node": "^22.13.4",
         "pkgroll": "^2.10.0",
+        "playwright": "^1.51.0",
         "typescript": "~5.7.2",
+      },
+      "peerDependencies": {
+        "playwright": "^1.51.0",
       },
     },
   },

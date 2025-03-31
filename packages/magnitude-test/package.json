@@ -7,7 +7,7 @@
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.cts",
   "bin": {
-    "magnitude": "dist/testRunner/cli.js"
+    "magnitude": "dist/runner/cli.js"
   },
   "exports": {
     "require": {
@@ -34,7 +34,8 @@
     "build": "tsc && pkgroll",
     "check": "tsc --noEmit",
     "prepare": "npm run build",
-    "cli": "bun --watch src/testRunner/cli.ts",
+    "cli": "bun src/runner/cli.ts",
+    "cli-bin": "bun dist/runner/cli.js",
     "pubdev": "npm run build && yalc publish --force --push"
   },
   "keywords": [
@@ -57,7 +58,8 @@
   "devDependencies": {
     "@types/node": "^22.13.4",
     "pkgroll": "^2.10.0",
-    "typescript": "~5.7.2"
+    "typescript": "~5.7.2",
+    "playwright": "^1.51.0"
   },
   "dependencies": {
     "@paralleldrive/cuid2": "^2.2.2",
@@ -68,7 +70,16 @@
     "esbuild": "^0.25.1",
     "glob": "^11.0.1",
     "log-update": "^6.1.0",
-    "zod": "^3.24.2",
-    "magnitude-core": "workspace:*"
+    "magnitude-core": "workspace:*",
+    "playwright": "^1.51.1",
+    "zod": "^3.24.2"
+  },
+  "peerDependencies": {
+    "playwright": "^1.51.0"
+  },
+  "peerDependenciesMeta": {
+    "playwright": {
+      "optional": true
+    }
   }
 }

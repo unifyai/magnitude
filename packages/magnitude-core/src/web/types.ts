@@ -11,15 +11,15 @@ export interface Screenshot {
 //     variant: ActionVariant
 // }
 
-export type WebAction = ClickAction | TypeAction;
+export type WebAction = ClickWebAction | TypeWebAction;
 
-export interface ClickAction {
+export interface ClickWebAction {
     variant: 'click'
     x: number
     y: number
 }
 
-export interface TypeAction {
+export interface TypeWebAction {
     variant: 'type'
     x: number
     y: number
@@ -33,3 +33,6 @@ export interface PixelCoordinate {
     x: number,
     y: number
 }
+
+// for back-compat, not all implemented yet
+

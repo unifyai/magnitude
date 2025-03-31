@@ -3,7 +3,7 @@ import { downscaleScreenshot } from "./util";
 import { b } from "@/ai/baml_client";
 import { Image, Collector } from "@boundaryml/baml";
 import { ActionIngredient, Ingredient } from "@/recipe/types";
-import { TestCase, TestStep } from "@/types";
+import { TestCaseDefinition, TestStepDefinition } from "@/types";
 
 
 interface MacroAgentConfig {
@@ -33,7 +33,7 @@ export class MacroAgent {
         return screenshot;
     }
 
-    async createPartialRecipe(screenshot: Screenshot, testStep: TestStep, existingRecipe: ActionIngredient[]): Promise<{ actions: ActionIngredient[], finished: boolean }> {
+    async createPartialRecipe(screenshot: Screenshot, testStep: TestStepDefinition, existingRecipe: ActionIngredient[]): Promise<{ actions: ActionIngredient[], finished: boolean }> {
         const downscaledScreenshot = await this.transformScreenshot(screenshot);
 
         const stringifiedExistingRecipe = [];
@@ -41,7 +41,7 @@ export class MacroAgent {
             stringifiedExistingRecipe.push(JSON.stringify(action, null, 4))
         }
 
-        console.log("existing:", stringifiedExistingRecipe);
+        //console.log("existing:", stringifiedExistingRecipe);
 
         const response = await b.CreatePartialRecipe(
             Image.fromBase64('image/png', downscaledScreenshot.image),

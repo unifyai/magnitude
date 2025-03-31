@@ -1,8 +1,8 @@
 export { Magnitude } from './client';
 //export * from './types';
-export { TestCase } from './testCase'
-export { TestRunResult, Problem } from './dataWrappers';
+export { TestCaseBuilder as TestCase } from './discovery/testCaseBuilder'
+//export { TestRunResult, Problem } from './dataWrappers';
 
-export { test } from './testRunner/testDeclaration';
+export { test } from './discovery/testDeclaration';
 
-export { defineConfig } from './testRunner/testConfig';
+export { defineConfig } from './discovery/testConfig';

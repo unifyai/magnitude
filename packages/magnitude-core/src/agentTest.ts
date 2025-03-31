@@ -1,9 +1,10 @@
+import { chromium } from "playwright";
 import { TestCaseAgent } from "./agent";
+import { TestCaseStateTracker } from "./common/state";
 
 async function main() {
-    const agent = new TestCaseAgent();
 
-    const result = await agent.run({
+    const testCase = {
         url: "https://qa-bench.com",
         steps: [
             {
@@ -19,7 +20,28 @@ async function main() {
             // BOTH parts of this one will fail: it doesnt yet know what company form looks like
             { description: "Create an example company", checks: ["Example company exists"], testData: {} } // THIS will fail without check adaptation
         ]
+    };
+
+    const stateTracker = new TestCaseStateTracker(testCase);
+
+    const agent = new TestCaseAgent({
+        listeners: [
+            {
+                onActionTaken: action => console.log(action),
+                onStepCompleted: () => {},
+                onCheckCompleted: () => {},
+                onFail: () => {}
+            }, 
+            stateTracker.getListener()
+        ]
     });
+
+    stateTracker.onStateChange(
+        state => console.log("Test Case State:\n" + JSON.stringify(state, null, 4))
+    )
+
+    const browser = await chromium.launch({ headless: false });
+    const result = await agent.run(browser, testCase);
 
     // HARD
     // const result = await agent.run({

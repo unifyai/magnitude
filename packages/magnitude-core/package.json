@@ -55,13 +55,21 @@
   "devDependencies": {
     "@types/node": "^22.13.4",
     "pkgroll": "^2.10.0",
-    "typescript": "~5.7.2"
+    "typescript": "~5.7.2",
+    "playwright": "^1.51.0"
   },
   "dependencies": {
     "@boundaryml/baml": "^0.80.0",
     "commander": "^13.1.0",
     "openai": "^4.87.3",
-    "playwright": "^1.51.0",
     "sharp": "^0.33.5"
+  },
+  "peerDependencies": {
+    "playwright": "^1.51.0"
+  },
+  "peerDependenciesMeta": {
+    "playwright": {
+      "optional": true
+    }
   }
 }
