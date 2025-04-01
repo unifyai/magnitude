@@ -21,7 +21,9 @@ program
     .command('client')
     .action(async (options: { }) => {
         console.log("client starting")
-        const client = new RemoteTestCaseAgent();
+        const agent = new RemoteTestCaseAgent({ listeners: [{
+            onActionTaken(action) { console.log("Did action:", action) }
+        }]});
 
         const exampleTestCase = {
             url: "https://qa-bench.com",
@@ -41,7 +43,7 @@ program
             ]
         };
 
-        const result = await client.run(exampleTestCase);
+        const result = await agent.run(exampleTestCase);
         console.log("client done");
         console.log("Test result:", result);
 
