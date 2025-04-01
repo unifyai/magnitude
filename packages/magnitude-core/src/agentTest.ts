@@ -28,9 +28,8 @@ async function main() {
         listeners: [
             {
                 onActionTaken: action => console.log(action),
-                onStepCompleted: () => {},
-                onCheckCompleted: () => {},
-                onFail: () => {}
+                // onStepCompleted: () => {},
+                // onCheckCompleted: () => {},
             }, 
             stateTracker.getListener()
         ]

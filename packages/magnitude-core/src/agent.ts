@@ -57,12 +57,15 @@ export class TestCaseAgent {
         const harness = new WebHarness(page);
 
         try {
-            return await this._run(testCase, harness);
+            const result = await this._run(testCase, harness);
+            for (const listener of this.listeners) if(listener.onDone) listener.onDone(result);
+            return result;
         } catch (error) {
             if (error instanceof TestCaseError) {
                 console.log("got error:", error)
                 const failure = { description: error.message };
-                for (const listener of this.listeners) listener.onFail(failure);
+                const result: TestCaseResult = { passed: false, failure: failure };
+                for (const listener of this.listeners) if(listener.onDone) listener.onDone(result);
                 return { passed: false, failure: failure };
             } else {
                 console.error("Unexpected error:", error);
@@ -76,6 +79,10 @@ export class TestCaseAgent {
 
     private async _run(testCase: TestCaseDefinition, harness: WebHarness): Promise<TestCaseResult> {
         // May throw TestCaseErrors that get handled by run()
+
+        // Emit Start
+        for (const listener of this.listeners) if(listener.onStart) listener.onStart({});
+
         try {
             await harness.goto(testCase.url);
         } catch (error) {
@@ -114,7 +121,7 @@ export class TestCaseAgent {
                     try {
                         await harness.executeAction(action);
                         //this.config.onActionTaken(ingredient, action);
-                        for (const listener of this.listeners) listener.onActionTaken({...ingredient, ...action});
+                        for (const listener of this.listeners) if(listener.onActionTaken) listener.onActionTaken({...ingredient, ...action});
                     } catch (error) {
                         // TODO: retries
                         throw new ActionExecutionError(action, error as Error);
@@ -126,7 +133,7 @@ export class TestCaseAgent {
 
                 // If macro expects these actions should complete the step, break
                 if (finished) {
-                    for (const listener of this.listeners) listener.onStepCompleted();//(step);
+                    for (const listener of this.listeners) if (listener.onStepCompleted) listener.onStepCompleted();//(step);
                     break;
                 }
             }
@@ -154,7 +161,7 @@ export class TestCaseAgent {
                 );
                 if (result) {
                     // Passed
-                    for (const listener of this.listeners) listener.onCheckCompleted();
+                    for (const listener of this.listeners) if (listener.onCheckCompleted) listener.onCheckCompleted();
                     //this.config.onCheckCompleted(check, checkIngredient);
                 } else {
                     // Failed check

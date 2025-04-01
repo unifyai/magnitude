@@ -1,7 +1,7 @@
 import logger from './logger';
 import WebSocket from 'ws';
-import { RequestStartRunMessage } from './messages';
-import { TestAgentListener, TestCaseDefinition } from 'magnitude-core';
+import { ControlMessage, RequestStartRunMessage } from './messages';
+import { TestAgentListener, TestCaseDefinition, TestCaseResult } from 'magnitude-core';
 
 interface RemoteTestCaseAgentConfig {
     serverUrl: string;
@@ -21,7 +21,7 @@ export class RemoteTestCaseAgent {
         this.config = { ...DEFAULT_CONFIG, ...config };
     }
 
-    public async run(testCase: TestCaseDefinition) {
+    public async run(testCase: TestCaseDefinition): Promise<TestCaseResult> {
         return new Promise((resolve, reject) => {
             this.controlSocket = new WebSocket("ws://localhost:4444");
 
@@ -35,8 +35,14 @@ export class RemoteTestCaseAgent {
 
             this.controlSocket.on('message', async (rawData) => {
                 try {
-                    const msg = JSON.parse(rawData.toString());
+                    const msg = JSON.parse(rawData.toString()) as ControlMessage;
                     console.log("Received message:", msg);
+
+                    if (msg.type === 'event:done') {
+                        this.controlSocket!.close(1000);
+                        resolve(msg.payload.result);
+                    }
+
                 } catch (error) {
                     logger.error("Error handling server message", error)
                 }

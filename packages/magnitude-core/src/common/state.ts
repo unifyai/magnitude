@@ -1,6 +1,6 @@
 import { TestAgentListener } from "@/common/events";
 import { ActionDescriptor } from "@/common/actions";
-import { TestCaseDefinition, TestStepDefinition } from "@/types";
+import { TestCaseDefinition, TestCaseResult, TestStepDefinition } from "@/types";
 import { FailureDescriptor } from "./failure";
 
 // export interface TestCheckState {
@@ -68,10 +68,12 @@ export class TestCaseStateTracker {
     // For tracker to work, pass the result of get listener to the test runner
     getListener(): TestAgentListener {
         return {
+            onStart: this._onStart.bind(this),
             onActionTaken: this._onActionTaken.bind(this),
             onStepCompleted: this._onStepCompleted.bind(this),
             onCheckCompleted: this._onCheckCompleted.bind(this),
-            onFail: this._onFail.bind(this)
+            onDone: this._onDone.bind(this)
+            //onFail: this._onFail.bind(this)
         }
     }
 
@@ -86,6 +88,10 @@ export class TestCaseStateTracker {
 
     private _notifyStateSubscribers() {
         for (const subscriber of this.stateSubscribers) subscriber(this.state);
+    }
+
+    private _onStart(runMetadata: Record<string, any>) {
+        // maybe set a start time or something on state idk
     }
 
     private _onActionTaken(action: ActionDescriptor) {
@@ -118,10 +124,19 @@ export class TestCaseStateTracker {
         this._notifyStateSubscribers();
     }
 
-    private _onFail(failure: FailureDescriptor) {
-        console.log("this:", this);
-        console.log("state:", this.state);
-        this.state.failure = failure;
-        this._notifyStateSubscribers();
+    private _onDone(result: TestCaseResult) {
+        // console.log("this:", this);
+        // console.log("state:", this.state);
+        if (!result.passed) {
+            this.state.failure = result.failure;
+            this._notifyStateSubscribers();
+        }
     }
+
+    // private _onFail(failure: FailureDescriptor) {
+    //     console.log("this:", this);
+    //     console.log("state:", this.state);
+    //     this.state.failure = failure;
+    //     this._notifyStateSubscribers();
+    // }
 }

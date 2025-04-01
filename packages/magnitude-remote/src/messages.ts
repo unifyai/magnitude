@@ -1,13 +1,14 @@
 // type MessageType = 'request_start_run' | 'confirm_start_run';
 
-import { ActionDescriptor, FailureDescriptor, TestCaseDefinition } from "magnitude-core";
+import { ActionDescriptor, FailureDescriptor, TestCaseDefinition, TestCaseResult } from "magnitude-core";
 
 // interface ControlMessage {
 //     type: MessageType
 // }
 
 
-export type ControlMessage = RequestStartRunMessage | ConfirmStartRunMessage | ErrorMessage;
+export type ControlMessage = RequestStartRunMessage | ConfirmStartRunMessage | ErrorMessage | AgentEventMessage;
+export type AgentEventMessage = StartEventMessage | ActionTakenEventMessage | StepCompletedEventMessage | CheckCompletedEventMessage | DoneEventMessage;
 
 // Handshake messages
 export interface RequestStartRunMessage {
@@ -44,6 +45,13 @@ export interface ErrorMessage {
     }
 }
 
+export interface StartEventMessage {
+    type: 'event:start',
+    payload: {
+        runMetadata: Record<string, any>
+    }
+}
+
 export interface ActionTakenEventMessage {
     type: 'event:action_taken',
     payload: {
@@ -61,10 +69,17 @@ export interface CheckCompletedEventMessage {
     payload: {}
 }
 
-export interface FailureEventMessage {
-    type: 'event:fail',
+// export interface FailureEventMessage {
+//     type: 'event:fail',
+//     payload: {
+//         failure: FailureDescriptor
+//     }
+// }
+
+export interface DoneEventMessage {
+    type: 'event:done',
     payload: {
-        failure: FailureDescriptor
+        result: TestCaseResult
     }
 }
 

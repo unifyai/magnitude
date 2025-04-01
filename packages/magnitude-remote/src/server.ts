@@ -1,5 +1,5 @@
 import { Server, ServerWebSocket } from 'bun';
-import { ActionTakenEventMessage, CheckCompletedEventMessage, ConfirmStartRunMessage, ControlMessage, FailureEventMessage, StepCompletedEventMessage } from './messages';
+import { ActionTakenEventMessage, CheckCompletedEventMessage, ConfirmStartRunMessage, ControlMessage, DoneEventMessage, StartEventMessage, StepCompletedEventMessage } from './messages';
 import * as cuid2 from '@paralleldrive/cuid2';
 import logger from './logger';
 import { Logger } from 'pino';
@@ -29,7 +29,7 @@ interface Connection {
     controlSocket: ServerWebSocket<SocketMetadata>;
     logger: Logger;
     agent: TestCaseAgent;
-    agentRunPromise: Promise<TestCaseResult>;
+    //agentRunPromise: Promise<TestCaseResult>;
     // We aren't using these sockets - these are sockets being forwarded on this tunnel connection
     // TODO: implement subsocket tunneling
     //forwardedSockets: 
@@ -197,6 +197,10 @@ export class RemoteTestRunner {
                 const agent = new TestCaseAgent({
                     // On each agent event, convert to websocket traffic over the control socket
                     listeners: [{
+                        onStart(runMetadata: Record<string, any>) {
+                            // TODO: Will want to inject own runMetadata (local agent provides none)
+                            ws.send(JSON.stringify({ type: 'event:start', payload: { runMetadata: {} } } satisfies StartEventMessage));
+                        },
                         onActionTaken(action: ActionDescriptor) {
                             ws.send(JSON.stringify({ type: 'event:action_taken', payload: { action } } satisfies ActionTakenEventMessage));
                         },
@@ -206,13 +210,20 @@ export class RemoteTestRunner {
                         onCheckCompleted() {
                             ws.send(JSON.stringify({ type: 'event:check_completed', payload: {} } satisfies CheckCompletedEventMessage));
                         },
-                        onFail(failure: FailureDescriptor) {
-                            ws.send(JSON.stringify({ type: 'event:fail', payload: { failure } } satisfies FailureEventMessage));
+                        onDone(result: TestCaseResult) {
+                            ws.send(JSON.stringify({ type: 'event:done', payload: { result } } satisfies DoneEventMessage));
+                            // We expect client to gracefully close on its own after it receives this event.
+                            // TODO: Impl some timer in case client does not close these
                         }
+                        // onFail(failure: FailureDescriptor) {
+                        //     ws.send(JSON.stringify({ type: 'event:fail', payload: { failure } } satisfies FailureEventMessage));
+                        // }
                     }]
                 });
 
-                const runPromise = agent.run(this.browser!, testCaseDefinition);
+                // Can ignore the returned promise and just use onDone event
+                agent.run(this.browser!, testCaseDefinition);
+                //const runPromise = agent.run(this.browser!, testCaseDefinition);
 
                 const response: ConfirmStartRunMessage = {
                     type: 'confirm_start_run',
@@ -225,7 +236,7 @@ export class RemoteTestRunner {
                     controlSocket: ws,
                     logger: logger.child({ runId }),
                     agent: agent,
-                    agentRunPromise: runPromise
+                    //agentRunPromise: runPromise
                 }
                 this.connections[runId] = conn;
                 ws.data.runId = runId;

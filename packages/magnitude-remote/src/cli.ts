@@ -41,8 +41,9 @@ program
             ]
         };
 
-        await client.run(exampleTestCase);
-        console.log("client done")
+        const result = await client.run(exampleTestCase);
+        console.log("client done");
+        console.log("Test result:", result);
 
         // await new Promise((resolve, reject) => {
         //     await client.start();
