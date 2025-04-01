@@ -1,18 +1,34 @@
 import logger from './logger';
 import WebSocket from 'ws';
 import { RequestStartRunMessage } from './messages';
+import { TestAgentListener, TestCaseDefinition } from 'magnitude-core';
 
-export class RemoteRunnerClient {
+interface RemoteTestCaseAgentConfig {
+    serverUrl: string;
+    listeners: TestAgentListener[];
+}
+
+const DEFAULT_CONFIG = {
+    serverUrl: "http://localhost:4444",
+    listeners: []
+};
+
+export class RemoteTestCaseAgent {
+    private config: RemoteTestCaseAgentConfig;
     private controlSocket: WebSocket | null = null;
 
-    public async run() {
+    constructor (config: Partial<RemoteTestCaseAgentConfig> = {})  {
+        this.config = { ...DEFAULT_CONFIG, ...config };
+    }
+
+    public async run(testCase: TestCaseDefinition) {
         return new Promise((resolve, reject) => {
             this.controlSocket = new WebSocket("ws://localhost:4444");
 
             this.controlSocket.on('open', async () => {
                 const message: RequestStartRunMessage = {
                     type: 'request_start_run',
-                    payload: {}
+                    payload: { testCase }
                 }
                 this.controlSocket!.send(JSON.stringify(message));
             });

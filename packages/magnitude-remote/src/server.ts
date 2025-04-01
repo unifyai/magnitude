@@ -1,8 +1,10 @@
 import { Server, ServerWebSocket } from 'bun';
-import { ConfirmStartRunMessage, ControlMessage } from './messages';
+import { ActionTakenEventMessage, CheckCompletedEventMessage, ConfirmStartRunMessage, ControlMessage, FailureEventMessage, StepCompletedEventMessage } from './messages';
 import * as cuid2 from '@paralleldrive/cuid2';
 import logger from './logger';
 import { Logger } from 'pino';
+import { ActionDescriptor, FailureDescriptor, TestCaseAgent, TestCaseResult } from 'magnitude-core';
+import { Browser, chromium } from 'playwright';
 
 const createId = cuid2.init({
     length: 12
@@ -26,6 +28,8 @@ const DEFAULT_CONFIG = {
 interface Connection {
     controlSocket: ServerWebSocket<SocketMetadata>;
     logger: Logger;
+    agent: TestCaseAgent;
+    agentRunPromise: Promise<TestCaseResult>;
     // We aren't using these sockets - these are sockets being forwarded on this tunnel connection
     // TODO: implement subsocket tunneling
     //forwardedSockets: 
@@ -72,13 +76,15 @@ export class RemoteTestRunner {
     private config: RemoteTestRunnerConfig;
     private server: Server | null = null;
     private connections: Record<string, Connection>;
+    private browser: Browser | null = null;
 
     constructor (config: Partial<RemoteTestRunnerConfig> = {})  {
         this.config = { ...DEFAULT_CONFIG, ...config };
         this.connections = {};
     }
 
-    start() {
+    async start() {
+        this.browser = await chromium.launch({ headless: false, args: ['--enable-logging', '--v=1', `--log-file=/tmp/chrome-debug.log`], });
         this.server = Bun.serve({
             hostname: "0.0.0.0",
             port: this.config.port,
@@ -92,8 +98,9 @@ export class RemoteTestRunner {
         logger.info('Remote test runner server started')
     }
 
-    stop() {
-        if (this.server) this.server.stop();
+    async stop() {
+        if (this.browser) await this.browser.close();
+        if (this.server) await this.server.stop();
     }
 
     private async handleRequest(req: Request, server: Server): Promise<Response> {
@@ -183,8 +190,30 @@ export class RemoteTestRunner {
             const msg = JSON.parse(raw_message as string) as ControlMessage;
 
             if (msg.type === 'request_start_run') {
+                const testCaseDefinition = msg.payload.testCase;
                 // TODO: start run
                 const runId = createId();
+
+                const agent = new TestCaseAgent({
+                    // On each agent event, convert to websocket traffic over the control socket
+                    listeners: [{
+                        onActionTaken(action: ActionDescriptor) {
+                            ws.send(JSON.stringify({ type: 'event:action_taken', payload: { action } } satisfies ActionTakenEventMessage));
+                        },
+                        onStepCompleted() {
+                            ws.send(JSON.stringify({ type: 'event:step_completed', payload: {} } satisfies StepCompletedEventMessage));
+                        },
+                        onCheckCompleted() {
+                            ws.send(JSON.stringify({ type: 'event:check_completed', payload: {} } satisfies CheckCompletedEventMessage));
+                        },
+                        onFail(failure: FailureDescriptor) {
+                            ws.send(JSON.stringify({ type: 'event:fail', payload: { failure } } satisfies FailureEventMessage));
+                        }
+                    }]
+                });
+
+                const runPromise = agent.run(this.browser!, testCaseDefinition);
+
                 const response: ConfirmStartRunMessage = {
                     type: 'confirm_start_run',
                     payload: {
@@ -192,9 +221,11 @@ export class RemoteTestRunner {
                     }
                 };
                 ws.send(JSON.stringify(response));
-                const conn = {
+                const conn: Connection = {
                     controlSocket: ws,
-                    logger: logger.child({ runId })
+                    logger: logger.child({ runId }),
+                    agent: agent,
+                    agentRunPromise: runPromise
                 }
                 this.connections[runId] = conn;
                 ws.data.runId = runId;

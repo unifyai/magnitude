@@ -1,5 +1,0 @@
-
-
-interface StartMessage {
-    event: 'start',
-}

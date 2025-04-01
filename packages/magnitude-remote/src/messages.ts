@@ -1,5 +1,7 @@
 // type MessageType = 'request_start_run' | 'confirm_start_run';
 
+import { ActionDescriptor, FailureDescriptor, TestCaseDefinition } from "magnitude-core";
+
 // interface ControlMessage {
 //     type: MessageType
 // }
@@ -12,6 +14,7 @@ export interface RequestStartRunMessage {
     type: 'request_start_run',
     payload: {
         // TODO
+        testCase: TestCaseDefinition
     }
 }
 
@@ -40,3 +43,30 @@ export interface ErrorMessage {
         message: string;
     }
 }
+
+export interface ActionTakenEventMessage {
+    type: 'event:action_taken',
+    payload: {
+        action: ActionDescriptor
+    }
+}
+
+export interface StepCompletedEventMessage {
+    type: 'event:step_completed',
+    payload: {}
+}
+
+export interface CheckCompletedEventMessage {
+    type: 'event:check_completed',
+    payload: {}
+}
+
+export interface FailureEventMessage {
+    type: 'event:fail',
+    payload: {
+        failure: FailureDescriptor
+    }
+}
+
+
+// export function createEventForwardingListener(ws: )
