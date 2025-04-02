@@ -1,15 +1,5 @@
-import { pathToFileURL } from 'url';
-import { TestCompiler } from '../compiler';
-import { TestRegistry } from '../discovery/testRegistry';
-import { TestSuiteViewer } from '@/renderer';
-import logUpdate from 'log-update';
-import chalk from 'chalk';
-import { createId } from '@paralleldrive/cuid2';
-import { TestCaseBuilder } from '../discovery/testCaseBuilder';
-import { CategorizedTestCasesWithRenderIds, RenderIdTestCasePair } from './types';
-import { TestAgentListener, TestCaseAgent, TestCaseDefinition, TestCaseResult, TestCaseStateTracker } from 'magnitude-core';
+import { TestAgentListener, TestCaseAgent, TestCaseDefinition, TestCaseResult } from 'magnitude-core';
 import { Browser, chromium } from 'playwright';
-import path from 'path';
 import { BaseTestRunner } from './baseRunner';
 
 export class LocalTestRunner extends BaseTestRunner {

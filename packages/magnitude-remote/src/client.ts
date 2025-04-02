@@ -23,7 +23,7 @@ export class RemoteTestCaseAgent {
 
     public async run(testCase: TestCaseDefinition): Promise<TestCaseResult> {
         return new Promise((resolve, reject) => {
-            this.controlSocket = new WebSocket("ws://localhost:4444");
+            this.controlSocket = new WebSocket("http://localhost:4444");
 
             this.controlSocket.on('open', async () => {
                 const message: RequestStartRunMessage = {

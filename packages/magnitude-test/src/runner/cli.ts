@@ -11,10 +11,14 @@ import { TestGlobalConfig } from '@/discovery/types';
 //import chalk from 'chalk';
 import { magnitudeBlue, brightMagnitudeBlue } from '@/renderer/colors';
 import { discoverTestFiles, findConfig, findProjectRoot, readConfig } from '@/discovery/util';
+import { BaseTestRunner } from './baseRunner';
+import { RemoteTestRunner } from './remoteRunner';
+import { RemoteTestCaseAgent } from 'magnitude-remote';
 
 interface CliOptions {
     workers?: number;
-    local: boolean;
+    //local: boolean;
+    remote: 'auto' | 'true' | 'false';
 }
 
 
@@ -189,8 +193,41 @@ program
     .description('Run Magnitude test cases')
     .argument('[...filters]', 'glob patterns for test files')
     .option('-w, --workers <number>', 'number of parallel workers for test execution', '1')
-    .option('-l', '--local', 'run agent locally (requires Playwright and LLM provider configuration)')
+    .option('-r, --remote <auto|true|false>', 'whether to run tests remotely or locally (remote requires Magnitude API key, local requires additional setup)', 'auto')
+    //.option('-l', '--local', 'run agent locally (requires Playwright and LLM provider configuration)')
     .action(async (filters, options: CliOptions) => {
+        // tmp
+        console.log("client starting")
+        const agent = new RemoteTestCaseAgent({ listeners: [{
+            onActionTaken(action) { console.log("Did action:", action) }
+        }]});
+
+        const exampleTestCase = {
+            url: "https://qa-bench.com",
+            steps: [
+                {
+                    description: "Log in",
+                    checks: ["Can see dashboard"],
+                    testData: {
+                        data: [
+                            { key: "username", value: "test-user@magnitude.run", sensitive: false },
+                            { key: "password", value: "test", sensitive: true },
+                        ] 
+                    }
+                },
+                // // BOTH parts of this one will fail: it doesnt yet know what company form looks like
+                // { description: "Create an example company", checks: ["Example company exists"], testData: {} } // THIS will fail without check adaptation
+            ]
+        };
+
+        const result = await agent.run(exampleTestCase);
+        console.log("client done");
+        console.log("Test result:", result);
+
+        process.exit(0);
+        // ^^ tmp
+
+        
         //const patterns = [];
         const patterns = [
             '!**/node_modules/**',
@@ -227,13 +264,24 @@ program
         const registry = TestRegistry.getInstance();
         registry.setGlobalOptions(config);
 
+        const useRemote = options.remote === 'true' || (options.remote === 'auto' && (process.env.MAGNITUDE_API_KEY || config.apiKey));
+
         // TODO: Use local or remote runner
         // if (options.local) {
         //     const { TestCaseAgent } = await import('magnitude-core');
         // }
+        let runner: BaseTestRunner;
+
+        if (useRemote) {
+            console.log("using remote runner")
+            runner = new RemoteTestRunner(workerCount);
+        } else {
+            console.log("using local runner")
+            runner = new LocalTestRunner(workerCount);
+        }
 
         // Create test runner with worker count
-        const runner = new LocalTestRunner(workerCount);
+        //const runner = new LocalTestRunner(workerCount);
 
         // if (workerCount > 1) {
         //     console.log(`Running tests with ${workerCount} parallel workers`);
