@@ -1,5 +1,4 @@
 import logger from './logger';
-import WebSocket from 'ws';
 import { ControlMessage, RequestStartRunMessage } from './messages';
 import { TestAgentListener, TestCaseDefinition, TestCaseResult } from 'magnitude-core';
 
@@ -9,7 +8,7 @@ interface RemoteTestCaseAgentConfig {
 }
 
 const DEFAULT_CONFIG = {
-    serverUrl: "http://localhost:4444",
+    serverUrl: "ws://localhost:4444",
     listeners: []
 };
 
@@ -17,32 +16,32 @@ export class RemoteTestCaseAgent {
     private config: RemoteTestCaseAgentConfig;
     private controlSocket: WebSocket | null = null;
 
-    constructor (config: Partial<RemoteTestCaseAgentConfig> = {})  {
+    constructor(config: Partial<RemoteTestCaseAgentConfig> = {}) {
         this.config = { ...DEFAULT_CONFIG, ...config };
     }
 
     public async run(testCase: TestCaseDefinition): Promise<TestCaseResult> {
         return new Promise((resolve, reject) => {
-            this.controlSocket = new WebSocket("http://localhost:4444");
+            this.controlSocket = new WebSocket(this.config.serverUrl);
 
-            this.controlSocket.on('open', async () => {
+            this.controlSocket.addEventListener('open', () => {
                 const message: RequestStartRunMessage = {
                     type: 'request_start_run',
                     payload: { testCase }
-                }
+                };
                 this.controlSocket!.send(JSON.stringify(message));
             });
 
-            this.controlSocket.on('message', async (rawData) => {
+            this.controlSocket.addEventListener('message', (event) => {
                 try {
-                    const msg = JSON.parse(rawData.toString()) as ControlMessage;
+                    const msg = JSON.parse(event.data) as ControlMessage;
                     console.log("Received message:", msg);
 
                     if (msg.type === 'confirm_start_run') {
                         // Successful handshake response
                     }
                     else if (msg.type === 'error') {
-                        // Some unexpected error occured on the server's side
+                        // Some unexpected error occurred on the server's side
                         logger.error(`Error message from server: ${msg.payload.message}`);
                         // probably close sockets
                         this.controlSocket!.close(1011);
@@ -50,35 +49,40 @@ export class RemoteTestCaseAgent {
                     }
                     // Translate socket message to listener callbacks
                     else if (msg.type === 'event:start') {
-                        for (const listener of this.config.listeners) if (listener.onStart) listener.onStart(msg.payload.runMetadata);
+                        for (const listener of this.config.listeners)
+                            if (listener.onStart) listener.onStart(msg.payload.runMetadata);
                     }
                     else if (msg.type === 'event:action_taken') {
-                        for (const listener of this.config.listeners) if (listener.onActionTaken) listener.onActionTaken(msg.payload.action);
+                        for (const listener of this.config.listeners)
+                            if (listener.onActionTaken) listener.onActionTaken(msg.payload.action);
                     }
                     else if (msg.type === 'event:step_completed') {
-                        for (const listener of this.config.listeners) if (listener.onStepCompleted) listener.onStepCompleted();
+                        for (const listener of this.config.listeners)
+                            if (listener.onStepCompleted) listener.onStepCompleted();
                     }
                     else if (msg.type === 'event:check_completed') {
-                        for (const listener of this.config.listeners) if (listener.onCheckCompleted) listener.onCheckCompleted();
+                        for (const listener of this.config.listeners)
+                            if (listener.onCheckCompleted) listener.onCheckCompleted();
                     }
                     else if (msg.type === 'event:done') {
-                        for (const listener of this.config.listeners) if (listener.onDone) listener.onDone(msg.payload.result);
-
+                        for (const listener of this.config.listeners)
+                            if (listener.onDone) listener.onDone(msg.payload.result);
                         this.controlSocket!.close(1000);
                         resolve(msg.payload.result);
                     }
-
                 } catch (error) {
-                    logger.error("Error handling server message", error)
+                    logger.error("Error handling server message", error);
                 }
             });
 
-            this.controlSocket.on('close', (code, reason) => {
-                console.log(`WebSocket closed: ${code} ${reason}`);
+            this.controlSocket.addEventListener('close', (event) => {
+                console.log(`WebSocket closed: ${event.code} ${event.reason}`);
             });
-            
-            this.controlSocket.on('error', (error) => {
-                console.log(`WebSocket error: ${error}`);
+
+            this.controlSocket.addEventListener('error', (event) => {
+                //console.log(`WebSocket error:`);
+                console.error(event);
+                reject(new Error("WebSocket connection error"));
             });
         });
     }

@@ -197,34 +197,34 @@ program
     //.option('-l', '--local', 'run agent locally (requires Playwright and LLM provider configuration)')
     .action(async (filters, options: CliOptions) => {
         // tmp
-        console.log("client starting")
-        const agent = new RemoteTestCaseAgent({ listeners: [{
-            onActionTaken(action) { console.log("Did action:", action) }
-        }]});
+        // console.log("client starting")
+        // const agent = new RemoteTestCaseAgent({ listeners: [{
+        //     onActionTaken(action) { console.log("Did action:", action) }
+        // }]});
 
-        const exampleTestCase = {
-            url: "https://qa-bench.com",
-            steps: [
-                {
-                    description: "Log in",
-                    checks: ["Can see dashboard"],
-                    testData: {
-                        data: [
-                            { key: "username", value: "test-user@magnitude.run", sensitive: false },
-                            { key: "password", value: "test", sensitive: true },
-                        ] 
-                    }
-                },
-                // // BOTH parts of this one will fail: it doesnt yet know what company form looks like
-                // { description: "Create an example company", checks: ["Example company exists"], testData: {} } // THIS will fail without check adaptation
-            ]
-        };
+        // const exampleTestCase = {
+        //     url: "https://qa-bench.com",
+        //     steps: [
+        //         {
+        //             description: "Log in",
+        //             checks: ["Can see dashboard"],
+        //             testData: {
+        //                 data: [
+        //                     { key: "username", value: "test-user@magnitude.run", sensitive: false },
+        //                     { key: "password", value: "test", sensitive: true },
+        //                 ] 
+        //             }
+        //         },
+        //         // // BOTH parts of this one will fail: it doesnt yet know what company form looks like
+        //         // { description: "Create an example company", checks: ["Example company exists"], testData: {} } // THIS will fail without check adaptation
+        //     ]
+        // };
 
-        const result = await agent.run(exampleTestCase);
-        console.log("client done");
-        console.log("Test result:", result);
+        // const result = await agent.run(exampleTestCase);
+        // console.log("client done");
+        // console.log("Test result:", result);
 
-        process.exit(0);
+        // process.exit(0);
         // ^^ tmp
 
         
