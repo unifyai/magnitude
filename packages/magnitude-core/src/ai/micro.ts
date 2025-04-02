@@ -81,16 +81,11 @@ export class MicroAgent {
 
         const answer = response.trim().toLowerCase();
 
-        // console.log(this.collector.last);
-        // console.log(this.collector.usage)
-        // console.log(this.collector.last?.rawLlmResponse)
-        // console.log(this.collector.logs)
-        // console.log(this.collector.last?.selectedCall)
-        // console.log(this.collector.last?.usage)
-        // console.log(this.collector.last?.selectedCall)
-        // console.log(this.collector.last?.timing)
-        // console.log(this.collector.last?.usage.inputTokens)
-
+        // console.log("Call:", this.collector.last?.calls[0]);
+        // console.log("Response:", this.collector.last?.calls[0].httpResponse);
+        // //const logprobs = this.collector.last?.calls[0].httpResponse?.body.choices[0].logprobs;
+        // const logprobs = this.collector.last?.calls[0].httpResponse?.body.json().choices[0].logprobs;
+        // console.log("Logprobs:", logprobs);
     
         //return { passed: true, confidence: 1.0 };
 
