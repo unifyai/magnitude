@@ -7,7 +7,10 @@ import { ActionDescriptor, FailureDescriptor, TestCaseDefinition, TestCaseResult
 // }
 
 
-export type ControlMessage = RequestStartRunMessage | ConfirmStartRunMessage | ErrorMessage | AgentEventMessage;
+export type ClientMessage = RequestStartRunMessage | InitTunnelMessage;
+export type ServerMessage = ConfirmStartRunMessage | AcceptTunnelMessage | AgentEventMessage | ErrorMessage;
+
+//export type ControlMessage = RequestStartRunMessage | ConfirmStartRunMessage | ErrorMessage | InitTunnelMessage | AcceptTunnelMessage | AgentEventMessage;
 export type AgentEventMessage = StartEventMessage | ActionTakenEventMessage | StepCompletedEventMessage | CheckCompletedEventMessage | DoneEventMessage;
 
 // Handshake messages
@@ -15,7 +18,9 @@ export interface RequestStartRunMessage {
     type: 'request_start_run',
     payload: {
         // TODO
-        testCase: TestCaseDefinition
+        testCase: TestCaseDefinition,
+        // True if requesting to open tunnel sockets
+        needTunnel: boolean;
     }
 }
 
@@ -25,7 +30,22 @@ export interface ConfirmStartRunMessage {
     payload: {
         // TODO
         runId: string;
+        // If tunneling requested, server will return # of tunnel socket connections it will accept for the run
+        approvedTunnelSockets: number;
     }
+}
+
+export interface InitTunnelMessage {
+    type: 'init:tunnel',
+    payload: {
+        runId: string;
+        // todo: require run secret
+    }
+}
+
+export interface AcceptTunnelMessage {
+    type: 'accept:tunnel',
+    payload: {}
 }
 
 // interface RejectStartRunMessage {

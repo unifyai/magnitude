@@ -20,10 +20,14 @@ program
 program
     .command('client')
     .action(async (options: { }) => {
-        console.log("client starting")
-        const agent = new RemoteTestCaseAgent({ listeners: [{
-            onActionTaken(action) { console.log("Did action:", action) }
-        }]});
+        //console.log("client starting")
+        const agent = new RemoteTestCaseAgent({
+            serverUrl: "http://localhost:4444",
+            tunnelUrl: "http://localhost:3000",
+            listeners: [{
+                //onActionTaken(action) { console.log("Did action:", action) }
+            }]
+        });
 
         const exampleTestCase = {
             url: "https://qa-bench.com",
@@ -44,8 +48,8 @@ program
         };
 
         const result = await agent.run(exampleTestCase);
-        console.log("client done");
-        console.log("Test result:", result);
+        //console.log("client done");
+        //console.log("Test result:", result);
 
         // await new Promise((resolve, reject) => {
         //     await client.start();

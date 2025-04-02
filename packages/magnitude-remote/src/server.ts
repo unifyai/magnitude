@@ -1,27 +1,24 @@
 import { Server, ServerWebSocket } from 'bun';
-import { ActionTakenEventMessage, CheckCompletedEventMessage, ConfirmStartRunMessage, ControlMessage, DoneEventMessage, StartEventMessage, StepCompletedEventMessage } from './messages';
+import { ActionTakenEventMessage, CheckCompletedEventMessage, ClientMessage, ConfirmStartRunMessage, DoneEventMessage, ErrorMessage, StartEventMessage, StepCompletedEventMessage } from './messages';
 import * as cuid2 from '@paralleldrive/cuid2';
 import logger from './logger';
 import { Logger } from 'pino';
 import { ActionDescriptor, FailureDescriptor, TestCaseAgent, TestCaseResult } from 'magnitude-core';
 import { Browser, chromium } from 'playwright';
+import { deserializeResponse, serializeRequest } from './serde';
 
 const createId = cuid2.init({
     length: 12
 });
 
-// 1 byte header codes for multiplexing websocket traffic
-const HEADER_CODES = {
-    TUNNEL: 0x00, // forward raw binary data over the tunnel
-    EVENT: 0x01 // parse events as json and handle appropriately
-};
-
 interface RemoteTestRunnerConfig {
-    port: number
+    port: number,
+    socketsPerTunnel: number
 }
 
 const DEFAULT_CONFIG = {
-    port: 4444
+    port: 4444,
+    socketsPerTunnel: 6
 };
 
 // a connection for a test run, which may involve multiple websockets
@@ -29,6 +26,12 @@ interface Connection {
     controlSocket: ServerWebSocket<SocketMetadata>;
     logger: Logger;
     agent: TestCaseAgent;
+    tunnelSockets: Record<string, TunnelSocketState>;//TunnelSocketState[];
+    // pendingRequests: Record<string, {
+    //     resolve: (response: Response) => void,
+    //     reject: (error: Error) => void,
+    //     tunnel: TunnelSocketState
+    // }>;
     //agentRunPromise: Promise<TestCaseResult>;
     // We aren't using these sockets - these are sockets being forwarded on this tunnel connection
     // TODO: implement subsocket tunneling
@@ -37,7 +40,22 @@ interface Connection {
 
 // Just so that we can teardown corresponding conn if needed
 interface SocketMetadata {
-    runId: string
+    runId: string | null,
+    // If true, this is an active (handshake completed) tunnel socket
+    isActiveTunnelSocket: boolean
+    // Active tunnel sockets are assigned a tunnel ID
+    tunnelId: string | null
+}
+
+interface TunnelSocketState {
+    sock: ServerWebSocket<SocketMetadata>;
+    // Whether this tunnel socket is free to send/recieve HTTP traffic
+    available: boolean;
+    // prob can git rid of available and just check for pending req
+    pendingRequest: null | {
+        resolve: (responseData: Buffer) => void,
+        reject: (error: Error) => void
+    };
 }
 
 // interface ConnectionInfo {
@@ -127,23 +145,27 @@ export class RemoteTestRunner {
         if (req.headers.get('upgrade')?.toLowerCase() === 'websocket') {
             // Let Bun handle the upgrade
             logger.info("Upgrade request received")
-            const success = server.upgrade(req, { data: {} });
+            const success = server.upgrade(req, { data: {
+                runId: null,
+                isTunnelSocket: false,
+                tunnelId: null
+            }});
             logger.info(`Upgrade result: ${success ? 'Success' : 'Failed'}`);
             return success ? new Response() : new Response('WebSocket upgrade failed', { status: 500 });
         }
 
         // Try and extract tunnel ID if host is like `<id>.localhost:4444`
-        const tunnelId = extractSubdomainId(host);
+        const runId = extractSubdomainId(host);
 
         // (4) Health check
-        if (!tunnelId && req.method === 'GET' && url.pathname === '/') {
+        if (!runId && req.method === 'GET' && url.pathname === '/') {
             return new Response('Tunnel server is running', { 
                 status: 200,
                 headers: { 'Content-Type': 'text/plain' }
             });
         }
 
-        if (!tunnelId) {
+        if (!runId) {
             // Invalid request - not for health check, socket upgrade, or proxy
             return new Response('Invalid request', { 
                 status: 404,
@@ -151,9 +173,64 @@ export class RemoteTestRunner {
             });
         }
 
-        // (2) HTTP traffic needs to be tunneled through the corresponding established socket
+        // (2) HTTP traffic needs to be tunneled through a corresponding established socket
         // TODO
-        return new Response();
+        const conn = this.connections[runId];
+
+        if (!conn) {
+            return new Response(`Run ID not found ${runId}`, { 
+                status: 404,
+                headers: { 'Content-Type': 'text/plain' }
+            });
+        }
+
+        const serializedHttpRequest = await serializeRequest(req);
+
+        let availableTunnel: TunnelSocketState | null = null;
+        let availableTunnelId: string | null = null;
+        for (const [tunnelId, tunnel] of Object.entries(conn.tunnelSockets)) {
+            // Use first available tunnel
+            if (tunnel.available) {
+                //tunnel.available = false;
+                // Forward serialized HTTP request
+                //tunnel.sock.send(data);
+                availableTunnel = tunnel;
+                availableTunnelId = tunnelId;
+            }
+        }
+        // TODO: queue system
+        if (!availableTunnel || !availableTunnelId) {
+            return new Response('All tunnel sockets busy, try again later', { 
+                status: 503,
+                headers: { 'Content-Type': 'text/plain' }
+            });
+        }
+
+        //const requestId = createId();
+        const responsePromise = new Promise<Buffer>((resolve, reject) => {
+            conn.tunnelSockets[availableTunnelId].pendingRequest = { resolve, reject };
+            //conn.pendingRequests[requestId] = { resolve, reject, tunnel: availableTunnel };
+
+            // Reject on timeout
+            // setTimeout(() => {
+            //     //
+            // }, 30000);
+        });
+
+        availableTunnel.sock.send(serializedHttpRequest);
+
+        const responseData = await responsePromise;
+
+        const response = deserializeResponse(responseData);
+
+        return response;
+
+        
+
+        // Wait for return message from tunnel socket
+        // HERE
+
+        //return new Response();
     }
 
     private async handleWebSocketOpen(ws: ServerWebSocket<SocketMetadata>): Promise<void> {
@@ -183,75 +260,152 @@ export class RemoteTestRunner {
         // }
 
         try {
-            if (raw_message instanceof Buffer) {
-                throw new Error("Expected JSON string message")
-            }
-
-            const msg = JSON.parse(raw_message as string) as ControlMessage;
-
-            if (msg.type === 'request_start_run') {
-                const testCaseDefinition = msg.payload.testCase;
-                // TODO: start run
-                const runId = createId();
-
-                const agent = new TestCaseAgent({
-                    // On each agent event, convert to websocket traffic over the control socket
-                    listeners: [{
-                        onStart(runMetadata: Record<string, any>) {
-                            // TODO: Will want to inject own runMetadata (local agent provides none)
-                            ws.send(JSON.stringify({ type: 'event:start', payload: { runMetadata: {} } } satisfies StartEventMessage));
-                        },
-                        onActionTaken(action: ActionDescriptor) {
-                            ws.send(JSON.stringify({ type: 'event:action_taken', payload: { action } } satisfies ActionTakenEventMessage));
-                        },
-                        onStepCompleted() {
-                            ws.send(JSON.stringify({ type: 'event:step_completed', payload: {} } satisfies StepCompletedEventMessage));
-                        },
-                        onCheckCompleted() {
-                            ws.send(JSON.stringify({ type: 'event:check_completed', payload: {} } satisfies CheckCompletedEventMessage));
-                        },
-                        onDone(result: TestCaseResult) {
-                            ws.send(JSON.stringify({ type: 'event:done', payload: { result } } satisfies DoneEventMessage));
-                            // We expect client to gracefully close on its own after it receives this event.
-                            // TODO: Impl some timer in case client does not close these
-                        }
-                        // onFail(failure: FailureDescriptor) {
-                        //     ws.send(JSON.stringify({ type: 'event:fail', payload: { failure } } satisfies FailureEventMessage));
-                        // }
-                    }]
-                });
-
-                // Can ignore the returned promise and just use onDone event
-                agent.run(this.browser!, testCaseDefinition);
-                //const runPromise = agent.run(this.browser!, testCaseDefinition);
-
-                const response: ConfirmStartRunMessage = {
-                    type: 'confirm_start_run',
-                    payload: {
-                        runId: runId
-                    }
-                };
-                ws.send(JSON.stringify(response));
-                const conn: Connection = {
-                    controlSocket: ws,
-                    logger: logger.child({ runId }),
-                    agent: agent,
-                    //agentRunPromise: runPromise
+            if (ws.data.isActiveTunnelSocket) {
+                // Active (handshaked) tunnel socket
+                // This should be a serialized response to a tunneled HTTP request
+                if (!(raw_message instanceof Buffer)) {
+                    throw new Error("Expected serialized HTTP message")
                 }
-                this.connections[runId] = conn;
-                ws.data.runId = runId;
-                conn.logger.info('Confirmed run');
-                //logger.info({ runId }, `Confirmed run ${runId}`)
+                const runId = ws.data.runId!;
+                const tunnelId = ws.data.tunnelId!;
+
+                // Make data available for request handler to return
+                // HERE
+                const conn = this.connections[runId].tunnelSockets[tunnelId];
+                // todo: check missing
+                
+                if (conn.pendingRequest) {
+                    conn.pendingRequest.resolve(raw_message);
+                    conn.pendingRequest = null;
+                    conn.available = true;
+                }
+
+            } else {
+                // On control socket or a new socket (e.g. tunnel socket pre-handshake)
+
+                if (raw_message instanceof Buffer) {
+                    throw new Error("Expected JSON string message")
+                }
+
+                const msg = JSON.parse(raw_message as string) as ClientMessage;
+
+                if (msg.type === 'request_start_run') {
+                    const testCaseDefinition = msg.payload.testCase;
+                    // TODO: start run
+                    const runId = createId();
+
+                    const agent = new TestCaseAgent({
+                        // On each agent event, convert to websocket traffic over the control socket
+                        listeners: [{
+                            onStart(runMetadata: Record<string, any>) {
+                                // TODO: Will want to inject own runMetadata (local agent provides none)
+                                ws.send(JSON.stringify({ type: 'event:start', payload: { runMetadata: {} } } satisfies StartEventMessage));
+                            },
+                            onActionTaken(action: ActionDescriptor) {
+                                ws.send(JSON.stringify({ type: 'event:action_taken', payload: { action } } satisfies ActionTakenEventMessage));
+                            },
+                            onStepCompleted() {
+                                ws.send(JSON.stringify({ type: 'event:step_completed', payload: {} } satisfies StepCompletedEventMessage));
+                            },
+                            onCheckCompleted() {
+                                ws.send(JSON.stringify({ type: 'event:check_completed', payload: {} } satisfies CheckCompletedEventMessage));
+                            },
+                            onDone(result: TestCaseResult) {
+                                ws.send(JSON.stringify({ type: 'event:done', payload: { result } } satisfies DoneEventMessage));
+                                // We expect client to gracefully close on its own after it receives this event.
+                                // TODO: Impl some timer in case client does not close these
+                            }
+                            // onFail(failure: FailureDescriptor) {
+                            //     ws.send(JSON.stringify({ type: 'event:fail', payload: { failure } } satisfies FailureEventMessage));
+                            // }
+                        }]
+                    });
+
+                    // Can ignore the returned promise and just use onDone event
+                    agent.run(this.browser!, testCaseDefinition);
+                    //const runPromise = agent.run(this.browser!, testCaseDefinition);
+
+                    const response: ConfirmStartRunMessage = {
+                        type: 'confirm_start_run',
+                        payload: {
+                            runId: runId,
+                            approvedTunnelSockets: this.config.socketsPerTunnel
+                        }
+                    };
+                    ws.send(JSON.stringify(response));
+                    const conn: Connection = {
+                        controlSocket: ws,
+                        logger: logger.child({ runId }),
+                        agent: agent,
+                        tunnelSockets: {},
+                        //pendingRequests: {}
+                        //agentRunPromise: runPromise
+                    }
+                    this.connections[runId] = conn;
+                    ws.data.runId = runId;
+                    conn.logger.info('Confirmed run');
+                    //logger.info({ runId }, `Confirmed run ${runId}`)
+                }
+                else if (msg.type === 'init:tunnel') {
+                    // Get corresponding connection
+                    // if (!this.connections)
+                    // msg.payload.runId
+                    const runId = msg.payload.runId;
+                    const conn = this.connections[runId];
+
+                    if (!conn) {
+                        // Trying to create sockets associated with non-existent run
+                        // Something weird happened, e.g. load balancer issue (not-sticky with multiple instances)
+                        // Or some other issue
+                        this.sendErrorMessage(ws, `Run with ID ${msg.payload.runId} is not active on this remote runner`);
+                    }
+
+                    //const
+                    const numActiveTunnels = Object.keys(conn.tunnelSockets).length;
+                    if (numActiveTunnels >= this.config.socketsPerTunnel) {
+                        //
+                        this.sendErrorMessage(ws, `Too many sockets: ${numActiveTunnels + 1}/${this.config.socketsPerTunnel} allowed tunnel sockets for run ID ${msg.payload.runId}`);
+                    }
+
+                    conn.logger.info("Tunnel socket established")
+                    
+                    // Assign socket metadata
+                    const tunnelId = createId();
+                    ws.data.runId = runId;
+                    ws.data.isActiveTunnelSocket = true;
+                    ws.data.tunnelId = tunnelId;
+                    // Add socket to connection's list of tunnel sockets
+                    conn.tunnelSockets[tunnelId] = {
+                        sock: ws,
+                        available: true,
+                        pendingRequest: null
+                    };
+                }
+                else {
+                    logger.warn(`Unhandled message type ${(msg as any).type}, ignoring`);
+                }
             }
 
         } catch (error) {
-            logger.error(`WebSocket message error: ${error}`);
+            logger.error(`Error while handling client websocket message: ${error}`);
         
             // Send error back to client
-            ws.send(JSON.stringify({
-                type: "error",
-                error: (error as Error).message
-            }));
+            this.sendErrorMessage(ws, `Unexpected error: ${(error as Error).message}`);
         }
+    }
+
+    private sendErrorMessage(ws: ServerWebSocket<SocketMetadata>, message: string) {
+        if (ws.data.runId) {
+            logger.error({ runId: ws.data.runId }, `${message}`);
+        } else {
+            logger.error(`${message}`);
+        }
+        
+        ws.send(JSON.stringify({
+            type: "error",
+            payload: {
+                message: message
+            }
+        } satisfies ErrorMessage));
     }
 }
