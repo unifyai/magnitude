@@ -11,7 +11,7 @@ import { TestGlobalConfig } from '@/discovery/types';
 //import chalk from 'chalk';
 import { magnitudeBlue, brightMagnitudeBlue } from '@/renderer/colors';
 import { discoverTestFiles, findConfig, findProjectRoot, readConfig } from '@/discovery/util';
-import { BaseTestRunner } from './baseRunner';
+import { BaseTestRunner, TestRunnerConfig } from './baseRunner';
 import { RemoteTestRunner } from './remoteRunner';
 import { RemoteTestCaseAgent } from 'magnitude-remote';
 
@@ -19,6 +19,7 @@ interface CliOptions {
     workers?: number;
     //local: boolean;
     remote: 'auto' | 'true' | 'false';
+    plain: boolean;
 }
 
 
@@ -194,6 +195,7 @@ program
     .argument('[...filters]', 'glob patterns for test files')
     .option('-w, --workers <number>', 'number of parallel workers for test execution', '1')
     .option('-r, --remote <auto|true|false>', 'whether to run tests remotely or locally (remote requires Magnitude API key, local requires additional setup)', 'auto')
+    .option('-p, --plain', 'disable pretty output and use logs')
     //.option('-l', '--local', 'run agent locally (requires Playwright and LLM provider configuration)')
     .action(async (filters, options: CliOptions) => {
         // tmp
@@ -272,12 +274,17 @@ program
         // }
         let runner: BaseTestRunner;
 
+        const runnerConfig: TestRunnerConfig = {
+            workerCount: workerCount,
+            prettyDisplay: !options.plain
+        };
+
         if (useRemote) {
             console.log("using remote runner")
-            runner = new RemoteTestRunner(workerCount);
+            runner = new RemoteTestRunner(runnerConfig);
         } else {
             console.log("using local runner")
-            runner = new LocalTestRunner(workerCount);
+            runner = new LocalTestRunner(runnerConfig);
         }
 
         // Create test runner with worker count

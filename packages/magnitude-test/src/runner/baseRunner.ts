@@ -11,20 +11,32 @@ import { TestAgentListener, TestCaseAgent, TestCaseDefinition, TestCaseResult, T
 import { Browser, chromium } from 'playwright';
 import path from 'path';
 
+export interface TestRunnerConfig {
+    workerCount: number;
+    prettyDisplay: boolean;
+}
+
+const DEFAULT_CONFIG = {
+    workerCount: 1,
+    prettyDisplay: true
+};
+
 export abstract class BaseTestRunner {
+    protected config: TestRunnerConfig;
     protected registry: TestRegistry;
     protected compiler: TestCompiler;
     protected viewer: TestSuiteViewer;
     // Store test cases with their render IDs
     protected testCasesWithRenderIds: CategorizedTestCasesWithRenderIds = {};
     // Worker count for parallel execution
-    protected workerCount: number = 1;
+    //protected workerCount: number = 1;
 
-    constructor(workerCount: number = 1) {
+    constructor(config: Partial<TestRunnerConfig>) {
+        this.config = { ...DEFAULT_CONFIG, ...config };
         this.registry = TestRegistry.getInstance();
         this.compiler = new TestCompiler();
         this.viewer = new TestSuiteViewer();
-        this.workerCount = Math.max(1, workerCount); // Ensure at least 1 worker
+        //this.workerCount = Math.max(1, workerCount); // Ensure at least 1 worker
     }
 
     // // Method to set worker count
@@ -217,7 +229,7 @@ export abstract class BaseTestRunner {
         this.viewer.initializeTestStatesWithRenderIds(testStateData);
         
         // Start the render loop
-        this.viewer.startRendering();
+        if (this.config.prettyDisplay) this.viewer.startRendering();
         
         let allTestsPassed = true;
         
@@ -233,7 +245,7 @@ export abstract class BaseTestRunner {
         // Continue running tests until all tests are complete or one fails
         while (pendingTests.length > 0 || activeTestPromises.size > 0) {
             // Fill the worker pool up to the maximum worker count
-            while (pendingTests.length > 0 && activeTestPromises.size < this.workerCount) {
+            while (pendingTests.length > 0 && activeTestPromises.size < this.config.workerCount) {
                 // Get the next test from the queue
                 const nextTest = pendingTests.shift()!;
                 const { renderId, testCase } = nextTest;
@@ -311,7 +323,7 @@ export abstract class BaseTestRunner {
         
         //console.log("stopping rendering")
         // Stop the render loop and show final results
-        this.viewer.stopRendering();
+        if (this.config.prettyDisplay) this.viewer.stopRendering();
 
         //await browser.close();
 
