@@ -1,11 +1,12 @@
 import { Server, ServerWebSocket } from 'bun';
-import { AcceptTunnelMessage, ActionTakenEventMessage, CheckCompletedEventMessage, ClientMessage, ConfirmStartRunMessage, DoneEventMessage, ErrorMessage, StartEventMessage, StepCompletedEventMessage } from './messages';
+import { AcceptTunnelMessage, ActionTakenEventMessage, CheckCompletedEventMessage, ClientMessage, ConfirmStartRunMessage, DoneEventMessage, ErrorMessage, StartEventMessage, StepCompletedEventMessage, TunneledRequestMessage, TunneledResponseMessage } from './messages';
 import * as cuid2 from '@paralleldrive/cuid2';
 import logger from './logger';
 import { Logger } from 'pino';
 import { ActionDescriptor, FailureDescriptor, TestCaseAgent, TestCaseResult } from 'magnitude-core';
 import { Browser, chromium } from 'playwright';
-import { deserializeResponse, serializeRequest } from './serde';
+//import { deserializeResponse, serializeRequest } from './serde';
+//import { pipeline } from 'stream';
 
 const createId = cuid2.init({
     length: 12
@@ -53,7 +54,7 @@ interface TunnelSocketState {
     available: boolean;
     // prob can git rid of available and just check for pending req
     pendingRequest: null | {
-        resolve: (responseData: Buffer) => void,
+        resolve: (responseData: TunneledResponseMessage) => void,
         reject: (error: Error) => void
     };
 }
@@ -188,15 +189,26 @@ export class RemoteTestRunner {
         // The incoming request will have host as a3089gcyxqqx.localhost:4444
         // This is fine - the client will fetch to the appropriate local URL which will override host/URL of this payload
         console.log("Serializing request")
-        const modifiedRequest = req.clone();
+        //const modifiedRequest = req.clone();
+
+        const tunneledRequest: TunneledRequestMessage = {
+            //id: requestId,
+            type: 'tunnel:http_request',
+            payload: {
+                method: req.method,
+                path: url.pathname + url.search,
+                headers: Object.fromEntries(req.headers.entries()),//this.headersToObject(req.headers),
+                body: req.body ? await req.text() : null
+            }
+        };
 
         // We need to change url and host properties
         //modifiedRequest.url = 
 
-        const serializedHttpRequest = await serializeRequest(req);
-        console.log("Done serializing request");
+        //const serializedHttpRequest = await serializeRequest(req);
+        //console.log("Done serializing request");
 
-        console.log(serializedHttpRequest);
+        //console.log(serializedHttpRequest);
 
         let availableTunnel: TunnelSocketState | null = null;
         let availableTunnelId: string | null = null;
@@ -219,7 +231,7 @@ export class RemoteTestRunner {
         }
 
         //const requestId = createId();
-        const responsePromise = new Promise<Buffer>((resolve, reject) => {
+        const responsePromise = new Promise<TunneledResponseMessage>((resolve, reject) => {
             conn.tunnelSockets[availableTunnelId].pendingRequest = { resolve, reject };
             //conn.pendingRequests[requestId] = { resolve, reject, tunnel: availableTunnel };
 
@@ -229,13 +241,18 @@ export class RemoteTestRunner {
             // }, 30000);
         });
 
-        availableTunnel.sock.send(serializedHttpRequest);
+        availableTunnel.sock.send(JSON.stringify(tunneledRequest));
 
-        const responseData = await responsePromise;
+        const tunneledResponse = await responsePromise;
 
-        const response = deserializeResponse(responseData);
+        //const response = deserializeResponse(responseData);
 
-        return response;
+        return new Response(
+            tunneledResponse.payload.body, {
+                status: tunneledResponse.payload.status,
+                headers: tunneledResponse.payload.headers
+            }
+        );
 
         
 
@@ -275,9 +292,12 @@ export class RemoteTestRunner {
             if (ws.data.isActiveTunnelSocket) {
                 // Active (handshaked) tunnel socket
                 // This should be a serialized response to a tunneled HTTP request
-                if (!(raw_message instanceof Buffer)) {
-                    throw new Error("Expected serialized HTTP message")
+                if (raw_message instanceof Buffer) {
+                    throw new Error("Expected JSON string message")
                 }
+                // if (!(raw_message instanceof Buffer)) {
+                //     throw new Error("Expected serialized HTTP message")
+                // }
                 const runId = ws.data.runId!;
                 const tunnelId = ws.data.tunnelId!;
 
@@ -285,9 +305,11 @@ export class RemoteTestRunner {
                 // HERE
                 const conn = this.connections[runId].tunnelSockets[tunnelId];
                 // todo: check missing
+
+                const responseData = JSON.parse(raw_message as string) as TunneledResponseMessage;
                 
                 if (conn.pendingRequest) {
-                    conn.pendingRequest.resolve(raw_message);
+                    conn.pendingRequest.resolve(responseData);
                     conn.pendingRequest = null;
                     conn.available = true;
                 }

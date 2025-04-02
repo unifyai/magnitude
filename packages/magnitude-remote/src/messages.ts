@@ -7,8 +7,8 @@ import { ActionDescriptor, FailureDescriptor, TestCaseDefinition, TestCaseResult
 // }
 
 
-export type ClientMessage = RequestStartRunMessage | InitTunnelMessage;
-export type ServerMessage = ConfirmStartRunMessage | AcceptTunnelMessage | AgentEventMessage | ErrorMessage;
+export type ClientMessage = RequestStartRunMessage | InitTunnelMessage | TunneledResponseMessage;
+export type ServerMessage = ConfirmStartRunMessage | AcceptTunnelMessage | AgentEventMessage | ErrorMessage | TunneledRequestMessage;
 
 //export type ControlMessage = RequestStartRunMessage | ConfirmStartRunMessage | ErrorMessage | InitTunnelMessage | AcceptTunnelMessage | AgentEventMessage;
 export type AgentEventMessage = StartEventMessage | ActionTakenEventMessage | StepCompletedEventMessage | CheckCompletedEventMessage | DoneEventMessage;
@@ -103,5 +103,26 @@ export interface DoneEventMessage {
     }
 }
 
+
+export interface TunneledRequestMessage {
+    type: 'tunnel:http_request',
+    payload: {
+        //id: string;
+        method: string;
+        path: string;
+        headers: Record<string, string>;
+        body: string | null;
+    }
+}
+
+export interface TunneledResponseMessage {
+    type: 'tunnel:http_response',
+    payload: {
+        //id: string;
+        status: number;
+        headers: Record<string, string>;
+        body: string;
+    }
+}
 
 // export function createEventForwardingListener(ws: )

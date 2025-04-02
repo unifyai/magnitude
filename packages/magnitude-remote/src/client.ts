@@ -1,7 +1,7 @@
 import logger from './logger';
-import { InitTunnelMessage, RequestStartRunMessage, ServerMessage } from './messages';
+import { InitTunnelMessage, RequestStartRunMessage, ServerMessage, TunneledRequestMessage, TunneledResponseMessage } from './messages';
 import { TestAgentListener, TestCaseDefinition, TestCaseResult } from 'magnitude-core';
-import { deserializeRequest, serializeResponse } from './serde';
+//import { deserializeRequest, serializeResponse } from './serde';
 
 interface RemoteTestCaseAgentConfig {
     serverUrl: string;
@@ -157,15 +157,36 @@ export class RemoteTestCaseAgent {
                 } else {
                     try  {
                         // Tunnel is active - this is HTTP traffic to be forwarded
-                        if (!(event.data instanceof Buffer)) {
-                            throw new Error("Expected serialized HTTP request data");
-                        }
+                        // if (!(event.data instanceof Buffer)) {
+                        //     throw new Error("Expected serialized HTTP request data");
+                        // }
+                        const msg = JSON.parse(event.data) as TunneledRequestMessage;
+                        const req = msg.payload;
 
-                        const request = await deserializeRequest(event.data);
-                        const localResponse = await fetch(this.config.tunnelUrl!, request);
-                        const responseData = await serializeResponse(localResponse);
+                        console.log("Forwarding request traffic:", msg);
 
-                        sock.send(responseData);
+                        //const request = await deserializeRequest(event.data);
+                        const localResponse = await fetch(`${this.config.tunnelUrl!}${req.path}`, {
+                            method: req.method,
+                            headers: req.headers,
+                            body: req.body
+                        });
+                        //const responseData = await serializeResponse(localResponse);
+
+                        //console.log
+                        const responseMessage: TunneledResponseMessage = {
+                            type: 'tunnel:http_response',
+                            payload: {
+                                status: localResponse.status,
+                                headers: Object.fromEntries(localResponse.headers.entries()),
+                                // TODO: need to handle buffer data (and streaming)
+                                body: await localResponse.text()
+                            }
+                        };
+
+                        console.log("Returning response traffic:", responseMessage);
+
+                        sock.send(JSON.stringify(responseMessage));
                     } catch (error) {
                         logger.error(`Error handling data message from server on tunnel socket: ${error}`);
                     }
