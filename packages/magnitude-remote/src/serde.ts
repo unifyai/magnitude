@@ -72,6 +72,12 @@ async function serializeHttpMessage(
                 if (!headers.has('Content-Length') && !headers.has('Transfer-Encoding')) {
                     headersText += `Content-Length: ${bodyBytes.length}\r\n`;
                 }
+
+                // Ensure Content-Type is set if not already present
+                if (!headers.has('Content-Type')) {
+                    // Default to application/octet-stream for binary data
+                    headersText += `Content-Type: application/octet-stream\r\n`;
+                }
             }
         } catch (e) {
             // No body or error reading body

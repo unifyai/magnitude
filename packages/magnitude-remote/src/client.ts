@@ -134,6 +134,8 @@ export class RemoteTestCaseAgent {
             });
 
             sock.addEventListener('message', async (event) => {
+                console.log(`Tunnel index: ${i}`);
+                //console.log(this.tunnelSockets);
                 if (this.tunnelSockets[i].status === 'inactive') {
                     // Expect handshake confirmation
                     try {
@@ -143,6 +145,7 @@ export class RemoteTestCaseAgent {
                             logger.error(`Error message from server on tunnel socket: ${msg.payload.message}`);
                             sock.close(1011);
                         } else if (msg.type === 'accept:tunnel') {
+                            console.log(`Accept message received, Setting tunnel ${i} to active`)
                             this.tunnelSockets[i].status = 'active';
                         } else {
                             logger.warn(`Unexpected message type received to inactive tunnel socket: ${msg.type}`)
@@ -159,7 +162,7 @@ export class RemoteTestCaseAgent {
                         }
 
                         const request = await deserializeRequest(event.data);
-                        const localResponse = await fetch(request);
+                        const localResponse = await fetch(this.config.tunnelUrl!, request);
                         const responseData = await serializeResponse(localResponse);
 
                         sock.send(responseData);

@@ -30,22 +30,42 @@ program
         });
 
         const exampleTestCase = {
-            url: "https://qa-bench.com",
+            url: "http://localhost:3000",
             steps: [
                 {
-                    description: "Log in",
-                    checks: ["Can see dashboard"],
-                    testData: {
-                        data: [
-                            { key: "username", value: "test-user@magnitude.run", sensitive: false },
-                            { key: "password", value: "test", sensitive: true },
-                        ] 
-                    }
+                    description: "Click get started",
+                    checks: [],
+                    testData: {}
+                    // checks: ["Can see dashboard"],
+                    // testData: {
+                    //     data: [
+                    //         { key: "username", value: "test-user@magnitude.run", sensitive: false },
+                    //         { key: "password", value: "test", sensitive: true },
+                    //     ] 
+                    // }
                 },
                 // // BOTH parts of this one will fail: it doesnt yet know what company form looks like
                 // { description: "Create an example company", checks: ["Example company exists"], testData: {} } // THIS will fail without check adaptation
             ]
         };
+
+        // const exampleTestCase = {
+        //     url: "https://qa-bench.com",
+        //     steps: [
+        //         {
+        //             description: "Log in",
+        //             checks: ["Can see dashboard"],
+        //             testData: {
+        //                 data: [
+        //                     { key: "username", value: "test-user@magnitude.run", sensitive: false },
+        //                     { key: "password", value: "test", sensitive: true },
+        //                 ] 
+        //             }
+        //         },
+        //         // // BOTH parts of this one will fail: it doesnt yet know what company form looks like
+        //         // { description: "Create an example company", checks: ["Example company exists"], testData: {} } // THIS will fail without check adaptation
+        //     ]
+        // };
 
         const result = await agent.run(exampleTestCase);
         //console.log("client done");

@@ -1,5 +1,5 @@
 import { Server, ServerWebSocket } from 'bun';
-import { ActionTakenEventMessage, CheckCompletedEventMessage, ClientMessage, ConfirmStartRunMessage, DoneEventMessage, ErrorMessage, StartEventMessage, StepCompletedEventMessage } from './messages';
+import { AcceptTunnelMessage, ActionTakenEventMessage, CheckCompletedEventMessage, ClientMessage, ConfirmStartRunMessage, DoneEventMessage, ErrorMessage, StartEventMessage, StepCompletedEventMessage } from './messages';
 import * as cuid2 from '@paralleldrive/cuid2';
 import logger from './logger';
 import { Logger } from 'pino';
@@ -175,6 +175,7 @@ export class RemoteTestRunner {
 
         // (2) HTTP traffic needs to be tunneled through a corresponding established socket
         // TODO
+        console.log("Tunneling traffic")
         const conn = this.connections[runId];
 
         if (!conn) {
@@ -184,7 +185,18 @@ export class RemoteTestRunner {
             });
         }
 
+        // The incoming request will have host as a3089gcyxqqx.localhost:4444
+        // This is fine - the client will fetch to the appropriate local URL which will override host/URL of this payload
+        console.log("Serializing request")
+        const modifiedRequest = req.clone();
+
+        // We need to change url and host properties
+        //modifiedRequest.url = 
+
         const serializedHttpRequest = await serializeRequest(req);
+        console.log("Done serializing request");
+
+        console.log(serializedHttpRequest);
 
         let availableTunnel: TunnelSocketState | null = null;
         let availableTunnelId: string | null = null;
@@ -322,7 +334,11 @@ export class RemoteTestRunner {
                     });
 
                     // Can ignore the returned promise and just use onDone event
-                    agent.run(this.browser!, testCaseDefinition);
+                    agent.run(this.browser!, {
+                        ...testCaseDefinition,
+                        // If tunnel requested, use tunnel URL for run ID
+                        url: msg.payload.needTunnel ? `http://${runId}.localhost:4444` : testCaseDefinition.url
+                    });
                     //const runPromise = agent.run(this.browser!, testCaseDefinition);
 
                     const response: ConfirmStartRunMessage = {
@@ -380,6 +396,12 @@ export class RemoteTestRunner {
                         available: true,
                         pendingRequest: null
                     };
+
+                    // Send accept response
+                    ws.send(JSON.stringify({
+                        type: 'accept:tunnel',
+                        payload: {}
+                    } satisfies AcceptTunnelMessage));
                 }
                 else {
                     logger.warn(`Unhandled message type ${(msg as any).type}, ignoring`);
