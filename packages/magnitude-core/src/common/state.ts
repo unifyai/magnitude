@@ -26,21 +26,25 @@ export interface TestCaseState {
     steps: TestStepState[]
     stepIndex: number
     checkIndex: number
-    failure: FailureDescriptor | null
+    result: TestCaseResult | null
+    //failure: FailureDescriptor | null
 }
 
 // Some utilities for state
 export function isTestCaseCompletedSuccessfully(state: TestCaseState): boolean {
-    return state.stepIndex === state.steps.length - 1 &&
-        state.checkIndex + 1 === state.steps[state.stepIndex].definition.checks.length;
+    return state.result !== null && state.result.passed;
+    // return !isTestCaseFailed(state) && state.stepIndex === state.steps.length - 1 &&
+    //     state.checkIndex + 1 === state.steps[state.stepIndex].definition.checks.length;
 }
 
 export function isTestCaseDone(state: TestCaseState): boolean {
-    return isTestCaseFailed(state) || isTestCaseCompletedSuccessfully(state);
+    return state.result !== null;
+    //return isTestCaseFailed(state) || isTestCaseCompletedSuccessfully(state);
 }
 
 export function isTestCaseFailed(state: TestCaseState): boolean {
-    return state.failure !== null;
+    return state.result !== null && !state.result.passed;
+    //return state.failure !== null;
 }
 
 
@@ -60,7 +64,8 @@ export class TestCaseStateTracker {
             })),
             stepIndex: 0,
             checkIndex: -1, // -1 means we are on the step itself
-            failure: null
+            result: null
+            //failure: null
         }
         this.stateSubscribers = [];
     }
@@ -127,10 +132,12 @@ export class TestCaseStateTracker {
     private _onDone(result: TestCaseResult) {
         // console.log("this:", this);
         // console.log("state:", this.state);
-        if (!result.passed) {
-            this.state.failure = result.failure;
-            this._notifyStateSubscribers();
-        }
+        // if (!result.passed) {
+        //     this.state.failure = result.failure;
+        //     this._notifyStateSubscribers();
+        // }
+        this.state.result = result;
+        this._notifyStateSubscribers();
     }
 
     // private _onFail(failure: FailureDescriptor) {
