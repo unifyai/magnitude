@@ -180,6 +180,7 @@ export class RemoteTestRunner {
         const conn = this.connections[runId];
 
         if (!conn) {
+            logger.warn(`Run ID not found ${runId}`);
             return new Response(`Run ID not found ${runId}`, { 
                 status: 404,
                 headers: { 'Content-Type': 'text/plain' }
@@ -230,6 +231,8 @@ export class RemoteTestRunner {
             });
         }
 
+        availableTunnel.available = false;
+
         //const requestId = createId();
         const responsePromise = new Promise<TunneledResponseMessage>((resolve, reject) => {
             conn.tunnelSockets[availableTunnelId].pendingRequest = { resolve, reject };
@@ -247,12 +250,17 @@ export class RemoteTestRunner {
 
         //const response = deserializeResponse(responseData);
 
-        return new Response(
+
+        const resp = new Response(
             tunneledResponse.payload.body, {
                 status: tunneledResponse.payload.status,
                 headers: tunneledResponse.payload.headers
             }
         );
+
+        console.log("Return resp to browser:", resp);
+
+        return resp;
 
         
 
