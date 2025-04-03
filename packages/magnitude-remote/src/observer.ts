@@ -16,24 +16,26 @@ export class ObserverConnection {
         /**
          * Connect socket to observer and authorize
          */
-        let authErrorHandler, authMessageHandler;
+        let authAbrubtCloseHandler, authErrorHandler, authMessageHandler;
 
         try {
+            // AHH yikes should NOT await this! then 
             return await new Promise<ApproveAuthorizationMessage>((resolve, reject) => {
                 try {
                     this.socket = new WebSocket(this.observerUrl);
 
-                    const closeHandler = (event: Event) => {
-                        logger.info(`Observer socket closed`);
+                    authAbrubtCloseHandler = (event: Event) => {
+                        // We do not expected socket to close here - indicates an error
+                        // Unfortunately event provides no helpful info here
+                        logger.error(`Observer socket closed unexpectedly`);
+                        reject(new Error(`Observer socket closed unexpectedly`));
                     }
-                    
 
                     authErrorHandler = (event: Event) => {
                         logger.error(`Error on observer socket: ${event}`);
                         reject(new Error(`Socket error during connection: ${event}`));
                     };
                     
-
                     authMessageHandler = (event: MessageEvent<any>) => {
                         const msg = JSON.parse(event.data) as ObserverMessage;
                         if (msg.kind === 'accept:authorize') {
@@ -55,7 +57,7 @@ export class ObserverConnection {
                         }));
                     };
                     
-                    this.socket.addEventListener('close', closeHandler);
+                    this.socket.addEventListener('close', authAbrubtCloseHandler);
                     this.socket.addEventListener('error', authErrorHandler);
                     this.socket.addEventListener('message', authMessageHandler);
                     this.socket.addEventListener('open', openHandler, { once: true });
@@ -63,8 +65,18 @@ export class ObserverConnection {
                     reject(error);
                 }
             });
+        } catch (error) {
+            // If there was an error, propagate up is fine but close socket too
+            if (this.socket) {
+                this.socket.close();
+                this.socket = null;
+            }
+            throw error;
         } finally {
             // Clean up authorization-specific listeners
+            if (this.socket && authAbrubtCloseHandler) {
+                this.socket.removeEventListener('close', authAbrubtCloseHandler);
+            }
             if (this.socket && authErrorHandler) {
                 this.socket.removeEventListener('error', authErrorHandler);
             }

@@ -342,10 +342,17 @@ export class RemoteTestRunner {
             const observerConnection = new ObserverConnection(this.config.observerUrl);
 
             try {
+                logger.info("Attempting authorization");
+                
+                // is hanging here - doesnt reject properly
                 const msg = await observerConnection.connect(apiKey);
                 //orgName = msg.payload.orgName;
                 runMetadata = { orgName: msg.payload.orgName };
+
+                logger.info(runMetadata, "Authorization succeeded");
             } catch (error) {
+                logger.warn(`Client failed authorization: ${error}`);
+
                 throw new Error(`Failed to authorize with observer: ${error}`);
             }
         }
