@@ -339,7 +339,7 @@ export class RemoteTestRunner {
                 throw new Error("Missing API key");
             }
 
-            const observerConnection = new ObserverConnection(this.config.observerUrl);
+            observerConnection = new ObserverConnection(this.config.observerUrl);
 
             try {
                 logger.info("Attempting authorization");

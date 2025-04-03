@@ -31,15 +31,16 @@ program
         //console.log("client starting")
         const agent = new RemoteTestCaseAgent({
             serverUrl: "http://localhost:4444",
-            tunnelUrl: "http://localhost:3000",
+            //tunnelUrl: "http://localhost:3000",
             listeners: [{
                 //onActionTaken(action) { console.log("Did action:", action) }
             }],
-            apiKey: 'foo'
+            apiKey: 'mag_VRXoq9tXkoWFcmorQBICERG2lME5ozbM'
         });
 
         const exampleTestCase = {
-            url: "http://localhost:3000",
+            url: 'http://magnitude.run',
+            //url: "http://localhost:3000",
             steps: [
                 {
                     description: "Click get started",
