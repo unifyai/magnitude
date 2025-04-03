@@ -3,19 +3,19 @@
 import { ActionDescriptor, FailureDescriptor, TestCaseDefinition, TestCaseResult } from "magnitude-core";
 
 // interface ControlMessage {
-//     type: MessageType
+//     kind: MessageType
 // }
 
 
 export type ClientMessage = RequestStartRunMessage | InitTunnelMessage | TunneledResponseMessage;
-export type ServerMessage = ConfirmStartRunMessage | AcceptTunnelMessage | AgentEventMessage | ErrorMessage | TunneledRequestMessage;
+export type ServerMessage = AcceptStartRunMessage | AcceptTunnelMessage | AgentEventMessage | ErrorMessage | TunneledRequestMessage;
 
 //export type ControlMessage = RequestStartRunMessage | ConfirmStartRunMessage | ErrorMessage | InitTunnelMessage | AcceptTunnelMessage | AgentEventMessage;
 export type AgentEventMessage = StartEventMessage | ActionTakenEventMessage | StepCompletedEventMessage | CheckCompletedEventMessage | DoneEventMessage;
 
 // Handshake messages
 export interface RequestStartRunMessage {
-    type: 'request_start_run',
+    kind: 'init:run',
     payload: {
         // TODO
         testCase: TestCaseDefinition,
@@ -24,9 +24,9 @@ export interface RequestStartRunMessage {
     }
 }
 
-export interface ConfirmStartRunMessage {
+export interface AcceptStartRunMessage {
     // Returned by server
-    type: 'confirm_start_run',
+    kind: 'accept:run',
     payload: {
         // TODO
         runId: string;
@@ -36,7 +36,7 @@ export interface ConfirmStartRunMessage {
 }
 
 export interface InitTunnelMessage {
-    type: 'init:tunnel',
+    kind: 'init:tunnel',
     payload: {
         runId: string;
         // todo: require run secret
@@ -44,13 +44,13 @@ export interface InitTunnelMessage {
 }
 
 export interface AcceptTunnelMessage {
-    type: 'accept:tunnel',
+    kind: 'accept:tunnel',
     payload: {}
 }
 
 // interface RejectStartRunMessage {
 //     // Returned by server
-//     type: 'reject_start_run',
+//     kind: 'reject_start_run',
 //     payload: {
 //         // TODO
 //         reason: string;
@@ -59,45 +59,45 @@ export interface AcceptTunnelMessage {
 
 export interface ErrorMessage {
     // Returned by server
-    type: 'error',
+    kind: 'error',
     payload: {
         message: string;
     }
 }
 
 export interface StartEventMessage {
-    type: 'event:start',
+    kind: 'event:start',
     payload: {
         runMetadata: Record<string, any>
     }
 }
 
 export interface ActionTakenEventMessage {
-    type: 'event:action_taken',
+    kind: 'event:action_taken',
     payload: {
         action: ActionDescriptor
     }
 }
 
 export interface StepCompletedEventMessage {
-    type: 'event:step_completed',
+    kind: 'event:step_completed',
     payload: {}
 }
 
 export interface CheckCompletedEventMessage {
-    type: 'event:check_completed',
+    kind: 'event:check_completed',
     payload: {}
 }
 
 // export interface FailureEventMessage {
-//     type: 'event:fail',
+//     kind: 'event:fail',
 //     payload: {
 //         failure: FailureDescriptor
 //     }
 // }
 
 export interface DoneEventMessage {
-    type: 'event:done',
+    kind: 'event:done',
     payload: {
         result: TestCaseResult
     }
@@ -105,7 +105,7 @@ export interface DoneEventMessage {
 
 
 export interface TunneledRequestMessage {
-    type: 'tunnel:http_request',
+    kind: 'tunnel:http_request',
     payload: {
         //id: string;
         method: string;
@@ -116,7 +116,7 @@ export interface TunneledRequestMessage {
 }
 
 export interface TunneledResponseMessage {
-    type: 'tunnel:http_response',
+    kind: 'tunnel:http_response',
     payload: {
         //id: string;
         status: number;

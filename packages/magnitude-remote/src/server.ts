@@ -1,5 +1,5 @@
 import { Server, ServerWebSocket } from 'bun';
-import { AcceptTunnelMessage, ActionTakenEventMessage, CheckCompletedEventMessage, ClientMessage, ConfirmStartRunMessage, DoneEventMessage, ErrorMessage, StartEventMessage, StepCompletedEventMessage, TunneledRequestMessage, TunneledResponseMessage } from './messages';
+import { AcceptTunnelMessage, ActionTakenEventMessage, CheckCompletedEventMessage, ClientMessage, AcceptStartRunMessage, DoneEventMessage, ErrorMessage, StartEventMessage, StepCompletedEventMessage, TunneledRequestMessage, TunneledResponseMessage } from './messages';
 import * as cuid2 from '@paralleldrive/cuid2';
 import logger from './logger';
 import { Logger } from 'pino';
@@ -194,7 +194,7 @@ export class RemoteTestRunner {
 
         const tunneledRequest: TunneledRequestMessage = {
             //id: requestId,
-            type: 'tunnel:http_request',
+            kind: 'tunnel:http_request',
             payload: {
                 method: req.method,
                 path: url.pathname + url.search,
@@ -293,7 +293,7 @@ export class RemoteTestRunner {
 
     private async handleWebSocketMessage(ws: ServerWebSocket<SocketMetadata>, raw_message: string | Buffer): Promise<void> {
         // const msg = ws.data;
-        // if (msg.type === 'request_start_run') {
+        // if (msg.kind === 'request_start_run') {
         // }
 
         try {
@@ -331,7 +331,7 @@ export class RemoteTestRunner {
 
                 const msg = JSON.parse(raw_message as string) as ClientMessage;
 
-                if (msg.type === 'request_start_run') {
+                if (msg.kind === 'init:run') {
                     const testCaseDefinition = msg.payload.testCase;
                     // TODO: start run
                     const runId = createId();
@@ -341,24 +341,24 @@ export class RemoteTestRunner {
                         listeners: [{
                             onStart(runMetadata: Record<string, any>) {
                                 // TODO: Will want to inject own runMetadata (local agent provides none)
-                                ws.send(JSON.stringify({ type: 'event:start', payload: { runMetadata: {} } } satisfies StartEventMessage));
+                                ws.send(JSON.stringify({ kind: 'event:start', payload: { runMetadata: {} } } satisfies StartEventMessage));
                             },
                             onActionTaken(action: ActionDescriptor) {
-                                ws.send(JSON.stringify({ type: 'event:action_taken', payload: { action } } satisfies ActionTakenEventMessage));
+                                ws.send(JSON.stringify({ kind: 'event:action_taken', payload: { action } } satisfies ActionTakenEventMessage));
                             },
                             onStepCompleted() {
-                                ws.send(JSON.stringify({ type: 'event:step_completed', payload: {} } satisfies StepCompletedEventMessage));
+                                ws.send(JSON.stringify({ kind: 'event:step_completed', payload: {} } satisfies StepCompletedEventMessage));
                             },
                             onCheckCompleted() {
-                                ws.send(JSON.stringify({ type: 'event:check_completed', payload: {} } satisfies CheckCompletedEventMessage));
+                                ws.send(JSON.stringify({ kind: 'event:check_completed', payload: {} } satisfies CheckCompletedEventMessage));
                             },
                             onDone(result: TestCaseResult) {
-                                ws.send(JSON.stringify({ type: 'event:done', payload: { result } } satisfies DoneEventMessage));
+                                ws.send(JSON.stringify({ kind: 'event:done', payload: { result } } satisfies DoneEventMessage));
                                 // We expect client to gracefully close on its own after it receives this event.
                                 // TODO: Impl some timer in case client does not close these
                             }
                             // onFail(failure: FailureDescriptor) {
-                            //     ws.send(JSON.stringify({ type: 'event:fail', payload: { failure } } satisfies FailureEventMessage));
+                            //     ws.send(JSON.stringify({ kind: 'event:fail', payload: { failure } } satisfies FailureEventMessage));
                             // }
                         }]
                     });
@@ -371,8 +371,8 @@ export class RemoteTestRunner {
                     });
                     //const runPromise = agent.run(this.browser!, testCaseDefinition);
 
-                    const response: ConfirmStartRunMessage = {
-                        type: 'confirm_start_run',
+                    const response: AcceptStartRunMessage = {
+                        kind: 'accept:run',
                         payload: {
                             runId: runId,
                             approvedTunnelSockets: this.config.socketsPerTunnel
@@ -392,7 +392,7 @@ export class RemoteTestRunner {
                     conn.logger.info('Confirmed run');
                     //logger.info({ runId }, `Confirmed run ${runId}`)
                 }
-                else if (msg.type === 'init:tunnel') {
+                else if (msg.kind === 'init:tunnel') {
                     // Get corresponding connection
                     // if (!this.connections)
                     // msg.payload.runId
@@ -429,7 +429,7 @@ export class RemoteTestRunner {
 
                     // Send accept response
                     ws.send(JSON.stringify({
-                        type: 'accept:tunnel',
+                        kind: 'accept:tunnel',
                         payload: {}
                     } satisfies AcceptTunnelMessage));
                 }
@@ -454,7 +454,7 @@ export class RemoteTestRunner {
         }
         
         ws.send(JSON.stringify({
-            type: "error",
+            kind: "error",
             payload: {
                 message: message
             }

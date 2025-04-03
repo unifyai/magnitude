@@ -39,7 +39,7 @@ export class RemoteTestCaseAgent {
 
             this.controlSocket.addEventListener('open', () => {
                 const message: RequestStartRunMessage = {
-                    type: 'request_start_run',
+                    kind: 'init:run',
                     payload: {
                         testCase: testCase,
                         // If tunnel URL provided, request to establish tunnel sockets with server
@@ -54,13 +54,13 @@ export class RemoteTestCaseAgent {
                     const msg = JSON.parse(event.data) as ServerMessage;
                     //console.log("Control socket Received message:", msg);
 
-                    if (msg.type === 'confirm_start_run') {
+                    if (msg.kind === 'accept:run') {
                         // Successful handshake response
                         this.runId = msg.payload.runId;
                         const numTunnelSockets = msg.payload.approvedTunnelSockets;
                         this.establishTunnelSockets(numTunnelSockets);
                     }
-                    else if (msg.type === 'error') {
+                    else if (msg.kind === 'error') {
                         // Some unexpected error occurred on the server's side
                         logger.error(`Error message from server: ${msg.payload.message}`);
                         // probably close sockets
@@ -68,23 +68,23 @@ export class RemoteTestCaseAgent {
                         reject(new Error(`Error message from server: ${msg.payload.message}`));
                     }
                     // Translate socket message to listener callbacks
-                    else if (msg.type === 'event:start') {
+                    else if (msg.kind === 'event:start') {
                         for (const listener of this.config.listeners)
                             if (listener.onStart) listener.onStart(msg.payload.runMetadata);
                     }
-                    else if (msg.type === 'event:action_taken') {
+                    else if (msg.kind === 'event:action_taken') {
                         for (const listener of this.config.listeners)
                             if (listener.onActionTaken) listener.onActionTaken(msg.payload.action);
                     }
-                    else if (msg.type === 'event:step_completed') {
+                    else if (msg.kind === 'event:step_completed') {
                         for (const listener of this.config.listeners)
                             if (listener.onStepCompleted) listener.onStepCompleted();
                     }
-                    else if (msg.type === 'event:check_completed') {
+                    else if (msg.kind === 'event:check_completed') {
                         for (const listener of this.config.listeners)
                             if (listener.onCheckCompleted) listener.onCheckCompleted();
                     }
-                    else if (msg.type === 'event:done') {
+                    else if (msg.kind === 'event:done') {
                         for (const listener of this.config.listeners)
                             if (listener.onDone) listener.onDone(msg.payload.result);
                         this.controlSocket!.close(1000);
@@ -121,7 +121,7 @@ export class RemoteTestCaseAgent {
             // Initiate Handshake
             sock.addEventListener('open', async (event) => {
                 sock.send(JSON.stringify({
-                    type: 'init:tunnel',
+                    kind: 'init:tunnel',
                     payload: {
                         runId: this.runId!
                     }
@@ -145,14 +145,14 @@ export class RemoteTestCaseAgent {
                     try {
                         const msg = JSON.parse(event.data) as ServerMessage;
 
-                        if (msg.type === 'error') {
+                        if (msg.kind === 'error') {
                             logger.error(`Error message from server on tunnel socket: ${msg.payload.message}`);
                             sock.close(1011);
-                        } else if (msg.type === 'accept:tunnel') {
+                        } else if (msg.kind === 'accept:tunnel') {
                             console.log(`Accept message received, Setting tunnel ${i} to active`)
                             this.tunnelSockets[i].status = 'active';
                         } else {
-                            logger.warn(`Unexpected message type received to inactive tunnel socket: ${msg.type}`)
+                            logger.warn(`Unexpected message type received to inactive tunnel socket: ${msg.kind}`)
                         }
                     } catch (error) {
                         logger.error(`Error parsing message from server on tunnel socket: ${error}`);
@@ -179,7 +179,7 @@ export class RemoteTestCaseAgent {
 
                         //console.log
                         const responseMessage: TunneledResponseMessage = {
-                            type: 'tunnel:http_response',
+                            kind: 'tunnel:http_response',
                             payload: {
                                 status: localResponse.status,
                                 headers: Object.fromEntries(localResponse.headers.entries()),
