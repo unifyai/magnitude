@@ -88,6 +88,10 @@ export class RemoteTestCaseAgent {
                         for (const listener of this.config.listeners)
                             if (listener.onDone) listener.onDone(msg.payload.result);
                         this.controlSocket!.close(1000);
+                        // close tunnel sockets
+                        for (const tunnel of this.tunnelSockets) {
+                            tunnel.sock.close();
+                        }
                         resolve(msg.payload.result);
                     }
                 } catch (error) {
