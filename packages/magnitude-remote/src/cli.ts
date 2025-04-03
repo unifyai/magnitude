@@ -12,8 +12,16 @@ program
 
 program
     .command('server')
-    .action(async (options: { }) => {
-        const server = new RemoteTestRunner();
+    .option('-p, --port <port>', 'port to run on', '4444')
+    .option('-o, --observer <url>', 'URL of authorizer/observer')
+    .option('-s, --sockets-per-tunnel <num>', '6')
+    .action(async (options: { port: number, observer: string, socketsPerTunnel: number }) => {
+        const observerUrl = options.observer;
+        const server = new RemoteTestRunner({
+            port: options.port,
+            observerUrl: options.observer,
+            socketsPerTunnel: options.socketsPerTunnel
+        });
         await server.start();
     });
 
@@ -26,7 +34,8 @@ program
             tunnelUrl: "http://localhost:3000",
             listeners: [{
                 //onActionTaken(action) { console.log("Did action:", action) }
-            }]
+            }],
+            apiKey: 'foo'
         });
 
         const exampleTestCase = {

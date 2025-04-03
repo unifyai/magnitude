@@ -10,6 +10,9 @@ import { ActionDescriptor, FailureDescriptor, TestCaseDefinition, TestCaseResult
 export type ClientMessage = RequestStartRunMessage | InitTunnelMessage | TunneledResponseMessage;
 export type ServerMessage = AcceptStartRunMessage | AcceptTunnelMessage | AgentEventMessage | ErrorMessage | TunneledRequestMessage;
 
+export type InformantMessage = RequestAuthorizationMessage;
+export type ObserverMessage = ApproveAuthorizationMessage | ErrorMessage;
+
 //export type ControlMessage = RequestStartRunMessage | ConfirmStartRunMessage | ErrorMessage | InitTunnelMessage | AcceptTunnelMessage | AgentEventMessage;
 export type AgentEventMessage = StartEventMessage | ActionTakenEventMessage | StepCompletedEventMessage | CheckCompletedEventMessage | DoneEventMessage;
 
@@ -21,6 +24,8 @@ export interface RequestStartRunMessage {
         testCase: TestCaseDefinition,
         // True if requesting to open tunnel sockets
         needTunnel: boolean;
+        // Required if observer/authorizer is configured
+        apiKey: string | null;
     }
 }
 
@@ -126,3 +131,19 @@ export interface TunneledResponseMessage {
 }
 
 // export function createEventForwardingListener(ws: )
+
+export interface RequestAuthorizationMessage {
+    kind: 'init:authorize'
+    payload: {
+        testCaseId: string
+        apiKey: string
+    }
+}
+
+export interface ApproveAuthorizationMessage {
+    kind: 'accept:authorize'
+    payload: {
+        orgName: string
+        orgCredits: number
+    }
+}

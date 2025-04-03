@@ -8,12 +8,14 @@ interface RemoteTestCaseAgentConfig {
     listeners: TestAgentListener[];
     // a local or private URL that if specified, will become the target of web traffic tunneled from remote's browser
     tunnelUrl: string | null;
+    apiKey: string | null;
 }
 
 const DEFAULT_CONFIG = {
     serverUrl: "ws://localhost:4444",
     listeners: [],
-    tunnelUrl: null
+    tunnelUrl: null,
+    apiKey: null
 };
 
 interface TunnelSocket {
@@ -37,13 +39,14 @@ export class RemoteTestCaseAgent {
         return new Promise((resolve, reject) => {
             this.controlSocket = new WebSocket(this.config.serverUrl);
 
-            this.controlSocket.addEventListener('open', () => {
+            this.controlSocket.addEventListener('open', (event) => {
                 const message: RequestStartRunMessage = {
                     kind: 'init:run',
                     payload: {
                         testCase: testCase,
                         // If tunnel URL provided, request to establish tunnel sockets with server
-                        needTunnel: this.config.tunnelUrl !== null
+                        needTunnel: this.config.tunnelUrl !== null,
+                        apiKey: this.config.apiKey
                     }
                 };
                 this.controlSocket!.send(JSON.stringify(message));

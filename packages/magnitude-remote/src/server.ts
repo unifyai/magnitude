@@ -1,10 +1,11 @@
 import { Server, ServerWebSocket } from 'bun';
-import { AcceptTunnelMessage, ActionTakenEventMessage, CheckCompletedEventMessage, ClientMessage, AcceptStartRunMessage, DoneEventMessage, ErrorMessage, StartEventMessage, StepCompletedEventMessage, TunneledRequestMessage, TunneledResponseMessage } from './messages';
+import { AcceptTunnelMessage, ActionTakenEventMessage, CheckCompletedEventMessage, ClientMessage, AcceptStartRunMessage, DoneEventMessage, ErrorMessage, StartEventMessage, StepCompletedEventMessage, TunneledRequestMessage, TunneledResponseMessage, RequestStartRunMessage, InitTunnelMessage, RequestAuthorizationMessage, ObserverMessage, ApproveAuthorizationMessage } from './messages';
 import * as cuid2 from '@paralleldrive/cuid2';
 import logger from './logger';
 import { Logger } from 'pino';
-import { ActionDescriptor, FailureDescriptor, TestCaseAgent, TestCaseResult } from 'magnitude-core';
+import { ActionDescriptor, FailureDescriptor, TestAgentListener, TestCaseAgent, TestCaseResult } from 'magnitude-core';
 import { Browser, chromium } from 'playwright';
+import { ObserverConnection } from './observer';
 //import { deserializeResponse, serializeRequest } from './serde';
 //import { pipeline } from 'stream';
 
@@ -13,13 +14,15 @@ const createId = cuid2.init({
 });
 
 interface RemoteTestRunnerConfig {
-    port: number,
-    socketsPerTunnel: number
+    port: number;
+    observerUrl: string | null;
+    socketsPerTunnel: number;
 }
 
 const DEFAULT_CONFIG = {
     port: 4444,
-    socketsPerTunnel: 6
+    observerUrl: null,
+    socketsPerTunnel: 6,
 };
 
 // a connection for a test run, which may involve multiple websockets
@@ -291,6 +294,146 @@ export class RemoteTestRunner {
         }
     }
 
+    private buildSocketForwardingListener(ws: ServerWebSocket<SocketMetadata> | WebSocket): TestAgentListener {
+        // ServerWebSocket/WebSocket have same send API so this is chill
+        return {
+            onStart: (runMetadata: Record<string, any>) => {
+                // TODO: Will want to inject own runMetadata (local agent provides none)
+                ws.send(JSON.stringify({
+                    kind: 'event:start',
+                    payload: { runMetadata: runMetadata }
+                } satisfies StartEventMessage));
+            },
+            onActionTaken: (action: ActionDescriptor) => {
+                ws.send(JSON.stringify({ kind: 'event:action_taken', payload: { action } } satisfies ActionTakenEventMessage));
+            },
+            onStepCompleted: () => {
+                ws.send(JSON.stringify({ kind: 'event:step_completed', payload: {} } satisfies StepCompletedEventMessage));
+            },
+            onCheckCompleted: () => {
+                ws.send(JSON.stringify({ kind: 'event:check_completed', payload: {} } satisfies CheckCompletedEventMessage));
+            },
+            onDone: (result: TestCaseResult) => {
+                ws.send(JSON.stringify({ kind: 'event:done', payload: { result } } satisfies DoneEventMessage));
+                // We expect client to gracefully close on its own after it receives this event.
+                // TODO: Impl some timer in case client does not close these
+            }
+        }
+    }
+
+    private async initializeRun(ws: ServerWebSocket<SocketMetadata>, msg: RequestStartRunMessage) {
+        const testCaseDefinition = msg.payload.testCase;
+
+        // If observer is configured, first need to acquire authorization
+
+        //let orgName: string | null = null;
+
+        // todo: return this or something to be rendered by test runner idk
+        //let orgInfo: { orgName: string } | null = null;
+        let observerConnection: ObserverConnection | null = null;
+        let runMetadata: { orgName: string } | {} = {};
+        
+        if (this.config.observerUrl) {
+            const apiKey = msg.payload.apiKey;
+            if (!apiKey) {
+                throw new Error("Missing API key");
+            }
+
+            const observerConnection = new ObserverConnection(this.config.observerUrl);
+
+            try {
+                const msg = await observerConnection.connect(apiKey);
+                //orgName = msg.payload.orgName;
+                runMetadata = { orgName: msg.payload.orgName };
+            } catch (error) {
+                throw new Error(`Failed to authorize with observer: ${error}`);
+            }
+        }
+        
+        const runId = createId();
+
+        const agentListeners: TestAgentListener[] = [this.buildSocketForwardingListener(ws)];
+
+        // If observer, subscribe it to event messages
+        if (this.config.observerUrl) {
+            agentListeners.push(this.buildSocketForwardingListener(observerConnection!.getSocket()!));
+        }
+
+        const agent = new TestCaseAgent({
+            // On each agent event, convert to websocket traffic over the control socket
+            listeners: agentListeners
+        });
+
+        // Start agent
+        // Can ignore the returned promise and just use onDone event
+        agent.run(this.browser!, {
+            ...testCaseDefinition,
+            // If tunnel requested, use tunnel URL for run ID
+            url: msg.payload.needTunnel ? `http://${runId}.localhost:4444` : testCaseDefinition.url
+        });
+
+        // Inform client that run is accepted and that it may establish tunnel sockets
+        const response: AcceptStartRunMessage = {
+            kind: 'accept:run',
+            payload: {
+                runId: runId,
+                approvedTunnelSockets: this.config.socketsPerTunnel
+            }
+        };
+        ws.send(JSON.stringify(response));
+        const conn: Connection = {
+            controlSocket: ws,
+            logger: logger.child({ runId }),
+            agent: agent,
+            tunnelSockets: {}
+        }
+        this.connections[runId] = conn;
+        ws.data.runId = runId;
+        conn.logger.info('Confirmed run');
+    }
+
+    private async initializeTunnel(ws: ServerWebSocket<SocketMetadata>, msg: InitTunnelMessage) {
+        // Get corresponding connection
+        // if (!this.connections)
+        // msg.payload.runId
+        const runId = msg.payload.runId;
+        const conn = this.connections[runId];
+
+        if (!conn) {
+            // Trying to create sockets associated with non-existent run
+            // Something weird happened, e.g. load balancer issue (not-sticky with multiple instances)
+            // Or some other issue
+            this.sendErrorMessage(ws, `Run with ID ${msg.payload.runId} is not active on this remote runner`);
+        }
+
+        //const
+        const numActiveTunnels = Object.keys(conn.tunnelSockets).length;
+        if (numActiveTunnels >= this.config.socketsPerTunnel) {
+            //
+            this.sendErrorMessage(ws, `Too many sockets: ${numActiveTunnels + 1}/${this.config.socketsPerTunnel} allowed tunnel sockets for run ID ${msg.payload.runId}`);
+        }
+
+        conn.logger.info("Tunnel socket established")
+        
+        // Assign socket metadata
+        const tunnelId = createId();
+        ws.data.runId = runId;
+        ws.data.isActiveTunnelSocket = true;
+        ws.data.tunnelId = tunnelId;
+        // Add socket to connection's list of tunnel sockets
+        conn.tunnelSockets[tunnelId] = {
+            sock: ws,
+            available: true,
+            pendingRequest: null
+        };
+
+        // Send accept response
+        ws.send(JSON.stringify({
+            kind: 'accept:tunnel',
+            payload: {}
+        } satisfies AcceptTunnelMessage));
+    }
+
     private async handleWebSocketMessage(ws: ServerWebSocket<SocketMetadata>, raw_message: string | Buffer): Promise<void> {
         // const msg = ws.data;
         // if (msg.kind === 'request_start_run') {
@@ -326,112 +469,17 @@ export class RemoteTestRunner {
                 // On control socket or a new socket (e.g. tunnel socket pre-handshake)
 
                 if (raw_message instanceof Buffer) {
-                    throw new Error("Expected JSON string message")
+                    throw new Error("Expected JSON string message");
                 }
 
                 const msg = JSON.parse(raw_message as string) as ClientMessage;
 
                 if (msg.kind === 'init:run') {
-                    const testCaseDefinition = msg.payload.testCase;
-                    // TODO: start run
-                    const runId = createId();
-
-                    const agent = new TestCaseAgent({
-                        // On each agent event, convert to websocket traffic over the control socket
-                        listeners: [{
-                            onStart(runMetadata: Record<string, any>) {
-                                // TODO: Will want to inject own runMetadata (local agent provides none)
-                                ws.send(JSON.stringify({ kind: 'event:start', payload: { runMetadata: {} } } satisfies StartEventMessage));
-                            },
-                            onActionTaken(action: ActionDescriptor) {
-                                ws.send(JSON.stringify({ kind: 'event:action_taken', payload: { action } } satisfies ActionTakenEventMessage));
-                            },
-                            onStepCompleted() {
-                                ws.send(JSON.stringify({ kind: 'event:step_completed', payload: {} } satisfies StepCompletedEventMessage));
-                            },
-                            onCheckCompleted() {
-                                ws.send(JSON.stringify({ kind: 'event:check_completed', payload: {} } satisfies CheckCompletedEventMessage));
-                            },
-                            onDone(result: TestCaseResult) {
-                                ws.send(JSON.stringify({ kind: 'event:done', payload: { result } } satisfies DoneEventMessage));
-                                // We expect client to gracefully close on its own after it receives this event.
-                                // TODO: Impl some timer in case client does not close these
-                            }
-                            // onFail(failure: FailureDescriptor) {
-                            //     ws.send(JSON.stringify({ kind: 'event:fail', payload: { failure } } satisfies FailureEventMessage));
-                            // }
-                        }]
-                    });
-
-                    // Can ignore the returned promise and just use onDone event
-                    agent.run(this.browser!, {
-                        ...testCaseDefinition,
-                        // If tunnel requested, use tunnel URL for run ID
-                        url: msg.payload.needTunnel ? `http://${runId}.localhost:4444` : testCaseDefinition.url
-                    });
-                    //const runPromise = agent.run(this.browser!, testCaseDefinition);
-
-                    const response: AcceptStartRunMessage = {
-                        kind: 'accept:run',
-                        payload: {
-                            runId: runId,
-                            approvedTunnelSockets: this.config.socketsPerTunnel
-                        }
-                    };
-                    ws.send(JSON.stringify(response));
-                    const conn: Connection = {
-                        controlSocket: ws,
-                        logger: logger.child({ runId }),
-                        agent: agent,
-                        tunnelSockets: {},
-                        //pendingRequests: {}
-                        //agentRunPromise: runPromise
-                    }
-                    this.connections[runId] = conn;
-                    ws.data.runId = runId;
-                    conn.logger.info('Confirmed run');
+                    await this.initializeRun(ws, msg);
                     //logger.info({ runId }, `Confirmed run ${runId}`)
                 }
                 else if (msg.kind === 'init:tunnel') {
-                    // Get corresponding connection
-                    // if (!this.connections)
-                    // msg.payload.runId
-                    const runId = msg.payload.runId;
-                    const conn = this.connections[runId];
-
-                    if (!conn) {
-                        // Trying to create sockets associated with non-existent run
-                        // Something weird happened, e.g. load balancer issue (not-sticky with multiple instances)
-                        // Or some other issue
-                        this.sendErrorMessage(ws, `Run with ID ${msg.payload.runId} is not active on this remote runner`);
-                    }
-
-                    //const
-                    const numActiveTunnels = Object.keys(conn.tunnelSockets).length;
-                    if (numActiveTunnels >= this.config.socketsPerTunnel) {
-                        //
-                        this.sendErrorMessage(ws, `Too many sockets: ${numActiveTunnels + 1}/${this.config.socketsPerTunnel} allowed tunnel sockets for run ID ${msg.payload.runId}`);
-                    }
-
-                    conn.logger.info("Tunnel socket established")
-                    
-                    // Assign socket metadata
-                    const tunnelId = createId();
-                    ws.data.runId = runId;
-                    ws.data.isActiveTunnelSocket = true;
-                    ws.data.tunnelId = tunnelId;
-                    // Add socket to connection's list of tunnel sockets
-                    conn.tunnelSockets[tunnelId] = {
-                        sock: ws,
-                        available: true,
-                        pendingRequest: null
-                    };
-
-                    // Send accept response
-                    ws.send(JSON.stringify({
-                        kind: 'accept:tunnel',
-                        payload: {}
-                    } satisfies AcceptTunnelMessage));
+                    await this.initializeTunnel(ws, msg);
                 }
                 else {
                     logger.warn(`Unhandled message type ${(msg as any).type}, ignoring`);
