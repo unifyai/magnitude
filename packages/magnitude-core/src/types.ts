@@ -24,6 +24,8 @@ export interface TestCaseDefinition {
     url: string,
     steps: TestStepDefinition[],
     // Existing recipe to use if cached
+    // TODO: this will change significantly - e.g. we need to keep track of what tc def formed this recipe,
+    // so that if the tc def changes we know at what point the recipe becomes invalid and what is still usable.
     recipe?: Ingredient[]
 }
 

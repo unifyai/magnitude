@@ -3,7 +3,7 @@ import { AcceptTunnelMessage, ActionTakenEventMessage, CheckCompletedEventMessag
 import * as cuid2 from '@paralleldrive/cuid2';
 import logger from './logger';
 import { Logger } from 'pino';
-import { ActionDescriptor, FailureDescriptor, TestAgentListener, TestCaseAgent, TestCaseResult } from 'magnitude-core';
+import { ActionDescriptor, FailureDescriptor, TestAgentListener, TestCaseAgent, TestCaseDefinition, TestCaseResult } from 'magnitude-core';
 import { Browser, chromium } from 'playwright';
 import { ObserverConnection } from './observer';
 //import { deserializeResponse, serializeRequest } from './serde';
@@ -297,11 +297,14 @@ export class RemoteTestRunner {
     private buildSocketForwardingListener(ws: ServerWebSocket<SocketMetadata> | WebSocket): TestAgentListener {
         // ServerWebSocket/WebSocket have same send API so this is chill
         return {
-            onStart: (runMetadata: Record<string, any>) => {
+            onStart: (testCase: TestCaseDefinition, runMetadata: Record<string, any>) => {
                 // TODO: Will want to inject own runMetadata (local agent provides none)
                 ws.send(JSON.stringify({
                     kind: 'event:start',
-                    payload: { runMetadata: runMetadata }
+                    payload: {
+                        testCase: testCase,
+                        runMetadata: runMetadata
+                    }
                 } satisfies StartEventMessage));
             },
             onActionTaken: (action: ActionDescriptor) => {

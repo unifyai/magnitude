@@ -81,7 +81,7 @@ export class TestCaseAgent {
         // May throw TestCaseErrors that get handled by run()
 
         // Emit Start
-        for (const listener of this.listeners) if(listener.onStart) listener.onStart({});
+        for (const listener of this.listeners) if(listener.onStart) listener.onStart(testCase, {});
 
         try {
             await harness.goto(testCase.url);

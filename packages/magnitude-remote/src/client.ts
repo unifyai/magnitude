@@ -73,7 +73,7 @@ export class RemoteTestCaseAgent {
                     // Translate socket message to listener callbacks
                     else if (msg.kind === 'event:start') {
                         for (const listener of this.config.listeners)
-                            if (listener.onStart) listener.onStart(msg.payload.runMetadata);
+                            if (listener.onStart) listener.onStart(msg.payload.testCase, msg.payload.runMetadata);
                     }
                     else if (msg.kind === 'event:action_taken') {
                         for (const listener of this.config.listeners)

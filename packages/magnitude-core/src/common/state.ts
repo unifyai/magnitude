@@ -95,7 +95,7 @@ export class TestCaseStateTracker {
         for (const subscriber of this.stateSubscribers) subscriber(this.state);
     }
 
-    private _onStart(runMetadata: Record<string, any>) {
+    private _onStart(testCase: TestCaseDefinition, runMetadata: Record<string, any>) {
         // maybe set a start time or something on state idk
     }
 

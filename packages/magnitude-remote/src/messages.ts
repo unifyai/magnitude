@@ -73,6 +73,7 @@ export interface ErrorMessage {
 export interface StartEventMessage {
     kind: 'event:start',
     payload: {
+        testCase: TestCaseDefinition
         runMetadata: Record<string, any>
     }
 }

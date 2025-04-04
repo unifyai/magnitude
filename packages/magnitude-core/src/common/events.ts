@@ -4,7 +4,7 @@
 
 import { ActionDescriptor, ActionVariant } from "@/common/actions";
 import { FailureDescriptor } from "./failure";
-import { TestCaseResult } from "@/types";
+import { TestCaseDefinition, TestCaseResult } from "@/types";
 
 // Both local and remote runners should accept listeners with these events
 export interface TestAgentListener {
@@ -12,7 +12,7 @@ export interface TestAgentListener {
     // Listener for test case events:
 
     // May include additional metadata about the run, for example if hosted test case IDs
-    onStart?: (runMetadata: Record<string, any>) => void;
+    onStart?: (testCase: TestCaseDefinition, runMetadata: Record<string, any>) => void;
 
     // Emitted after any action is taken in the browser
     onActionTaken?: (action: ActionDescriptor) => void;
