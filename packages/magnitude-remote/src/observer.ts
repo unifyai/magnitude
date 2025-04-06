@@ -1,5 +1,5 @@
 import logger from "./logger";
-import { ApproveAuthorizationMessage, ObserverMessage } from "./messages";
+import { ApproveAuthorizationMessage, ObserverMessage, RequestAuthorizationMessage } from "./messages";
 
 export class ObserverConnection {
     /**
@@ -12,14 +12,14 @@ export class ObserverConnection {
         this.observerUrl = observerUrl;
     }
 
-    async connect(apiKey: string): Promise<ApproveAuthorizationMessage> {
+    async connect(apiKey: string, testCaseId: string): Promise<ApproveAuthorizationMessage> {
         /**
          * Connect socket to observer and authorize
+         * testCaseId: SDK ID
          */
         let authAbrubtCloseHandler, authErrorHandler, authMessageHandler;
 
         try {
-            // AHH yikes should NOT await this! then 
             return await new Promise<ApproveAuthorizationMessage>((resolve, reject) => {
                 try {
                     this.socket = new WebSocket(this.observerUrl);
@@ -51,10 +51,10 @@ export class ObserverConnection {
                         this.socket!.send(JSON.stringify({
                             kind: 'init:authorize',
                             payload: {
-                                testCaseId: 'foo',
+                                testCaseId: testCaseId,
                                 apiKey: apiKey
                             }
-                        }));
+                        } satisfies RequestAuthorizationMessage));
                     };
                     
                     this.socket.addEventListener('close', authAbrubtCloseHandler);

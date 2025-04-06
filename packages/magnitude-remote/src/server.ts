@@ -326,6 +326,7 @@ export class RemoteTestRunner {
 
     private async initializeRun(ws: ServerWebSocket<SocketMetadata>, msg: RequestStartRunMessage) {
         const testCaseDefinition = msg.payload.testCase;
+        const testCaseId = msg.payload.testCaseId;
 
         // If observer is configured, first need to acquire authorization
 
@@ -348,7 +349,7 @@ export class RemoteTestRunner {
                 logger.info("Attempting authorization");
                 
                 // is hanging here - doesnt reject properly
-                const msg = await observerConnection.connect(apiKey);
+                const msg = await observerConnection.connect(apiKey, testCaseId);
                 //orgName = msg.payload.orgName;
                 runMetadata = { orgName: msg.payload.orgName };
 

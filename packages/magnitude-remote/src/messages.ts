@@ -20,8 +20,8 @@ export type AgentEventMessage = StartEventMessage | ActionTakenEventMessage | St
 export interface RequestStartRunMessage {
     kind: 'init:run',
     payload: {
-        // TODO
         testCase: TestCaseDefinition,
+        testCaseId: string, // aka "SDK ID"
         // True if requesting to open tunnel sockets
         needTunnel: boolean;
         // Required if observer/authorizer is configured

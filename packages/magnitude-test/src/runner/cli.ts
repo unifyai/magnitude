@@ -11,7 +11,7 @@ import { TestGlobalConfig } from '@/discovery/types';
 //import chalk from 'chalk';
 import { magnitudeBlue, brightMagnitudeBlue } from '@/renderer/colors';
 import { discoverTestFiles, findConfig, findProjectRoot, readConfig } from '@/discovery/util';
-import { BaseTestRunner, TestRunnerConfig } from './baseRunner';
+import { BaseTestRunner, BaseTestRunnerConfig } from './baseRunner';
 import { RemoteTestRunner } from './remoteRunner';
 import { RemoteTestCaseAgent } from 'magnitude-remote';
 
@@ -274,14 +274,24 @@ program
         // }
         let runner: BaseTestRunner;
 
-        const runnerConfig: TestRunnerConfig = {
+        const runnerConfig: BaseTestRunnerConfig = {
             workerCount: workerCount,
             prettyDisplay: !options.plain
         };
 
         if (useRemote) {
+            // Get API key
+            const apiKey = process.env.MAGNITUDE_API_KEY || config.apiKey;
+            
+            if (!apiKey) {
+                console.error("Missing API key! Either set env var MAGNITUDE_API_KEY or assign apiKey in magnitude.config.ts");
+                process.exit(1);
+            }
+
             console.log("using remote runner")
-            runner = new RemoteTestRunner(runnerConfig);
+            runner = new RemoteTestRunner(
+                { ...runnerConfig, apiKey }
+            );
         } else {
             console.log("using local runner")
             runner = new LocalTestRunner(runnerConfig);

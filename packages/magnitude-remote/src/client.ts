@@ -35,7 +35,11 @@ export class RemoteTestCaseAgent {
         this.config = { ...DEFAULT_CONFIG, ...config };
     }
 
-    public async run(testCase: TestCaseDefinition): Promise<TestCaseResult> {
+    public async run(testCaseId: string, testCase: TestCaseDefinition): Promise<TestCaseResult> {
+        /**
+         * testId: passed to observer (for cache retrieval, etc. - SDK ID)
+         * testCase: test case definition
+         */
         return new Promise((resolve, reject) => {
             this.controlSocket = new WebSocket(this.config.serverUrl);
 
@@ -44,6 +48,7 @@ export class RemoteTestCaseAgent {
                     kind: 'init:run',
                     payload: {
                         testCase: testCase,
+                        testCaseId: testCaseId,
                         // If tunnel URL provided, request to establish tunnel sockets with server
                         needTunnel: this.config.tunnelUrl !== null,
                         apiKey: this.config.apiKey

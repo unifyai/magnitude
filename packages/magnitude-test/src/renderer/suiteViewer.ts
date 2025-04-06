@@ -173,7 +173,7 @@ export class TestSuiteViewer {
         }, 100); // Update every 100ms for smooth animation
     }
 
-    public registerStateTracker(renderId: string, tracker: TestCaseStateTracker): void {
+    public registerStateTracker(renderId: string, name: string, tracker: TestCaseStateTracker): void {
         this.activeTrackers.set(renderId, tracker);
         
         // Mark the runtime as managed by TestViewer so it doesn't start its own rendering
@@ -183,7 +183,7 @@ export class TestSuiteViewer {
         // if (!this.testRenderers.has(renderId)) {
         //     const state = this.testStates.get(renderId);
         //     if (state) {
-        const renderer = new TestCaseRenderer("example name", tracker);
+        const renderer = new TestCaseRenderer(name, tracker);
         // Initialize it with the test case
         //renderer.updateTestCase(state.testCase);
         this.testRenderers.set(renderId, renderer);

@@ -36,7 +36,8 @@ program
             listeners: [{
                 //onActionTaken(action) { console.log("Did action:", action) }
             }],
-            apiKey: process.env.MAGNITUDE_API_KEY//'mag_VRXoq9tXkoWFcmorQBICERG2lME5ozbM'
+            apiKey: process.env.MAGNITUDE_API_KEY,
+            //apiKey: 'mag_VRXoq9tXkoWFcmorQBICERG2lME5ozbM',
         });
 
         const exampleTestCase = {
@@ -78,7 +79,7 @@ program
         //     ]
         // };
 
-        const result = await agent.run(exampleTestCase);
+        const result = await agent.run("baz", exampleTestCase);
         //console.log("client done");
         //console.log("Test result:", result);
 

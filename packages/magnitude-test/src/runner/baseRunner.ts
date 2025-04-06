@@ -11,18 +11,18 @@ import { TestAgentListener, TestCaseAgent, TestCaseDefinition, TestCaseResult, T
 import { Browser, chromium } from 'playwright';
 import path from 'path';
 
-export interface TestRunnerConfig {
+export interface BaseTestRunnerConfig {
     workerCount: number;
     prettyDisplay: boolean;
 }
 
-const DEFAULT_CONFIG = {
+export const BASE_TEST_RUNNER_DEFAULT_CONFIG: BaseTestRunnerConfig = {
     workerCount: 1,
     prettyDisplay: true
 };
 
 export abstract class BaseTestRunner {
-    protected config: TestRunnerConfig;
+    protected config: BaseTestRunnerConfig;
     protected registry: TestRegistry;
     protected compiler: TestCompiler;
     protected viewer: TestSuiteViewer;
@@ -31,8 +31,8 @@ export abstract class BaseTestRunner {
     // Worker count for parallel execution
     //protected workerCount: number = 1;
 
-    constructor(config: Partial<TestRunnerConfig>) {
-        this.config = { ...DEFAULT_CONFIG, ...config };
+    constructor(config: Partial<BaseTestRunnerConfig>) {
+        this.config = { ...BASE_TEST_RUNNER_DEFAULT_CONFIG, ...config };
         this.registry = TestRegistry.getInstance();
         this.compiler = new TestCompiler();
         this.viewer = new TestSuiteViewer();
@@ -99,7 +99,7 @@ export abstract class BaseTestRunner {
     protected abstract setup(): Promise<void>;
     protected abstract teardown(): Promise<void>;
 
-    protected abstract runTest(testCase: TestCaseDefinition, listener: TestAgentListener): Promise<TestCaseResult>;
+    protected abstract runTest(testId: string, testCase: TestCaseDefinition, listener: TestAgentListener): Promise<TestCaseResult>;
 
     //abstract runTests(): Promise<boolean>;
 
@@ -122,9 +122,9 @@ export abstract class BaseTestRunner {
             //await agent.run();
              
             // Register the runtime with the viewer instead of showing it directly
-            this.viewer.registerStateTracker(renderId, stateTracker);
+            this.viewer.registerStateTracker(renderId, testCase.getId(), stateTracker);
 
-            const result = await this.runTest(testCaseDefinition, stateTracker.getListener());
+            const result = await this.runTest(testCase.getId(), testCaseDefinition, stateTracker.getListener());
 
             // runtime.catch(error => {
             //     console.log("Caught in direct handler:", error);
