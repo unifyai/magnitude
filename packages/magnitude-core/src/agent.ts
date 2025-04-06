@@ -68,6 +68,8 @@ export class TestCaseAgent {
                 for (const listener of this.listeners) if(listener.onDone) listener.onDone(result);
                 return { passed: false, failure: failure };
             } else {
+                // ^ these can also be unexpected tho
+                // TODO: still wrap error into a special variant to prevent any straight up crashes?
                 console.error("Unexpected error:", error);
                 throw error;
             }
@@ -85,11 +87,12 @@ export class TestCaseAgent {
 
         try {
             await harness.goto(testCase.url);
+            const screenshot = await harness.screenshot();
             for (const listener of this.listeners) {
                 // Emit synthetic load action
                 // TODO: make this show local and not proxy URL
                 if(listener.onActionTaken) {
-                    listener.onActionTaken({'variant': 'load', 'url': testCase.url});
+                    listener.onActionTaken({'variant': 'load', 'url': testCase.url, screenshot: screenshot.image});
                 }
             }
                 
@@ -129,7 +132,7 @@ export class TestCaseAgent {
                     try {
                         await harness.executeAction(action);
                         //this.config.onActionTaken(ingredient, action);
-                        for (const listener of this.listeners) if(listener.onActionTaken) listener.onActionTaken({...ingredient, ...action});
+                        // Take new screenshot after action to provide in event
                     } catch (error) {
                         // TODO: retries
                         throw new ActionExecutionError(action, error as Error);
@@ -137,6 +140,9 @@ export class TestCaseAgent {
                     stepRecipe.push(ingredient);
                     // Fixed wait for now
                     await new Promise(resolve => setTimeout(resolve, 1000));
+
+                    const postActionScreenshot = await harness.screenshot();
+                    for (const listener of this.listeners) if(listener.onActionTaken) listener.onActionTaken({...ingredient, ...action, screenshot: postActionScreenshot.image});
                 }
 
                 // If macro expects these actions should complete the step, break
