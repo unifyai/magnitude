@@ -14,11 +14,12 @@ test('login')
 
 test.group('Company Management', { url: 'https://qa-bench.com' }, () => {
         
-    test('login')
-        .step("Log in to the app")
-            .data({ email: 'test-user@magnitude.run' })
-            .secureData({ password: 'test' })
-            .check('dashboard is visible');
+    // test('login')
+    //     .step("Log in to the app")
+    //         .data({ email: 'test-user@magnitude.run' })
+    //         .secureData({ password: 'test' })
+    //         .check('dashboard is visible');
+    
     // Adding a bug, should show a problem
     // test('company-create', { url: `https://qa-bench.com?bugs=["companies.create.failSilently"]` })
     //     .step("Login to the app")

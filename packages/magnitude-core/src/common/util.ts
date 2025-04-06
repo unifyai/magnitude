@@ -11,6 +11,8 @@ import { ActionDescriptor } from "./actions";
 
 export function describeAction(action: ActionDescriptor) {
     switch (action.variant) {
+        case 'load':
+            return `Navigated to URL: ${action.url}`;
         case 'click':
             return `Clicked ${action.target} at (${action.x}, ${action.y})`;
         case 'type':

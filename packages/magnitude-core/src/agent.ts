@@ -85,6 +85,14 @@ export class TestCaseAgent {
 
         try {
             await harness.goto(testCase.url);
+            for (const listener of this.listeners) {
+                // Emit synthetic load action
+                // TODO: make this show local and not proxy URL
+                if(listener.onActionTaken) {
+                    listener.onActionTaken({'variant': 'load', 'url': testCase.url});
+                }
+            }
+                
         } catch (error) {
             throw new NavigationError(testCase.url, error as Error);
         }

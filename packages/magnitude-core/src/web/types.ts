@@ -11,7 +11,13 @@ export interface Screenshot {
 //     variant: ActionVariant
 // }
 
-export type WebAction = ClickWebAction | TypeWebAction;
+export type WebAction = NavigateWebAction | ClickWebAction | TypeWebAction;
+
+// Currently only emitted synthetically
+export interface NavigateWebAction {
+    variant: 'load'
+    url: string
+}
 
 export interface ClickWebAction {
     variant: 'click'
