@@ -8,6 +8,7 @@ import { NavigationError, ActionExecutionError, ActionConversionError, TestCaseE
 import { CheckIngredient } from "./ai/baml_client";
 import { ActionIngredient } from "./recipe/types";
 import { TestAgentListener } from "./common/events";
+import logger from './logger';
 
 export interface TestCaseAgentConfig {
     // Event listeners
@@ -52,6 +53,7 @@ export class TestCaseAgent {
         // Setup browser
         // TODO: Set browser options and stuff
         //const browser = await chromium.launch({ headless: false });
+        logger.info("Creating browser context");
         const context = await browser.newContext({ viewport: { width: 1280, height: 720 }});
         const page = await context.newPage();
         const harness = new WebHarness(page);
@@ -81,6 +83,8 @@ export class TestCaseAgent {
 
     private async _run(testCase: TestCaseDefinition, harness: WebHarness): Promise<TestCaseResult> {
         // May throw TestCaseErrors that get handled by run()
+        
+        logger.info("Agent started");
 
         // Emit Start
         for (const listener of this.listeners) if(listener.onStart) listener.onStart(testCase, {});
@@ -95,7 +99,8 @@ export class TestCaseAgent {
                     listener.onActionTaken({'variant': 'load', 'url': testCase.url, screenshot: screenshot.image});
                 }
             }
-                
+            
+            logger.info(`Successfully navigated to starting URL: ${testCase.url}`);   
         } catch (error) {
             throw new NavigationError(testCase.url, error as Error);
         }
@@ -103,6 +108,7 @@ export class TestCaseAgent {
         const recipe = [];
 
         for (const step of testCase.steps) {
+            logger.info(`Begin Step: ${step.description}`);
             //console.log(`Step: ${step.description}`);
 
             const stepRecipe = [];
@@ -110,6 +116,8 @@ export class TestCaseAgent {
             while (true) {
                 const screenshot = await harness.screenshot();
                 const { actions, finished } = await this.macro.createPartialRecipe(screenshot, step, stepRecipe);
+
+                logger.info({ actions, finished }, `Partial recipe created`);
                 //console.log('Partial recipe:', actions);
                 //console.log('Finish expected?', finished);
 
@@ -123,7 +131,9 @@ export class TestCaseAgent {
                         // bad cases either 1. action with low confidence
                         // 2. no action (target not identified at all)
                         action = await this.micro.convertAction(screenshot, ingredient);
+                        logger.info({ ingredient, action }, `Converted action`);
                     } catch(error) {
+                        logger.error(`Error converting action: ${error}`);
                         throw new ActionConversionError(ingredient, error as Error);
                     }
 
@@ -134,6 +144,7 @@ export class TestCaseAgent {
                         //this.config.onActionTaken(ingredient, action);
                         // Take new screenshot after action to provide in event
                     } catch (error) {
+                        logger.error(`Error executing action: ${error}`);
                         // TODO: retries
                         throw new ActionExecutionError(action, error as Error);
                     }
@@ -143,10 +154,12 @@ export class TestCaseAgent {
 
                     const postActionScreenshot = await harness.screenshot();
                     for (const listener of this.listeners) if(listener.onActionTaken) listener.onActionTaken({...ingredient, ...action, screenshot: postActionScreenshot.image});
+                    logger.info({ action }, `Action taken`);
                 }
 
                 // If macro expects these actions should complete the step, break
                 if (finished) {
+                    logger.info(`Done with step`);
                     for (const listener of this.listeners) if (listener.onStepCompleted) listener.onStepCompleted();//(step);
                     break;
                 }
@@ -156,13 +169,14 @@ export class TestCaseAgent {
 
             const checkScreenshot = await harness.screenshot();
             for (const check of step.checks) {
-                //console.log(`Checking: ${check}`)
+                logger.info(`Checking: ${check}`);
                 
                 // Remove implicit context
                 // This could be done in a batch for all checks in this step
                 const checkNoContext = await this.macro.removeImplicitCheckContext(checkScreenshot, check, stepRecipe);
 
                 //console.log('Check without context:', checkNoContext);
+                logger.info(`Augmented check: ${checkNoContext}`);
 
                 const checkIngredient: CheckIngredient = { "variant": "check", description: checkNoContext };
 
@@ -177,8 +191,10 @@ export class TestCaseAgent {
                     // Passed
                     for (const listener of this.listeners) if (listener.onCheckCompleted) listener.onCheckCompleted();
                     //this.config.onCheckCompleted(check, checkIngredient);
+                    logger.info(`Passed check`);
                 } else {
                     // Failed check
+                    logger.info(`Failed check`);
                     return { passed: false, failure: { description: `Failed check: ${check}` } };//, recipe: recipe };
                 }
             }

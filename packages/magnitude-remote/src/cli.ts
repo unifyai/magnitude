@@ -30,12 +30,13 @@ program
     .action(async (options: { }) => {
         //console.log("client starting")
         const agent = new RemoteTestCaseAgent({
-            serverUrl: "http://localhost:4444",
+            serverUrl: "https://remote.magnitude.run:4444",
+            //serverUrl: "http://localhost:4444",
             //tunnelUrl: "http://localhost:3000",
             listeners: [{
                 //onActionTaken(action) { console.log("Did action:", action) }
             }],
-            apiKey: 'mag_VRXoq9tXkoWFcmorQBICERG2lME5ozbM'
+            apiKey: process.env.MAGNITUDE_API_KEY//'mag_VRXoq9tXkoWFcmorQBICERG2lME5ozbM'
         });
 
         const exampleTestCase = {
