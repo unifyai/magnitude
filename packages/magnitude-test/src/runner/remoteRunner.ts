@@ -37,14 +37,8 @@ export class RemoteTestRunner extends BaseTestRunner {
          * testId: user defined test description/id, used to retrieve cache and associate with same test case on hosted dashboard
          */
         const url = testCase.url;
-
-        console.log("url:", url)
-        console.log("is local url?", isLocalUrl(url))
-        console.log("force tunnel?", this.config.forceUseTunnel)
         
         const useTunnel = this.config.forceUseTunnel || isLocalUrl(url);
-
-        console.log("use tunnel?", useTunnel);
 
         const agent = new RemoteTestCaseAgent({
             listeners: [listener],

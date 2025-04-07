@@ -386,6 +386,8 @@ export class RemoteTestRunner {
             url: msg.payload.needTunnel ? `http://${runId}.localhost:4444` : testCaseDefinition.url
         });
 
+        // WE SHOULD RUN *AFTER* TUNNELS ARE ESTABLISHED (if tunneling requested)
+
         // Inform client that run is accepted and that it may establish tunnel sockets
         logger.info(`Accepting run, approving ${this.config.socketsPerTunnel} tunnel sockets`);
         const response: AcceptStartRunMessage = {

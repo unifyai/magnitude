@@ -168,7 +168,7 @@ export class RemoteTestCaseAgent {
             });
 
             sock.addEventListener('message', async (event) => {
-                console.log(`Tunnel index: ${i}`);
+                //console.log(`Tunnel index: ${i}`);
                 //console.log(this.tunnelSockets);
                 if (this.tunnelSockets[i].status === 'inactive') {
                     // Expect handshake confirmation
@@ -179,7 +179,7 @@ export class RemoteTestCaseAgent {
                             logger.error(`Error message from server on tunnel socket: ${msg.payload.message}`);
                             sock.close(1011);
                         } else if (msg.kind === 'accept:tunnel') {
-                            console.log(`Accept message received, Setting tunnel ${i} to active`)
+                            logger.info(`Accept message received, setting tunnel ${i} to active`)
                             this.tunnelSockets[i].status = 'active';
                         } else {
                             logger.warn(`Unexpected message type received to inactive tunnel socket: ${msg.kind}`)
@@ -197,7 +197,8 @@ export class RemoteTestCaseAgent {
                         const msg = JSON.parse(event.data) as TunneledRequestMessage;
                         const req = msg.payload;
 
-                        console.log("Forwarding request traffic:", msg);
+                        //console.log("Forwarding request traffic:", msg);
+                        logger.info(msg, `Tunnel socket ${i} forwarding request traffic`);
 
                         //const request = await deserializeRequest(event.data);
                         const localResponse = await fetch(`${this.testCase!.url}${req.path}`, {
@@ -217,8 +218,8 @@ export class RemoteTestCaseAgent {
                                 body: await localResponse.text()
                             }
                         };
-
-                        console.log("Returning response traffic:", responseMessage);
+                        
+                        logger.info(responseMessage, `Tunnel socket ${i} returning response traffic`);
 
                         sock.send(JSON.stringify(responseMessage));
                     } catch (error) {
