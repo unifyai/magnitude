@@ -4,6 +4,8 @@ import logger from '@/logger';
 import { TunneledRequestMessage, TunneledResponseMessage } from "@/messages";
 import cuid2 from "@paralleldrive/cuid2";
 
+const REQUEST_TIMEOUT_MS = 30000;
+
 const createId = cuid2.init({
     length: 12
 });
@@ -31,7 +33,7 @@ export class TunnelManager {
 
     // Requests currently being handled by a socket
     // Maps from tunnel socket ID to request ID
-    private activeRequests: Record<TunnelSocketID, RequestID | null> = {};
+    private activeRequests: Record<TunnelSocketID, RequestID | 'reserving' | null> = {};
 
     // Queue of waiters for available sockets
     private socketWaitQueue: ((socketId: TunnelSocketID) => void)[] = [];
@@ -62,10 +64,18 @@ export class TunnelManager {
             };
         });
 
+        setTimeout(() => {
+            if (this.pendingRequests[requestId]) {
+                logger.warn(`Request ${requestId} timed out after ${REQUEST_TIMEOUT_MS}ms`);
+                this.pendingRequests[requestId].reject(new Error(`Request timed out after ${REQUEST_TIMEOUT_MS}ms`));
+                delete this.pendingRequests[requestId];
+            }
+        }, REQUEST_TIMEOUT_MS);
+
         // Acquire lock on a particular socket to use (potentially queues the request)
-        logger.info(`Acquiring tunnel socket`)
+        logger.info({ requestId }, `Acquiring tunnel socket`)
         const tunnelSocketId = await this.acquireTunnelSocket();
-        logger.info(`Tunnel socket acquired: ${tunnelSocketId}`);
+        logger.info({ requestId }, `Tunnel socket acquired: ${tunnelSocketId}`);
         // Assign active request ID so that when receiving socket message whe know which request to resolve
         this.activeRequests[tunnelSocketId] = requestId;
         const sock = this.sockets[tunnelSocketId];
@@ -74,8 +84,9 @@ export class TunnelManager {
         // Wait for WS handler to resolve with response
         const response = await responsePromise;
         // Clear active request ID for the socket
-        this.activeRequests[tunnelSocketId] = null;
+        //this.activeRequests[tunnelSocketId] = null;
         // Release lock
+        logger.info({ requestId }, `Releasing socket lock`);
         this.releaseTunnelSocket(tunnelSocketId);
 
         return response;
@@ -91,13 +102,20 @@ export class TunnelManager {
         }
         
         // Try to find an available socket
-        const availableSocketId = Object.keys(this.sockets).find(
-            socketId => !this.activeRequests[socketId] // undefined or null
-        );
-        
-        if (availableSocketId) {
-            logger.info(`Found available socket`);
-            return availableSocketId;
+        // const availableSocketId = Object.keys(this.sockets).find(
+        //     socketId => !this.activeRequests[socketId] // undefined or null
+        // );
+        // if (availableSocketId) {
+        //     logger.info(`Found available socket`);
+        //     return availableSocketId;
+        // }
+
+        for (const socketId of Object.keys(this.sockets)) {
+            if (!this.activeRequests[socketId]) {
+                // Prevent race conditions - Immediately mark as reserved with a temporary placeholder
+                this.activeRequests[socketId] = 'reserving';
+                return socketId;
+            }
         }
         
         // If no socket is available, wait in the queue
@@ -112,6 +130,8 @@ export class TunnelManager {
         if (this.socketWaitQueue.length > 0) {
             const nextWaiter = this.socketWaitQueue.shift()!;
             nextWaiter(tunnelSocketId);
+        } else {
+            this.activeRequests[tunnelSocketId] = null;
         }
     }
 
@@ -159,13 +179,6 @@ export class TunnelManager {
         const requestId = this.activeRequests[tunnelSocketId]!;
 
         this.pendingRequests[requestId].resolve(responseData);
-
-        // TODO: Resolve promise appropriately
-        
-        // if (conn.pendingRequest) {
-        //     conn.pendingRequest.resolve(responseData);
-        //     conn.pendingRequest = null;
-        //     conn.available = true;
-        // }
+        delete this.pendingRequests[requestId];
     }
 }
