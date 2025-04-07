@@ -21,6 +21,8 @@ export class TunnelManager {
      * Caller responsible for keeping track of which messages go to which tunnel sockets via tunnelSocketId.
      */
     private expectedSockets: number;
+    private readyPromise: Promise<void>;
+    private readyResolver!: () => void;
 
     private sockets: Record<TunnelSocketID, ServerWebSocket<SocketMetadata>> = {};
     //private 
@@ -40,10 +42,16 @@ export class TunnelManager {
 
     constructor(expectedSockets: number) {
         this.expectedSockets = expectedSockets;
+        this.readyPromise = new Promise<void>((resolve, reject) => {
+            logger.info(`Setting ready resolver: ${resolve}`);
+            this.readyResolver = resolve;
+        });
     }
 
-    async waitUntilReady(): Promise<void> {
+    async waitForAllClientConnections(): Promise<void> {
         // Wait for expected number of sockets to get registered
+        logger.info(`Waiting on resolver: ${this.readyResolver}`);
+        return this.readyPromise;
     }
 
     registerSocket(tunnelSocketId: TunnelSocketID, ws: ServerWebSocket<SocketMetadata>) {
@@ -53,6 +61,22 @@ export class TunnelManager {
         }
 
         this.sockets[tunnelSocketId] = ws;
+        this.activeRequests[tunnelSocketId] = null;
+
+        const numConnectedSockets = Object.keys(this.sockets).length;
+
+        logger.info(`Socket registered: ${tunnelSocketId}, ${numConnectedSockets}/${this.expectedSockets} connected`);
+
+        logger.info(`Ready resolver: ${this.readyResolver}`);
+        logger.info(`connected: ${numConnectedSockets}`)
+        logger.info(`expected: ${this.expectedSockets}`)
+        logger.info(`connected: ${typeof numConnectedSockets}`)
+        logger.info(`expected: ${typeof this.expectedSockets}`)
+
+        if (numConnectedSockets === this.expectedSockets) {
+            logger.info(`All ${this.expectedSockets} sockets connected, tunnel manager ready`);
+            this.readyResolver();
+        }
     }
 
     private async waitForResponse(message: TunneledRequestMessage): Promise<TunneledResponseMessage> {

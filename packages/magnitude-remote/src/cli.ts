@@ -17,9 +17,9 @@ program
     .option('-s, --sockets-per-tunnel <num>', 'number of sockets to use per HTTP tunnel', '6')
     .action(async (options: { port: number, observer: string, socketsPerTunnel: number }) => {
         const server = new RemoteTestRunner({
-            port: options.port,
+            port: Number(options.port),
             observerUrl: options.observer,
-            socketsPerTunnel: options.socketsPerTunnel
+            socketsPerTunnel: Number(options.socketsPerTunnel)
         });
         await server.start();
     });

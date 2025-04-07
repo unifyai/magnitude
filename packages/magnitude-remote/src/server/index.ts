@@ -305,11 +305,8 @@ export class RemoteTestRunner {
 
         // Start agent
         // Can ignore the returned promise and just use onDone event
-        agent.run(this.browser!, {
-            ...testCaseDefinition,
-            // If tunnel requested, use tunnel URL for run ID
-            url: msg.payload.needTunnel ? `http://${runId}.localhost:4444` : testCaseDefinition.url
-        });
+        
+        const useTunnel = msg.payload.needTunnel;
 
         // WE SHOULD RUN *AFTER* TUNNELS ARE ESTABLISHED (if tunneling requested)
 
@@ -323,19 +320,34 @@ export class RemoteTestRunner {
             }
         };
         ws.send(JSON.stringify(response));
+        const tunnel = new TunnelManager(this.config.socketsPerTunnel);
+        // Wait for client to make tunnel connections
+        // TODO: only do if need tunnel - otherwise dont expected connections
+        // TODO: run agent AFTER
         const conn: Connection = {
             controlSocket: ws,
             logger: logger.child({ runId }),
             agent: agent,
-            tunnel: new TunnelManager(this.config.socketsPerTunnel)
+            tunnel: tunnel
             //tunnelSockets: {}
         }
         this.connections[runId] = conn;
         ws.data.runId = runId;
         conn.logger.info('Confirmed run');
+
+        conn.logger.info(`Waiting for tunnel connections to be made`);
+        await tunnel.waitForAllClientConnections();
+        conn.logger.info(`Tunnel ready`);
+
+        agent.run(this.browser!, {
+            ...testCaseDefinition,
+            // If tunnel requested, use tunnel URL for run ID
+            url: useTunnel ? `http://${runId}.localhost:4444` : testCaseDefinition.url
+        });
     }
 
-    private async initializeTunnel(ws: ServerWebSocket<SocketMetadata>, msg: InitTunnelMessage) {
+    private async initializeTunnelSocket(ws: ServerWebSocket<SocketMetadata>, msg: InitTunnelMessage) {
+        // Initialize one of the sockets for a tunnel for a particular connection
         // Get corresponding connection
         // if (!this.connections)
         // msg.payload.runId
@@ -349,13 +361,13 @@ export class RemoteTestRunner {
             this.sendErrorMessage(ws, `Run with ID ${msg.payload.runId} is not active on this remote runner`);
         }
 
-        const tunnelId = createId();
+        const tunnelSocketId = createId();
         ws.data.runId = runId;
         ws.data.isActiveTunnelSocket = true;
-        ws.data.tunnelSocketId = tunnelId;
+        ws.data.tunnelSocketId = tunnelSocketId;
 
         try {
-            conn.tunnel.registerSocket(tunnelId, ws);
+            conn.tunnel.registerSocket(tunnelSocketId, ws);
         } catch (error) {
             this.sendErrorMessage(ws, (error as Error).message);
         }
@@ -413,7 +425,7 @@ export class RemoteTestRunner {
                     //logger.info({ runId }, `Confirmed run ${runId}`)
                 }
                 else if (msg.kind === 'init:tunnel') {
-                    await this.initializeTunnel(ws, msg);
+                    await this.initializeTunnelSocket(ws, msg);
                 }
                 else {
                     logger.warn(`Unhandled message type ${(msg as any).type}, ignoring`);
