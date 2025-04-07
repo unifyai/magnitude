@@ -68,6 +68,8 @@ export class RemoteTestCaseAgent {
                         this.runId = msg.payload.runId;
                         const numTunnelSockets = msg.payload.approvedTunnelSockets;
                         this.establishTunnelSockets(numTunnelSockets);
+
+                        logger.info("Connection to remote runner established");
                     }
                     else if (msg.kind === 'error') {
                         // Some unexpected error occurred on the server's side
@@ -78,23 +80,29 @@ export class RemoteTestCaseAgent {
                     }
                     // Translate socket message to listener callbacks
                     else if (msg.kind === 'event:start') {
+                        logger.info("Agent started");
                         //console.log("Start event:", msg);
                         for (const listener of this.config.listeners)
                             if (listener.onStart) listener.onStart(msg.payload.testCase, msg.payload.runMetadata);
                     }
                     else if (msg.kind === 'event:action_taken') {
+                        const { screenshot, ...actionWithoutScreenshot } = msg.payload.action;
+                        logger.info({ action: actionWithoutScreenshot }, "Action taken");
                         for (const listener of this.config.listeners)
                             if (listener.onActionTaken) listener.onActionTaken(msg.payload.action);
                     }
                     else if (msg.kind === 'event:step_completed') {
+                        logger.info("Step completed");
                         for (const listener of this.config.listeners)
                             if (listener.onStepCompleted) listener.onStepCompleted();
                     }
                     else if (msg.kind === 'event:check_completed') {
+                        logger.info("Check completed");
                         for (const listener of this.config.listeners)
                             if (listener.onCheckCompleted) listener.onCheckCompleted();
                     }
                     else if (msg.kind === 'event:done') {
+                        logger.info({ result: msg.payload.result }, "Agent done");
                         for (const listener of this.config.listeners)
                             if (listener.onDone) listener.onDone(msg.payload.result);
                         this.controlSocket!.close(1000);

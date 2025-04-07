@@ -13,43 +13,14 @@ import { magnitudeBlue, brightMagnitudeBlue } from '@/renderer/colors';
 import { discoverTestFiles, findConfig, findProjectRoot, readConfig } from '@/discovery/util';
 import { BaseTestRunner, BaseTestRunnerConfig } from './baseRunner';
 import { RemoteTestRunner } from './remoteRunner';
-import { RemoteTestCaseAgent } from 'magnitude-remote';
+import { logger as remoteLogger } from 'magnitude-remote';
+import { logger as coreLogger } from 'magnitude-core';
 
 interface CliOptions {
     workers?: number;
-    //local: boolean;
-    remote: 'auto' | 'true' | 'false';
+    local: boolean;
     plain: boolean;
 }
-
-
-// async function discoverTestFiles(patterns: string[], cwd: string = process.cwd()): Promise<string[]> {
-//     console.log(`Searching for test files matching patterns: ${patterns.join(', ')}`);
-
-//     try {
-//         // Use glob to find files matching all patterns
-//         const allFiles: string[] = [];
-
-//         for (const pattern of patterns) {
-//             const files = await glob(pattern, { cwd });
-//             allFiles.push(...files);
-//         }
-
-//         // Remove duplicates (in case files match multiple patterns)
-//         const uniqueFiles = [...new Set(allFiles)];
-
-//         if (uniqueFiles.length === 0) {
-//             console.log(`No test files found matching patterns: ${patterns.join(', ')}`);
-//         } else {
-//             console.log(`Found ${uniqueFiles.length} unique test file(s)`);
-//         }
-
-//         return uniqueFiles.map(file => path.resolve(cwd, file));
-//     } catch (error) {
-//         console.error('Error discovering test files:', error);
-//         return [];
-//     }
-// }
 
 function getRelativePath(projectRoot: string, absolutePath: string): string {
     // Ensure both paths are absolute and normalized
@@ -64,63 +35,6 @@ function getRelativePath(projectRoot: string, absolutePath: string): string {
 
     return path.relative(normalizedProjectRoot, normalizedAbsolutePath);
 }
-
-// async function registerTestFile(registry: TestRegistry, projectRoot: string, absolutePath: string) {
-//     const relativePath = getRelativePath(projectRoot, absolutePath);
-
-//     registry.setCurrentFilePath(relativePath);
-
-//     // Execute test file to register it
-//     try {
-//         // Convert file path to module path
-//         const modulePath = `file://${absolutePath}`;
-
-//         // Dynamically import the test file
-//         await import(modulePath);
-//         console.log(`Loaded test file: ${relativePath}`);
-//     } catch (error) {
-//         console.error(`Failed to load test file ${relativePath}:`, error);
-//     }
-
-//     registry.unsetCurrentFilePath();
-// }
-
-// function findConfig(searchRoot: string): string | null {
-//     try {
-//         // Use glob to find the first magnitude.config.ts file
-//         // Excluding node_modules and dist directories
-//         const configFiles = glob.sync('**/magnitude.config.ts', {
-//             cwd: searchRoot,
-//             ignore: ['**/node_modules/**', '**/dist/**'],
-//             absolute: true
-//         });
-
-//         return configFiles.length > 0 ? configFiles[0] : null;
-//     } catch (error) {
-//         console.error('Error finding config file:', error);
-//         return null;
-//     }
-// }
-
-// async function readConfig(configPath: string): Promise<any> {
-//     try {
-//         const compiler = new TestCompiler();
-
-//         // Use the compiler to transform the TypeScript config file
-//         const compiledPath = await compiler.compileFile(configPath);
-
-//         // Import the compiled module
-//         const configModule = await import(`file://${compiledPath}`);
-
-//         // Extract the default export
-//         const config = configModule.default;
-
-//         return config;
-//     } catch (error) {
-//         console.error(`Error reading config from ${configPath}:`, error);
-//         return null;
-//     }
-// }
 
 const configTemplate = `import { defineConfig } from 'magnitude-ts';
 
@@ -194,43 +108,15 @@ program
     .description('Run Magnitude test cases')
     .argument('[...filters]', 'glob patterns for test files')
     .option('-w, --workers <number>', 'number of parallel workers for test execution', '1')
-    .option('-r, --remote <auto|true|false>', 'whether to run tests remotely or locally (remote requires Magnitude API key, local requires additional setup)', 'auto')
+    //.option('-r, --remote <auto|true|false>', 'whether to run tests remotely or locally (remote requires Magnitude API key, local requires additional setup)', 'auto')
     .option('-p, --plain', 'disable pretty output and use logs')
-    //.option('-l', '--local', 'run agent locally (requires Playwright and LLM provider configuration)')
+    .option('-l, --local', 'run agent locally (requires Playwright and LLM provider configuration)')
     .action(async (filters, options: CliOptions) => {
-        // tmp
-        // console.log("client starting")
-        // const agent = new RemoteTestCaseAgent({ listeners: [{
-        //     onActionTaken(action) { console.log("Did action:", action) }
-        // }]});
+        if (!options.plain) {
+            remoteLogger.level = 'silent';
+            coreLogger.level = 'silent';
+        }
 
-        // const exampleTestCase = {
-        //     url: "https://qa-bench.com",
-        //     steps: [
-        //         {
-        //             description: "Log in",
-        //             checks: ["Can see dashboard"],
-        //             testData: {
-        //                 data: [
-        //                     { key: "username", value: "test-user@magnitude.run", sensitive: false },
-        //                     { key: "password", value: "test", sensitive: true },
-        //                 ] 
-        //             }
-        //         },
-        //         // // BOTH parts of this one will fail: it doesnt yet know what company form looks like
-        //         // { description: "Create an example company", checks: ["Example company exists"], testData: {} } // THIS will fail without check adaptation
-        //     ]
-        // };
-
-        // const result = await agent.run(exampleTestCase);
-        // console.log("client done");
-        // console.log("Test result:", result);
-
-        // process.exit(0);
-        // ^^ tmp
-
-        
-        //const patterns = [];
         const patterns = [
             '!**/node_modules/**',
             '!**/dist/**'
@@ -266,12 +152,8 @@ program
         const registry = TestRegistry.getInstance();
         registry.setGlobalOptions(config);
 
-        const useRemote = options.remote === 'true' || (options.remote === 'auto' && (process.env.MAGNITUDE_API_KEY || config.apiKey));
+        const useRemote = !options.local;
 
-        // TODO: Use local or remote runner
-        // if (options.local) {
-        //     const { TestCaseAgent } = await import('magnitude-core');
-        // }
         let runner: BaseTestRunner;
 
         const runnerConfig: BaseTestRunnerConfig = {
@@ -288,12 +170,10 @@ program
                 process.exit(1);
             }
 
-            console.log("using remote runner")
             runner = new RemoteTestRunner(
                 { ...runnerConfig, apiKey }
             );
         } else {
-            console.log("using local runner")
             runner = new LocalTestRunner(runnerConfig);
         }
 
