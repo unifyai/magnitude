@@ -1,5 +1,5 @@
-import logger from './logger';
-import { InitTunnelMessage, RequestStartRunMessage, ServerMessage, TunneledRequestMessage, TunneledResponseMessage } from './messages';
+import logger from '../logger';
+import { InitTunnelMessage, RequestStartRunMessage, ServerMessage, TunneledRequestMessage, TunneledResponseMessage } from '@/messages';
 import { TestAgentListener, TestCaseDefinition, TestCaseResult } from 'magnitude-core';
 //import { deserializeRequest, serializeResponse } from './serde';
 

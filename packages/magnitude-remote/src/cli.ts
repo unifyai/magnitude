@@ -1,8 +1,8 @@
 import { Command } from 'commander';
 import * as fs from 'fs';
 import * as path from 'path';
-import { RemoteTestRunner } from './server';
-import { RemoteTestCaseAgent } from './client';
+import { RemoteTestRunner } from '@/server';
+import { RemoteTestCaseAgent } from '@/client/agent';
 
 const program = new Command();
 

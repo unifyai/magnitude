@@ -1,11 +1,13 @@
 import { Server, ServerWebSocket } from 'bun';
-import { AcceptTunnelMessage, ActionTakenEventMessage, CheckCompletedEventMessage, ClientMessage, AcceptStartRunMessage, DoneEventMessage, ErrorMessage, StartEventMessage, StepCompletedEventMessage, TunneledRequestMessage, TunneledResponseMessage, RequestStartRunMessage, InitTunnelMessage, RequestAuthorizationMessage, ObserverMessage, ApproveAuthorizationMessage } from './messages';
+import { AcceptTunnelMessage, ActionTakenEventMessage, CheckCompletedEventMessage, ClientMessage, AcceptStartRunMessage, DoneEventMessage, ErrorMessage, StartEventMessage, StepCompletedEventMessage, TunneledRequestMessage, TunneledResponseMessage, RequestStartRunMessage, InitTunnelMessage, RequestAuthorizationMessage, ObserverMessage, ApproveAuthorizationMessage } from '@/messages';
 import * as cuid2 from '@paralleldrive/cuid2';
-import logger from './logger';
+import logger from '@/logger';
 import { Logger } from 'pino';
 import { ActionDescriptor, FailureDescriptor, TestAgentListener, TestCaseAgent, TestCaseDefinition, TestCaseResult } from 'magnitude-core';
 import { Browser, chromium } from 'playwright';
-import { ObserverConnection } from './observer';
+import { ObserverConnection } from '@/server/observer';
+import { TunnelManager } from './tunnel';
+import { SocketMetadata } from './types';
 //import { deserializeResponse, serializeRequest } from './serde';
 //import { pipeline } from 'stream';
 
@@ -30,7 +32,8 @@ interface Connection {
     controlSocket: ServerWebSocket<SocketMetadata>;
     logger: Logger;
     agent: TestCaseAgent;
-    tunnelSockets: Record<string, TunnelSocketState>;//TunnelSocketState[];
+    tunnel: TunnelManager;
+    //tunnelSockets: Record<string, TunnelSocketState>;//TunnelSocketState[];
     // pendingRequests: Record<string, {
     //     resolve: (response: Response) => void,
     //     reject: (error: Error) => void,
@@ -42,26 +45,18 @@ interface Connection {
     //forwardedSockets: 
 }
 
-// Just so that we can teardown corresponding conn if needed
-interface SocketMetadata {
-    runId: string | null,
-    // If true, this is an active (handshake completed) tunnel socket
-    isActiveTunnelSocket: boolean
-    // Active tunnel sockets are assigned a tunnel ID
-    tunnelId: string | null
-    //runMetadata: Record<string, any>
-}
 
-interface TunnelSocketState {
-    sock: ServerWebSocket<SocketMetadata>;
-    // Whether this tunnel socket is free to send/recieve HTTP traffic
-    available: boolean;
-    // prob can git rid of available and just check for pending req
-    pendingRequest: null | {
-        resolve: (responseData: TunneledResponseMessage) => void,
-        reject: (error: Error) => void
-    };
-}
+
+// interface TunnelSocketState {
+//     sock: ServerWebSocket<SocketMetadata>;
+//     // Whether this tunnel socket is free to send/recieve HTTP traffic
+//     available: boolean;
+//     // prob can git rid of available and just check for pending req
+//     pendingRequest: null | {
+//         resolve: (responseData: TunneledResponseMessage) => void,
+//         reject: (error: Error) => void
+//     };
+// }
 
 // interface ConnectionInfo {
 
@@ -195,78 +190,8 @@ export class RemoteTestRunner {
 
         // The incoming request will have host as a3089gcyxqqx.localhost:4444
         // This is fine - the client will fetch to the appropriate local URL which will override host/URL of this payload
-        console.log("Serializing request")
-        //const modifiedRequest = req.clone();
-
-        const tunneledRequest: TunneledRequestMessage = {
-            //id: requestId,
-            kind: 'tunnel:http_request',
-            payload: {
-                method: req.method,
-                path: url.pathname + url.search,
-                headers: Object.fromEntries(req.headers.entries()),//this.headersToObject(req.headers),
-                body: req.body ? await req.text() : null
-            }
-        };
-
-        // We need to change url and host properties
-        //modifiedRequest.url = 
-
-        //const serializedHttpRequest = await serializeRequest(req);
-        //console.log("Done serializing request");
-
-        //console.log(serializedHttpRequest);
-
-        let availableTunnel: TunnelSocketState | null = null;
-        let availableTunnelId: string | null = null;
-        for (const [tunnelId, tunnel] of Object.entries(conn.tunnelSockets)) {
-            // Use first available tunnel
-            if (tunnel.available) {
-                //tunnel.available = false;
-                // Forward serialized HTTP request
-                //tunnel.sock.send(data);
-                availableTunnel = tunnel;
-                availableTunnelId = tunnelId;
-            }
-        }
-        // TODO: queue system
-        if (!availableTunnel || !availableTunnelId) {
-            return new Response('All tunnel sockets busy, try again later', { 
-                status: 503,
-                headers: { 'Content-Type': 'text/plain' }
-            });
-        }
-
-        availableTunnel.available = false;
-
-        //const requestId = createId();
-        const responsePromise = new Promise<TunneledResponseMessage>((resolve, reject) => {
-            conn.tunnelSockets[availableTunnelId].pendingRequest = { resolve, reject };
-            //conn.pendingRequests[requestId] = { resolve, reject, tunnel: availableTunnel };
-
-            // Reject on timeout
-            // setTimeout(() => {
-            //     //
-            // }, 30000);
-        });
-
-        availableTunnel.sock.send(JSON.stringify(tunneledRequest));
-
-        const tunneledResponse = await responsePromise;
-
-        //const response = deserializeResponse(responseData);
-
-
-        const resp = new Response(
-            tunneledResponse.payload.body, {
-                status: tunneledResponse.payload.status,
-                headers: tunneledResponse.payload.headers
-            }
-        );
-
-        console.log("Return resp to browser:", resp);
-
-        return resp;
+        const response = await conn.tunnel.handleRequest(req, server);
+        return response;
 
         
 
@@ -402,7 +327,8 @@ export class RemoteTestRunner {
             controlSocket: ws,
             logger: logger.child({ runId }),
             agent: agent,
-            tunnelSockets: {}
+            tunnel: new TunnelManager(this.config.socketsPerTunnel)
+            //tunnelSockets: {}
         }
         this.connections[runId] = conn;
         ws.data.runId = runId;
@@ -423,26 +349,35 @@ export class RemoteTestRunner {
             this.sendErrorMessage(ws, `Run with ID ${msg.payload.runId} is not active on this remote runner`);
         }
 
-        //const
-        const numActiveTunnels = Object.keys(conn.tunnelSockets).length;
-        if (numActiveTunnels >= this.config.socketsPerTunnel) {
-            //
-            this.sendErrorMessage(ws, `Too many sockets: ${numActiveTunnels + 1}/${this.config.socketsPerTunnel} allowed tunnel sockets for run ID ${msg.payload.runId}`);
-        }
-
-        conn.logger.info("Tunnel socket established");
-        
-        // Assign socket metadata
         const tunnelId = createId();
         ws.data.runId = runId;
         ws.data.isActiveTunnelSocket = true;
-        ws.data.tunnelId = tunnelId;
-        // Add socket to connection's list of tunnel sockets
-        conn.tunnelSockets[tunnelId] = {
-            sock: ws,
-            available: true,
-            pendingRequest: null
-        };
+        ws.data.tunnelSocketId = tunnelId;
+
+        try {
+            conn.tunnel.registerSocket(tunnelId, ws);
+        } catch (error) {
+            this.sendErrorMessage(ws, (error as Error).message);
+        }
+        // const numActiveTunnels = Object.keys(conn.tunnelSockets).length;
+        // if (numActiveTunnels >= this.config.socketsPerTunnel) {
+        //     //
+        //     this.sendErrorMessage(ws, `Too many sockets: ${numActiveTunnels + 1}/${this.config.socketsPerTunnel} allowed tunnel sockets for run ID ${msg.payload.runId}`);
+        // }
+
+        // conn.logger.info("Tunnel socket established");
+        
+        // // Assign socket metadata
+        // const tunnelId = createId();
+        // ws.data.runId = runId;
+        // ws.data.isActiveTunnelSocket = true;
+        // ws.data.tunnelId = tunnelId;
+        // // Add socket to connection's list of tunnel sockets
+        // conn.tunnelSockets[tunnelId] = {
+        //     sock: ws,
+        //     available: true,
+        //     pendingRequest: null
+        // };
 
         // Send accept response
         ws.send(JSON.stringify({
@@ -459,29 +394,11 @@ export class RemoteTestRunner {
         try {
             if (ws.data.isActiveTunnelSocket) {
                 // Active (handshaked) tunnel socket
-                // This should be a serialized response to a tunneled HTTP request
-                if (raw_message instanceof Buffer) {
-                    throw new Error("Expected JSON string message")
-                }
-                // if (!(raw_message instanceof Buffer)) {
-                //     throw new Error("Expected serialized HTTP message")
-                // }
-                const runId = ws.data.runId!;
-                const tunnelId = ws.data.tunnelId!;
+                // if active tunnel, run ID and tunnel ID should exist
+                const conn = this.connections[ws.data.runId!];
+                const tunnelSocketId = ws.data.tunnelSocketId!;
 
-                // Make data available for request handler to return
-                // HERE
-                const conn = this.connections[runId].tunnelSockets[tunnelId];
-                // todo: check missing
-
-                const responseData = JSON.parse(raw_message as string) as TunneledResponseMessage;
-                
-                if (conn.pendingRequest) {
-                    conn.pendingRequest.resolve(responseData);
-                    conn.pendingRequest = null;
-                    conn.available = true;
-                }
-
+                await conn.tunnel.handleWebSocketMessage(tunnelSocketId, raw_message);
             } else {
                 // On control socket or a new socket (e.g. tunnel socket pre-handshake)
 

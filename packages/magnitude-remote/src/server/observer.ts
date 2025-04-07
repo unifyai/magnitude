@@ -1,6 +1,6 @@
 import { TestCaseDefinition } from "magnitude-core";
-import logger from "./logger";
-import { ApproveAuthorizationMessage, ObserverMessage, RequestAuthorizationMessage } from "./messages";
+import logger from "@/logger";
+import { ApproveAuthorizationMessage, ObserverMessage, RequestAuthorizationMessage } from "@/messages";
 
 export class ObserverConnection {
     /**
