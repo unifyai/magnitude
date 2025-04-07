@@ -7,14 +7,16 @@ interface RemoteTestCaseAgentConfig {
     serverUrl: string;
     listeners: TestAgentListener[];
     // a local or private URL that if specified, will become the target of web traffic tunneled from remote's browser
-    tunnelUrl: string | null;
+    //tunnelUrl: string | null;
+    useTunnel: boolean;
     apiKey: string | null;
 }
 
 const DEFAULT_CONFIG = {
     serverUrl: "ws://localhost:4444",
     listeners: [],
-    tunnelUrl: null,
+    //tunnelUrl: null,
+    useTunnel: false,
     apiKey: null
 };
 
@@ -25,11 +27,15 @@ interface TunnelSocket {
 }
 
 export class RemoteTestCaseAgent {
+    /**
+     * Meant to run just one test - create more to run multiple
+     */
     private config: RemoteTestCaseAgentConfig;
     private controlSocket: WebSocket | null = null;
     // Run ID assigned on confirm_start_run
     private runId: string | null = null;
     private tunnelSockets: TunnelSocket[] = [];
+    private testCase: TestCaseDefinition | null = null;
 
     constructor(config: Partial<RemoteTestCaseAgentConfig> = {}) {
         this.config = { ...DEFAULT_CONFIG, ...config };
@@ -40,6 +46,7 @@ export class RemoteTestCaseAgent {
          * testId: passed to observer (for cache retrieval, etc. - SDK ID)
          * testCase: test case definition
          */
+        this.testCase = testCase;
         return new Promise((resolve, reject) => {
             this.controlSocket = new WebSocket(this.config.serverUrl);
 
@@ -50,7 +57,7 @@ export class RemoteTestCaseAgent {
                         testCase: testCase,
                         testCaseId: testCaseId,
                         // If tunnel URL provided, request to establish tunnel sockets with server
-                        needTunnel: this.config.tunnelUrl !== null,
+                        needTunnel: this.config.useTunnel,//this.config.tunnelUrl !== null,
                         apiKey: this.config.apiKey
                     }
                 };
@@ -67,7 +74,10 @@ export class RemoteTestCaseAgent {
                         // Successful handshake response
                         this.runId = msg.payload.runId;
                         const numTunnelSockets = msg.payload.approvedTunnelSockets;
-                        this.establishTunnelSockets(numTunnelSockets);
+
+                        logger.info(`Use tunnel? ${this.config.useTunnel}`);
+
+                        if (this.config.useTunnel) await this.establishTunnelSockets(numTunnelSockets);
 
                         logger.info("Connection to remote runner established");
                     }
@@ -130,6 +140,8 @@ export class RemoteTestCaseAgent {
     }
 
     private async establishTunnelSockets(numTunnelSockets: number) {
+        logger.info(`Establishing ${numTunnelSockets} tunnel sockets`);
+
         for (let i = 0; i < numTunnelSockets; i++) {
             const sock = new WebSocket(this.config.serverUrl);
             this.tunnelSockets.push({
@@ -188,7 +200,7 @@ export class RemoteTestCaseAgent {
                         console.log("Forwarding request traffic:", msg);
 
                         //const request = await deserializeRequest(event.data);
-                        const localResponse = await fetch(`${this.config.tunnelUrl!}${req.path}`, {
+                        const localResponse = await fetch(`${this.testCase!.url}${req.path}`, {
                             method: req.method,
                             headers: req.headers,
                             body: req.body

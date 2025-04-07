@@ -14,9 +14,8 @@ program
     .command('server')
     .option('-p, --port <port>', 'port to run on', '4444')
     .option('-o, --observer <url>', 'URL of authorizer/observer')
-    .option('-s, --sockets-per-tunnel <num>', '6')
+    .option('-s, --sockets-per-tunnel <num>', 'number of sockets to use per HTTP tunnel', '6')
     .action(async (options: { port: number, observer: string, socketsPerTunnel: number }) => {
-        const observerUrl = options.observer;
         const server = new RemoteTestRunner({
             port: options.port,
             observerUrl: options.observer,

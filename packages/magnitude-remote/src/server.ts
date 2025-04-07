@@ -120,6 +120,7 @@ export class RemoteTestRunner {
             }
         });
         logger.info('Remote test runner server started')
+        if (this.config.observerUrl) logger.info(`Observer: ${this.config.observerUrl}`);
     }
 
     async stop() {
@@ -386,6 +387,7 @@ export class RemoteTestRunner {
         });
 
         // Inform client that run is accepted and that it may establish tunnel sockets
+        logger.info(`Accepting run, approving ${this.config.socketsPerTunnel} tunnel sockets`);
         const response: AcceptStartRunMessage = {
             kind: 'accept:run',
             payload: {
@@ -426,7 +428,7 @@ export class RemoteTestRunner {
             this.sendErrorMessage(ws, `Too many sockets: ${numActiveTunnels + 1}/${this.config.socketsPerTunnel} allowed tunnel sockets for run ID ${msg.payload.runId}`);
         }
 
-        conn.logger.info("Tunnel socket established")
+        conn.logger.info("Tunnel socket established");
         
         // Assign socket metadata
         const tunnelId = createId();

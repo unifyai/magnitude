@@ -17,7 +17,8 @@ export class LocalTestRunner extends BaseTestRunner {
     }
 
     protected async setup() {
-        this.browser = await chromium.launch({ headless: false, args: ['--enable-logging', '--v=1', `--log-file=/tmp/chrome-debug.log`], });
+        // TODO: add appropriate launch args
+        this.browser = await chromium.launch({ headless: false });
     }
 
     protected async teardown() {

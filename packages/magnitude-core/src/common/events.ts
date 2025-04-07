@@ -12,6 +12,7 @@ export interface TestAgentListener {
     // Listener for test case events:
 
     // May include additional metadata about the run, for example if hosted test case IDs
+    // testCase isn't really needed for anything here anymore, but its vibin
     onStart?: (testCase: TestCaseDefinition, runMetadata: Record<string, any>) => void;
 
     // Emitted after any action is taken in the browser

@@ -20,6 +20,8 @@ interface CliOptions {
     workers?: number;
     local: boolean;
     plain: boolean;
+    tunnel: boolean;
+    remote: string;
 }
 
 function getRelativePath(projectRoot: string, absolutePath: string): string {
@@ -111,6 +113,8 @@ program
     //.option('-r, --remote <auto|true|false>', 'whether to run tests remotely or locally (remote requires Magnitude API key, local requires additional setup)', 'auto')
     .option('-p, --plain', 'disable pretty output and use logs')
     .option('-l, --local', 'run agent locally (requires Playwright and LLM provider configuration)')
+    .option('-t, --tunnel', '(remote mode only) force enable HTTP tunneling regardless of whether target URL appears local/private')
+    .option('-r, --remote <url>', 'specify a custom remote runner')
     .action(async (filters, options: CliOptions) => {
         if (!options.plain) {
             remoteLogger.level = 'silent';
@@ -153,26 +157,34 @@ program
         registry.setGlobalOptions(config);
 
         const useRemote = !options.local;
+        const customRemoteUrl = options.remote;
 
         let runner: BaseTestRunner;
 
         const runnerConfig: BaseTestRunnerConfig = {
             workerCount: workerCount,
-            prettyDisplay: !options.plain
+            prettyDisplay: !options.plain,
+            //forceUseTunnel: options.tunnel
         };
 
         if (useRemote) {
-            // Get API key
-            const apiKey = process.env.MAGNITUDE_API_KEY || config.apiKey;
-            
-            if (!apiKey) {
-                console.error("Missing API key! Either set env var MAGNITUDE_API_KEY or assign apiKey in magnitude.config.ts");
-                process.exit(1);
-            }
+            if (!customRemoteUrl) {
+                // Get API key
+                const apiKey = process.env.MAGNITUDE_API_KEY || config.apiKey;
+                
+                if (!apiKey) {
+                    console.error("Missing API key! Either set env var MAGNITUDE_API_KEY or assign apiKey in magnitude.config.ts");
+                    process.exit(1);
+                }
 
-            runner = new RemoteTestRunner(
-                { ...runnerConfig, apiKey }
-            );
+                runner = new RemoteTestRunner(
+                    { ...runnerConfig, apiKey, forceUseTunnel: options.tunnel }
+                );
+            } else {
+                runner = new RemoteTestRunner(
+                    { ...runnerConfig, remoteRunnerUrl: customRemoteUrl, forceUseTunnel: options.tunnel, }
+                );
+            }
         } else {
             runner = new LocalTestRunner(runnerConfig);
         }
