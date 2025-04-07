@@ -33,8 +33,10 @@ export class TestSuiteViewer {
     private activeTrackers: Map<string, TestCaseStateTracker> = new Map();
     //private activeRuntimes: Map<string, TestRuntime> = new Map();
     private testRenderers: Map<string, TestCaseRenderer> = new Map();
+    private isLocal: boolean;
     
-    constructor() {
+    constructor(isLocal: boolean) {
+        this.isLocal = isLocal;
         this.registry = TestRegistry.getInstance();
     }
 
@@ -328,7 +330,7 @@ export class TestSuiteViewer {
         const totalCount = this.testStates.size;
         const statusLine = `${chalk.greenBright(`✓ ${passedCount} passed`)} ${chalk.redBright(`✗ ${failedCount} failed`)} ${brightMagnitudeBlue(`◌ ${runningCount} running`)} ${chalk.gray(`◯ ${pendingCount} pending`)}`;
         
-        lines.push(brightMagnitudeBlue(`=== Running ${totalCount} Tests with Magnitude ===`));
+        lines.push(brightMagnitudeBlue(`=== Running ${totalCount} Tests with Magnitude ${this.isLocal ? '[⌂ LOCAL]' : '[↹ REMOTE]'} ===`));
         lines.push(statusLine);
 
         lines.push('');

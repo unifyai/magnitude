@@ -13,7 +13,7 @@ export class LocalTestRunner extends BaseTestRunner {
     private browser: Browser | null = null;
 
     constructor(config: Partial<LocalRunnerConfig>) {
-        super({ ...DEFAULT_CONFIG, ...config });
+        super({ ...DEFAULT_CONFIG, ...config }, true);
     }
 
     protected async setup() {

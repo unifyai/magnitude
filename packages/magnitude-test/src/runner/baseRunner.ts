@@ -31,11 +31,11 @@ export abstract class BaseTestRunner {
     // Worker count for parallel execution
     //protected workerCount: number = 1;
 
-    constructor(config: Partial<BaseTestRunnerConfig>) {
+    constructor(config: Partial<BaseTestRunnerConfig>, isLocal: boolean) {
         this.config = { ...BASE_TEST_RUNNER_DEFAULT_CONFIG, ...config };
         this.registry = TestRegistry.getInstance();
         this.compiler = new TestCompiler();
-        this.viewer = new TestSuiteViewer();
+        this.viewer = new TestSuiteViewer(isLocal);
         //this.workerCount = Math.max(1, workerCount); // Ensure at least 1 worker
     }
 

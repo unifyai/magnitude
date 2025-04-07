@@ -18,7 +18,7 @@ export class RemoteTestRunner extends BaseTestRunner {
     declare protected config: RemoteRunnerConfig;
 
     constructor(config: { apiKey: string } & Partial<RemoteRunnerConfig>) {
-        super({ ...DEFAULT_CONFIG, ...config });
+        super({ ...DEFAULT_CONFIG, ...config }, false);
     }
 
     protected async setup() {
