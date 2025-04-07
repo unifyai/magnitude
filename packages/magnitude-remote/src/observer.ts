@@ -1,3 +1,4 @@
+import { TestCaseDefinition } from "magnitude-core";
 import logger from "./logger";
 import { ApproveAuthorizationMessage, ObserverMessage, RequestAuthorizationMessage } from "./messages";
 
@@ -12,10 +13,11 @@ export class ObserverConnection {
         this.observerUrl = observerUrl;
     }
 
-    async connect(apiKey: string, testCaseId: string): Promise<ApproveAuthorizationMessage> {
+    async connect(apiKey: string, testCaseId: string, testCase: TestCaseDefinition): Promise<ApproveAuthorizationMessage> {
         /**
          * Connect socket to observer and authorize
          * testCaseId: SDK ID
+         * testCase: TestCaseDefinition - provided so that observer can initialize and return dashboard URL
          */
         let authAbrubtCloseHandler, authErrorHandler, authMessageHandler;
 
@@ -52,6 +54,7 @@ export class ObserverConnection {
                             kind: 'init:authorize',
                             payload: {
                                 testCaseId: testCaseId,
+                                testCase: testCase,
                                 apiKey: apiKey
                             }
                         } satisfies RequestAuthorizationMessage));

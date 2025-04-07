@@ -49,6 +49,7 @@ interface SocketMetadata {
     isActiveTunnelSocket: boolean
     // Active tunnel sockets are assigned a tunnel ID
     tunnelId: string | null
+    //runMetadata: Record<string, any>
 }
 
 interface TunnelSocketState {
@@ -99,6 +100,7 @@ export class RemoteTestRunner {
     private server: Server | null = null;
     private connections: Record<string, Connection>;
     private browser: Browser | null = null;
+    //private runMetadata: Record<string, any> = {};
 
     constructor (config: Partial<RemoteTestRunnerConfig> = {})  {
         this.config = { ...DEFAULT_CONFIG, ...config };
@@ -294,7 +296,7 @@ export class RemoteTestRunner {
         }
     }
 
-    private buildSocketForwardingListener(ws: ServerWebSocket<SocketMetadata> | WebSocket): TestAgentListener {
+    private buildSocketForwardingListener(ws: ServerWebSocket<SocketMetadata> | WebSocket, additionalRunMetadata: Record<string, any>): TestAgentListener {
         // ServerWebSocket/WebSocket have same send API so this is chill
         return {
             onStart: (testCase: TestCaseDefinition, runMetadata: Record<string, any>) => {
@@ -303,7 +305,7 @@ export class RemoteTestRunner {
                     kind: 'event:start',
                     payload: {
                         testCase: testCase,
-                        runMetadata: runMetadata
+                        runMetadata: { ...runMetadata, ...additionalRunMetadata }//ws.data.runMetadata } // remove available bool
                     }
                 } satisfies StartEventMessage));
             },
@@ -335,7 +337,7 @@ export class RemoteTestRunner {
         // todo: return this or something to be rendered by test runner idk
         //let orgInfo: { orgName: string } | null = null;
         let observerConnection: ObserverConnection | null = null;
-        let runMetadata: { orgName: string } | {} = {};
+        let runMetadata: { orgName: string, dashboardUrl: string } | {} = {};
         
         if (this.config.observerUrl) {
             const apiKey = msg.payload.apiKey;
@@ -349,9 +351,9 @@ export class RemoteTestRunner {
                 logger.info("Attempting authorization");
                 
                 // is hanging here - doesnt reject properly
-                const msg = await observerConnection.connect(apiKey, testCaseId);
+                const msg = await observerConnection.connect(apiKey, testCaseId, testCaseDefinition);
                 //orgName = msg.payload.orgName;
-                runMetadata = { orgName: msg.payload.orgName };
+                runMetadata = { orgName: msg.payload.orgName, dashboardUrl: msg.payload.dashboardUrl };
 
                 logger.info(runMetadata, "Authorization succeeded");
             } catch (error) {
@@ -363,11 +365,11 @@ export class RemoteTestRunner {
         
         const runId = createId();
 
-        const agentListeners: TestAgentListener[] = [this.buildSocketForwardingListener(ws)];
+        const agentListeners: TestAgentListener[] = [this.buildSocketForwardingListener(ws, runMetadata)];
 
         // If observer, subscribe it to event messages
         if (this.config.observerUrl) {
-            agentListeners.push(this.buildSocketForwardingListener(observerConnection!.getSocket()!));
+            agentListeners.push(this.buildSocketForwardingListener(observerConnection!.getSocket()!, runMetadata));
         }
 
         const agent = new TestCaseAgent({

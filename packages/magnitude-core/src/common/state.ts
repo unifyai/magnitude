@@ -27,6 +27,8 @@ export interface TestCaseState {
     stepIndex: number
     checkIndex: number
     result: TestCaseResult | null
+    // e.g. test case URL
+    metadata: Record<string, any>
     //failure: FailureDescriptor | null
 }
 
@@ -64,7 +66,8 @@ export class TestCaseStateTracker {
             })),
             stepIndex: 0,
             checkIndex: -1, // -1 means we are on the step itself
-            result: null
+            result: null,
+            metadata: {}
             //failure: null
         }
         this.stateSubscribers = [];
@@ -97,6 +100,8 @@ export class TestCaseStateTracker {
 
     private _onStart(testCase: TestCaseDefinition, runMetadata: Record<string, any>) {
         // maybe set a start time or something on state idk
+        this.state.metadata = runMetadata;
+        this._notifyStateSubscribers();
     }
 
     private _onActionTaken(action: ActionDescriptor) {

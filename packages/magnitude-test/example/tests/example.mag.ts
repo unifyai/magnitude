@@ -1,6 +1,7 @@
 import { test } from 'magnitude-test';
 
 test('login')
+    //.step('click on the monkey')
     .step("Log in to the app")
         .data({ email: 'test-user@magnitude.run' })
         .secureData({ password: 'test' })

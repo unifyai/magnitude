@@ -137,6 +137,7 @@ export interface RequestAuthorizationMessage {
     kind: 'init:authorize'
     payload: {
         testCaseId: string
+        testCase: TestCaseDefinition
         apiKey: string
     }
 }
@@ -145,6 +146,7 @@ export interface ApproveAuthorizationMessage {
     kind: 'accept:authorize'
     payload: {
         orgName: string
-        orgCredits: number
+        dashboardUrl: string
+        //orgCredits: number
     }
 }

@@ -58,6 +58,7 @@ export class RemoteTestCaseAgent {
             });
 
             this.controlSocket.addEventListener('message', async (event) => {
+                //console.log(event)
                 try {
                     const msg = JSON.parse(event.data) as ServerMessage;
                     //console.log("Control socket Received message:", msg);
@@ -77,6 +78,7 @@ export class RemoteTestCaseAgent {
                     }
                     // Translate socket message to listener callbacks
                     else if (msg.kind === 'event:start') {
+                        //console.log("Start event:", msg);
                         for (const listener of this.config.listeners)
                             if (listener.onStart) listener.onStart(msg.payload.testCase, msg.payload.runMetadata);
                     }

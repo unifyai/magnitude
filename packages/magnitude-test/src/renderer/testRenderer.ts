@@ -109,6 +109,15 @@ export class TestCaseRenderer {
             //     lines.push(chalk.blackBright(`⛏ Tunnel: ${tunnelUrl} -> ${localUrl}`));
             // }
 
+            // {
+            //     orgName: string
+            //     dashboardUrl: string
+            // }
+
+            if (this.state.metadata.dashboardUrl) {
+                lines.push(magnitudeBlue(`⚭ Link: ${this.state.metadata.dashboardUrl}`));
+            }
+
             //lines.push(magnitudeBlue(`⚭ Link: ${this.lastRun.getUrl()}`));
 
             // 3. Steps and checks progress
