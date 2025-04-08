@@ -73,8 +73,8 @@
     "esbuild": "^0.25.1",
     "glob": "^11.0.1",
     "log-update": "^6.1.0",
-    "magnitude-core": "0.0.4",
-    "magnitude-remote": "0.0.4",
+    "magnitude-core": "workspace:*",
+    "magnitude-remote": "workspace:*",
     "playwright": "^1.51.1",
     "zod": "^3.24.2"
   },

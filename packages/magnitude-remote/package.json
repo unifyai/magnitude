@@ -64,7 +64,7 @@
   },
   "dependencies": {
     "commander": "^13.1.0",
-    "magnitude-core": "0.0.4"
+    "magnitude-core": "workspace:*"
   },
   "peerDependencies": {
     "bun": "*",
