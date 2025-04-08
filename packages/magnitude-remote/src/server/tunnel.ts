@@ -25,7 +25,6 @@ export class TunnelManager {
     private readyResolver!: () => void;
 
     private sockets: Record<TunnelSocketID, ServerWebSocket<SocketMetadata>> = {};
-    //private 
 
     // All pending requests, possible in queue, waiting to get handled by an available socket tunnel
     private pendingRequests: Record<RequestID, {
@@ -163,9 +162,6 @@ export class TunnelManager {
     async handleRequest(req: Request, server: Server): Promise<Response> {
         // Handle an incoming REQUEST to get a tunneled response using an appropriate tunnel socket
         const url = new URL(req.url);
-
-        console.log("Serializing request")
-        //const modifiedRequest = req.clone();
 
         const tunneledRequest: TunneledRequestMessage = {
             //id: requestId,

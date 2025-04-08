@@ -1,6 +1,6 @@
 {
   "name": "magnitude-core",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Magnitude e2e testing agent",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
@@ -61,7 +61,6 @@
   "dependencies": {
     "@boundaryml/baml": "^0.80.0",
     "commander": "^13.1.0",
-    "openai": "^4.87.3",
     "sharp": "^0.33.5"
   },
   "peerDependencies": {

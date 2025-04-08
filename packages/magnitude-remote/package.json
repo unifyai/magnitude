@@ -1,6 +1,6 @@
 {
   "name": "magnitude-remote",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Magnitude e2e testing agent",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
@@ -67,5 +67,16 @@
     "bun": "*",
     "@types/bun": "*",
     "playwright": "^1.51.0"
+  },
+  "peerDependenciesMeta": {
+    "playwright": {
+      "optional": true
+    },
+    "bun": {
+      "optional": true
+    },
+    "@types/bun": {
+      "optional": true
+    }
   }
 }

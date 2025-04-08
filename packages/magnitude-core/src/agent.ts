@@ -66,7 +66,9 @@ export class TestCaseAgent {
             return result;
         } catch (error) {
             if (error instanceof TestCaseError) {
-                console.log("got error:", error)
+                //console.log("got error:", error)
+                // Not necessarily a real "error"
+                logger.info(`Exception during run: ${error}`);
                 const failure = { description: error.message };
                 const result: TestCaseResult = { passed: false, failure: failure };
                 for (const listener of this.listeners) if(listener.onDone) listener.onDone(result);
@@ -74,7 +76,7 @@ export class TestCaseAgent {
             } else {
                 // ^ these can also be unexpected tho
                 // TODO: still wrap error into a special variant to prevent any straight up crashes?
-                console.error("Unexpected error:", error);
+                logger.warn(`Unexpected error: ${error}`, );
                 throw error;
             }
         } finally {

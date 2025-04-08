@@ -1,6 +1,5 @@
 import { TestOptions, TestGroup, TestGlobalConfig, CategorizedTestCases } from "./types";
 import { TestCaseBuilder } from "./testCaseBuilder";
-import { Magnitude } from "../client";
 
 declare global {
     var __testRegistry: TestRegistry | undefined;
@@ -80,11 +79,6 @@ export class TestRegistry {
     }
 
     public setGlobalOptions(options: TestGlobalConfig): void {
-        if (options.apiKey) {
-            Magnitude.init({
-                apiKey: options.apiKey
-            });
-        }
         this.globalOptions = options;
     }
 

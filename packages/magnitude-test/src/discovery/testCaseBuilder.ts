@@ -1,4 +1,3 @@
-import { TestCase as TestCaseData, TestStep as TestStepData } from '../types';
 import { TestCaseDefinition, TestStepDefinition } from 'magnitude-core';
 
 class TestStepBuilder {
@@ -44,23 +43,6 @@ class TestStepBuilder {
         return this;
     }
 
-    // TODO: deprecate
-    // public toData(): TestStepData {
-    //     const testData = [
-    //         ...Object.entries(this.testData).map(([k, v]) => ({ key: k, value: v, sensitive: false })),
-    //         ...Object.entries(this.secureTestData).map(([k, v]) => ({ key: k, value: v, sensitive: true }))
-    //     ];
-
-    //     return {
-    //         description: this.description,
-    //         checks: this.checks,
-    //         test_data: {
-    //             data: testData,
-    //             other: this.freeformTestData.join("\n")
-    //         },
-    //     }
-    // }
-
     public toDefinition(): TestStepDefinition {
         const testData = [
             ...Object.entries(this.testData).map(([k, v]) => ({ key: k, value: v, sensitive: false })),
@@ -87,12 +69,7 @@ export interface TestCaseOptions {
 export class TestCaseBuilder {
     // User-defined ID (sdk_id)
     private id: string;
-
-    // Internal CUID2
-    //private internalId: string | null = null;
-
-    // builder class should NOT be in charge of any tunnel or internal ID tracking
-
+    // currently ID used for name too
     private name: string;
     private url: string;
     //private tunnelUrl: string | null = null;
@@ -111,28 +88,6 @@ export class TestCaseBuilder {
         return step;
     }
 
-    // public run(): TestRuntime {
-    //     //console.log("TestCase.run()");
-    //     // Ensure Magnitude is initialized
-    //     if (!Magnitude.isInitialized()) {
-    //         throw new Error('Magnitude not initialized. Call Magnitude.init() before running tests.');
-    //     }
-
-    //     // Create and return a runner
-    //     return new TestRuntime(this);
-    // }
-
-    // TODO: deprecate
-    // public toData(): TestCaseData {
-    //     return {
-    //         id: this.id,
-    //         name: this.name,
-    //         // If tunneling, provide tunnel url instead
-    //         url: this.tunnelUrl ?? this.url,
-    //         steps: this.steps.map(step => step.toData())
-    //     }
-    // }
-
     public toDefinition(): TestCaseDefinition {
         return {
             // id: this.id,
@@ -150,24 +105,4 @@ export class TestCaseBuilder {
     public getId(): string {
         return this.id;
     }
-
-    // public getInternalId(): string | null {
-    //     return this.internalId;
-    // }
-
-    // public setInternalId(id: string) {
-    //     this.internalId = id;
-    // }
-
-    // public setTunnelUrl(url: string) {
-    //     this.tunnelUrl = url;
-    // }
-
-    // public getTunnelUrl(): string | null {
-    //     return this.tunnelUrl;
-    // }
-
-
-
-    // get sdk id
 }
