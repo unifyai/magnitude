@@ -10,6 +10,15 @@ client<llm> Macro {
     }
 }
 
+// client<llm> Macro {
+//     provider anthropic
+//     options {
+//         model "claude-3-5-sonnet-20241022"
+//         api_key env.ANTHROPIC_API_KEY
+//         temperature 0.0
+//     }
+// }
+
 client<llm> Molmo {
     provider "openai-generic"
     options {
