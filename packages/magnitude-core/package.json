@@ -1,7 +1,10 @@
 {
   "name": "magnitude-core",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Magnitude e2e testing agent",
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.cts",

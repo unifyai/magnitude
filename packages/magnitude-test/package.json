@@ -1,7 +1,10 @@
 {
   "name": "magnitude-test",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "A TypeScript client for running automated UI tests through the Magnitude testing platform",
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
@@ -70,8 +73,8 @@
     "esbuild": "^0.25.1",
     "glob": "^11.0.1",
     "log-update": "^6.1.0",
-    "magnitude-core": "workspace:*",
-    "magnitude-remote": "workspace:*",
+    "magnitude-core": "0.0.4",
+    "magnitude-remote": "0.0.4",
     "playwright": "^1.51.1",
     "zod": "^3.24.2"
   },

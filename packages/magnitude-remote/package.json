@@ -1,7 +1,10 @@
 {
   "name": "magnitude-remote",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Magnitude e2e testing agent",
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.cts",
@@ -61,7 +64,7 @@
   },
   "dependencies": {
     "commander": "^13.1.0",
-    "magnitude-core": "workspace:*"
+    "magnitude-core": "0.0.4"
   },
   "peerDependencies": {
     "bun": "*",
