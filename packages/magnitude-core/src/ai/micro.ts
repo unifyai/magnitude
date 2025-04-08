@@ -6,6 +6,7 @@ import sharp from 'sharp';
 import { downscaleScreenshot, extractCoordinates, relToPixelCoords } from './util';
 import { ActionIngredient, CheckIngredient, ClickIngredient, Ingredient, TypeIngredient } from '@/recipe/types';
 import { CheckResult } from './types';
+import { BamlAsyncClient } from "./baml_client/async_client";
 
 
 interface MicroAgentConfig {
@@ -28,10 +29,12 @@ export class MicroAgent {
      */
     private config: MicroAgentConfig;
     private collector: Collector;
+    private baml: BamlAsyncClient;
 
     constructor(config: Partial<MicroAgentConfig> = {}) {
         this.config = {...DEFAULT_CONFIG, ...config};
         this.collector = new Collector("micro");
+        this.baml = b.withOptions({ collector: this.collector });
     }
 
     private async transformScreenshot (screenshot: Screenshot) {
@@ -43,10 +46,9 @@ export class MicroAgent {
 
     async locateTarget(screenshot: Screenshot, target: string): Promise<PixelCoordinate> {
         const downscaledScreenshot = await this.transformScreenshot(screenshot);
-        const response = await b.LocateTarget(
+        const response = await this.baml.LocateTarget(
             Image.fromBase64('image/png', downscaledScreenshot.image),
-            target,
-            { collector: this.collector }
+            target
         );
 
         //console.log(response);
@@ -71,10 +73,9 @@ export class MicroAgent {
         // TODO: Make more robust, add logp analysis for confidence
         const downscaledScreenshot = await this.transformScreenshot(screenshot);
 
-        const response = await b.EvaluateCheck(
+        const response = await this.baml.EvaluateCheck(
             Image.fromBase64('image/png', downscaledScreenshot.image),
-            check.description,
-            { collector: this.collector }
+            check.description
         );
 
         //console.log("Check response:", response);

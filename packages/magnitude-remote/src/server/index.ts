@@ -300,7 +300,8 @@ export class RemoteTestRunner {
 
         const agent = new TestCaseAgent({
             // On each agent event, convert to websocket traffic over the control socket
-            listeners: agentListeners
+            listeners: agentListeners,
+            plannerModelProvider: 'SonnetBedrock'
         });
 
         // Start agent

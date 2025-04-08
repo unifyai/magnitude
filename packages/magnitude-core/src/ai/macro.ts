@@ -1,17 +1,20 @@
 import { Screenshot } from "@/web/types";
 import { downscaleScreenshot } from "./util";
 import { b } from "@/ai/baml_client";
-import { Image, Collector } from "@boundaryml/baml";
+import { Image, Collector, ClientRegistry } from "@boundaryml/baml";
 import { ActionIngredient, Ingredient } from "@/recipe/types";
 import { TestCaseDefinition, TestStepDefinition } from "@/types";
+import { BamlAsyncClient } from "./baml_client/async_client";
 
 
 interface MacroAgentConfig {
     downscaling: number
+    provider: 'SonnetBedrock' | 'SonnetAnthropic'
 }
 
-const DEFAULT_CONFIG = {
-    downscaling: 0.75
+const DEFAULT_CONFIG: MacroAgentConfig = {
+    downscaling: 0.75,
+    provider: 'SonnetBedrock'
 }
 
 export class MacroAgent {
@@ -20,10 +23,25 @@ export class MacroAgent {
      */
     private config: MacroAgentConfig;
     private collector: Collector;
+    private cr: ClientRegistry;
+    private baml: BamlAsyncClient;
 
     constructor(config: Partial<MacroAgentConfig> = {}) {
         this.config = {...DEFAULT_CONFIG, ...config};
         this.collector = new Collector("macro");
+        this.cr = new ClientRegistry();
+        this.cr.addLlmClient('SonnetBedrock', 'aws-bedrock', {
+            model_id: "anthropic.claude-3-5-sonnet-20240620-v1:0",
+            inference_configuration: {
+                temperature: 0.0
+            },
+        });
+        this.cr.addLlmClient('SonnetAnthropic', 'anthropic', {
+            model: "claude-3-5-sonnet-20240620",
+            temperature: 0.0
+        });
+        this.cr.setPrimary(this.config.provider);
+        this.baml = b.withOptions({ collector: this.collector, clientRegistry: this.cr });
     }
 
     private async transformScreenshot(screenshot: Screenshot) {
@@ -43,11 +61,10 @@ export class MacroAgent {
 
         //console.log("existing:", stringifiedExistingRecipe);
 
-        const response = await b.CreatePartialRecipe(
+        const response = await this.baml.CreatePartialRecipe(
             Image.fromBase64('image/png', downscaledScreenshot.image),
             testStep,
-            stringifiedExistingRecipe,
-            { collector: this.collector }
+            stringifiedExistingRecipe
         );
         return response;
     }
@@ -65,11 +82,10 @@ export class MacroAgent {
             stringifiedExistingRecipe.push(JSON.stringify(action, null, 4))
         }
 
-        const response = await b.RemoveImplicitCheckContext(
+        const response = await this.baml.RemoveImplicitCheckContext(
             Image.fromBase64('image/png', downscaledScreenshot.image),
             check,
-            stringifiedExistingRecipe,
-            { collector: this.collector }
+            stringifiedExistingRecipe
         );
         return response.check;
     }

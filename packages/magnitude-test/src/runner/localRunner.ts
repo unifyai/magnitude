@@ -27,7 +27,8 @@ export class LocalTestRunner extends BaseTestRunner {
 
     protected async runTest(testCaseId: string, testCase: TestCaseDefinition, listener: TestAgentListener): Promise<TestCaseResult> {
         const agent = new TestCaseAgent({
-            listeners: [listener]
+            listeners: [listener],
+            plannerModelProvider: 'SonnetAnthropic'
         });
         const result = await agent.run(this.browser!, testCase);
         return result;

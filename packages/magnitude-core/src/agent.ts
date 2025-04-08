@@ -19,13 +19,15 @@ export interface TestCaseAgentConfig {
     //onCheckCompleted: (testCaseCheck: string, ingredient: CheckIngredient) => void;
     //onRecipeUpdated()
     listeners: TestAgentListener[]
+    plannerModelProvider: 'SonnetBedrock' | 'SonnetAnthropic'
     // Browser options
 
     // Behavior/LLM options
 }
 
-const DEFAULT_CONFIG = {
-    listeners: []
+const DEFAULT_CONFIG: TestCaseAgentConfig = {
+    listeners: [],
+    plannerModelProvider: 'SonnetBedrock'
     // onActionTaken: () => {},
     // onStepCompleted: () => {},
     // onCheckCompleted: () => {}
@@ -42,7 +44,7 @@ export class TestCaseAgent {
         //this.testCase = testCase;
         this.config = { ...DEFAULT_CONFIG, ...config };
         this.listeners = config.listeners || [];
-        this.macro = new MacroAgent();
+        this.macro = new MacroAgent({ provider: this.config.plannerModelProvider });
         this.micro = new MicroAgent();
     }
 
