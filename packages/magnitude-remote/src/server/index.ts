@@ -32,7 +32,7 @@ interface Connection {
     controlSocket: ServerWebSocket<SocketMetadata>;
     logger: Logger;
     agent: TestCaseAgent;
-    tunnel: TunnelManager;
+    tunnel: TunnelManager | null;
     //tunnelSockets: Record<string, TunnelSocketState>;//TunnelSocketState[];
     // pendingRequests: Record<string, {
     //     resolve: (response: Response) => void,
@@ -177,7 +177,7 @@ export class RemoteTestRunner {
 
         // (2) HTTP traffic needs to be tunneled through a corresponding established socket
         // TODO
-        console.log("Tunneling traffic")
+        //console.log("Tunneling traffic")
         const conn = this.connections[runId];
 
         if (!conn) {
@@ -190,7 +190,7 @@ export class RemoteTestRunner {
 
         // The incoming request will have host as a3089gcyxqqx.localhost:4444
         // This is fine - the client will fetch to the appropriate local URL which will override host/URL of this payload
-        const response = await conn.tunnel.handleRequest(req, server);
+        const response = await conn.tunnel!.handleRequest(req, server);
         return response;
 
         
@@ -205,7 +205,7 @@ export class RemoteTestRunner {
         /**
          * The ONLY websockets that actually get opened on this server should be CONTROL connections.
          */
-        logger.info("Websocket open:", ws)
+        //logger.info("Websocket open:", ws)
     }
 
     private async cleanupConnection(runId: string): Promise<void> {
@@ -320,7 +320,7 @@ export class RemoteTestRunner {
             }
         };
         ws.send(JSON.stringify(response));
-        const tunnel = new TunnelManager(this.config.socketsPerTunnel);
+        //const tunnel = 
         // Wait for client to make tunnel connections
         // TODO: only do if need tunnel - otherwise dont expected connections
         // TODO: run agent AFTER
@@ -328,16 +328,19 @@ export class RemoteTestRunner {
             controlSocket: ws,
             logger: logger.child({ runId }),
             agent: agent,
-            tunnel: tunnel
+            // Any connection that says it needs tunnel has a tunnel manager else null
+            tunnel: useTunnel ? new TunnelManager(this.config.socketsPerTunnel) : null
             //tunnelSockets: {}
         }
         this.connections[runId] = conn;
         ws.data.runId = runId;
         conn.logger.info('Confirmed run');
 
-        conn.logger.info(`Waiting for tunnel connections to be made`);
-        await tunnel.waitForAllClientConnections();
-        conn.logger.info(`Tunnel ready`);
+        if (conn.tunnel) {
+            conn.logger.info(`Waiting for tunnel connections to be made`);
+            await conn.tunnel.waitForAllClientConnections();
+            conn.logger.info(`Tunnel ready`);
+        }
 
         agent.run(this.browser!, {
             ...testCaseDefinition,
@@ -367,7 +370,7 @@ export class RemoteTestRunner {
         ws.data.tunnelSocketId = tunnelSocketId;
 
         try {
-            conn.tunnel.registerSocket(tunnelSocketId, ws);
+            conn.tunnel!.registerSocket(tunnelSocketId, ws);
         } catch (error) {
             this.sendErrorMessage(ws, (error as Error).message);
         }
@@ -410,7 +413,7 @@ export class RemoteTestRunner {
                 const conn = this.connections[ws.data.runId!];
                 const tunnelSocketId = ws.data.tunnelSocketId!;
 
-                await conn.tunnel.handleWebSocketMessage(tunnelSocketId, raw_message);
+                await conn.tunnel!.handleWebSocketMessage(tunnelSocketId, raw_message);
             } else {
                 // On control socket or a new socket (e.g. tunnel socket pre-handshake)
 
