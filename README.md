@@ -4,7 +4,7 @@
   </p>
 
   <h3 align="center">
-    Build AI-powered E2E tests in natural language
+    Robust AI web testing framework
   </h3>
 
   <p>
@@ -14,100 +14,41 @@
   <hr style="height: 1px; border: none; background-color: #e1e4e8; margin: 24px 0;">
 </div>
 
-> 🤖 **Magnitude**: An AI-powered E2E testing framework. Write tests in natural language that don't break when your interface changes.
+🤖 **Magnitude**: End-to-end testing framework powered by visual AI agents that see your interface and adapt to any changes in it. 
 
-- **Natural Language** - No more brittle UI selectors
-- **Adaptable** - Tests automatically adapt to interface changes
-- **AI-Powered** - Leverages latest vision LLMs for robust test execution
+Feel free to [self-host](#self-hosting) or use our [hosted service](#how-to-run-your-first-test)
 
-## Packages
-
-Magnitude consists of two main packages:
-
-- **magnitude-test**: The test runner and CLI tool for writing and executing tests
-- **magnitude-core**: The core AI agent behavior and browser automation logic
-
-## Installation
-
-If you plan on using the hosted version, you'll only need to install the test runner:
-
-```bash
-npm install --save-dev magnitude-test
-```
-
-If you're planning on self-hosting you'll need the core as well:
-
-```bash
-npm install magnitude-core
-```
-
-## Setup
-
-Once installed, setup Magnitude in your project by running:
-```bash
-npx magnitude init
-```
-This will create a basic tests directory `tests/magnitude` with:
-- `magnitude.config.ts`: Magnitude test configuration file
-- `example.mag.ts`: An example test file
-
-Then, you'll need to initialize the Magnitude client with your API key. You can get a free API key by signing up at https://app.magnitude.run/signup, then creating one in Settings->API Keys. Then configure it in one of two ways:
-
-1. Configure in the generated `magnitude.config.ts`:
-```ts
-import { defineConfig } from 'magnitude-test';
-
-export default defineConfig({
-    baseUrl: "localhost:5173",
-    // Add API key:
-    apiKey: 'your-api-key-here'
-});
-```
-
-2. Or set it as an environment variable:
-```bash
-export MAGNITUDE_API_KEY=your-api-key-here
-```
-
-## Running Test Cases
-
-To run your Magnitude tests, simply run:
-```bash
-npx magnitude
-```
-This will run all Magnitude test files discovered with the `*.mag.ts` pattern.
-
-Here's an example of a basic test case:
-```ts
-// tests/example.mag.ts
-import { test } from 'magnitude-test';
-
-// Example URL override, defaults to configured baseUrl
-test('can login with valid credentials', { url: "https://qa-bench.com" })
-    .step('Log in to the app')
-        .data({ username: "test-user@magnitude.run" }) // arbitrary key/values
-        .secureData({ password: "test" }) // sensitive data
-        .check('Can see dashboard') // natural language assertion
-    .step('Create a new company')
-        .data("Make up the first 2 values and use defaults for the rest")
-        .check("Company added successfully");
-```
-
-Any step descriptions, checks, or data are represented in natural language. You can be as vague or specific as you'd like - though more specificity does generally lead to more consistent test runs.
-
-For more examples see the [examples folder](./examples).
-
-## Tunneling
-
-Magnitude runs the browser and AI agent so you don't have to. In order to access locally running sites, a secure HTTP tunnel is established from our servers to your localhost when you specify a private URL (for example `localhost:3000` or `127.0.0.1`).
-
-This is handled automatically - when you specify a private URL the SDK will detect this and establish a reverse tunnel first.
 
 ## How it Works
+- ✍️ Build test cases easily with natural language
+- 🧠 Strong reasoning agent to plan and adjust tests
+- 👁️ Fast visual agent to reliably execute runs
+- 📄 Plan is saved to execute runs the same way
+- 🛠 Reasoning agent steps in if there is a problem
+- 🏃‍♂️ Run tests locally or in CI/CD pipelines
 
-Magnitude uses multi-modal LLMs and state-of-the-art web interaction techniques to follow the intention of a natural language test case, rather than specific brittle instructions that rely on selectors (e.g. selenium or playwright).
+[VIDEO HERE]
 
-The LLM decides at runtime what to do based on the test case steps, a screenshot of the browser, a history of its own activity, and other information. If it encounters something unexpected, a problem will be reported and categorized. If the problem encountered inhibits the further execution of the test case, the test case fails. Some problems identiifed may not justify a failure of the test case, but indicate some smaller visual issue or bug.
+
+## How to run your first test
+
+TBD
+
+## Self-hosting
+
+TBD
+
+## Self-hosted vs. hosted version
+
+| Feature | Self-hosted | Hosted |
+| --- | --- | --- |
+| 🧪 Test framework | ✅ | ✅ |
+| 🤖 Core agent | ✅ | ✅ |
+| 🌐 Managed browser infra (no playwright install required) | ❌ | ✅ |
+| 🧠 Managed llm infra | ❌ | ✅ |
+| 🎮 Test playground (design and debug tests visually) | ❌ | ✅ |
+| 📊 Test Console (manage test cases + view past runs) | ❌ | ✅ |
+
 
 ## Contact
 
