@@ -1,35 +1,31 @@
 # ---
-# cmd: ["modal", "serve", "phi4mm_inference.py"]
+# cmd: ["modal", "serve", "molmo_vllm.py"]
 # pytest: false
 # ---
-
-# Run OpenAI-compatible inference with Microsoft Phi-4-multimodal-instruct
 
 import os
 import modal
 
 # Create an image with all required dependencies
 molmo_image = modal.Image.debian_slim(python_version="3.10").pip_install(
-    "vllm==0.6.3post1", 
+    "vllm==0.8.3", 
     "fastapi[standard]==0.115.4",
-    "transformers>=4.42.0",  # Required for Phi-4 models
+    "transformers>=4.42.0",
     "torch>=2.0.0",
     "accelerate",  # Helps with model loading
-    "pillow",      # For image processing
-    "soundfile",   # For audio processing
+    "pillow",  # For image processing
     #force_build=True
 )
 
 MODELS_DIR = "/molmo"
 MODEL_NAME = "allenai/Molmo-7B-D-0924"
-#MODEL_NAME = "allenai/Molmo-7B-O-0924"
 MODEL_REVISION = "main"
 
 # Try to get the volume, or raise an exception if it doesn't exist
 try:
     volume = modal.Volume.from_name("molmo", create_if_missing=False).hydrate()
 except modal.exception.NotFoundError:
-    raise Exception("Download model first with modal run download_phi4mm.py")
+    raise Exception("Download model first with modal run download_molmo.py")
 
 app = modal.App("molmo-vllm")
 
@@ -40,8 +36,6 @@ HOURS = 60 * MINUTES
 
 @app.function(
     image=molmo_image,
-    #gpu="L4",
-    #gpu="A100-40GB",
     gpu="A10G",
     container_idle_timeout=20 * MINUTES,
     timeout=24 * HOURS,
@@ -67,7 +61,6 @@ def serve():
     # create a fastAPI app that uses vLLM's OpenAI-compatible router
     web_app = fastapi.FastAPI(
         title=f"OpenAI-compatible {MODEL_NAME} server",
-        description="Run an OpenAI-compatible multimodal LLM server with Phi-4-multimodal on modal.com 🚀",
         version="0.0.1",
         docs_url="/docs",
     )
@@ -113,7 +106,6 @@ def serve():
         # Optimizations
         dtype="bfloat16",  # Use bfloat16 instead of float32
         quantization=None,  # No additional quantization beyond bf16
-        #max_parallel_loading_workers=
     )
 
     engine = AsyncLLMEngine.from_engine_args(
