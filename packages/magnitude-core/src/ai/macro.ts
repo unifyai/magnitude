@@ -30,16 +30,6 @@ export class MacroAgent {
         this.config = {...DEFAULT_CONFIG, ...config};
         this.collector = new Collector("macro");
         this.cr = new ClientRegistry();
-        this.cr.addLlmClient('SonnetBedrock', 'aws-bedrock', {
-            model_id: "anthropic.claude-3-5-sonnet-20240620-v1:0",
-            inference_configuration: {
-                temperature: 0.0
-            },
-        });
-        this.cr.addLlmClient('SonnetAnthropic', 'anthropic', {
-            model: "claude-3-5-sonnet-20240620",
-            temperature: 0.0
-        });
         this.cr.setPrimary(this.config.provider);
         this.baml = b.withOptions({ collector: this.collector, clientRegistry: this.cr });
     }

@@ -50,7 +50,7 @@ class PartialRecipe {
 }
 
 function CreatePartialRecipe (screenshot: image, step: TestStep, previousActions: string[]) -> PartialRecipe {
-    client Macro
+    client SonnetAnthropic
     prompt #"
         {{ _.role("system") }}
         Plan out web actions that should be executed in order to complete the step: {{ step.description }}
@@ -88,7 +88,7 @@ class CheckNoContext {
 }
 
 function RemoveImplicitCheckContext (screenshot: image, check: string, previousActions: string[]) -> CheckNoContext {
-    client Macro
+    client SonnetAnthropic
     prompt #"
         {{ _.role("system") }}
         Your job is to convert a "check" which may implicitly depend on historical context to one that can be verified based on the current screenshot alone.
