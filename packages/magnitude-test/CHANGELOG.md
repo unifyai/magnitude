@@ -1,5 +1,20 @@
 # magnitude-test
 
+## 0.0.6
+
+### Patch Changes
+
+- Update example template
+
+## 0.0.5
+
+### Patch Changes
+
+- Fix import issue
+- Updated dependencies
+  - magnitude-remote@0.0.5
+  - magnitude-core@0.0.5
+
 ## 0.0.4
 
 ### Patch Changes

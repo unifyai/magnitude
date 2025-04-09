@@ -38,14 +38,14 @@ function getRelativePath(projectRoot: string, absolutePath: string): string {
     return path.relative(normalizedProjectRoot, normalizedAbsolutePath);
 }
 
-const configTemplate = `import { defineConfig } from 'magnitude-ts';
+const configTemplate = `import { defineConfig } from 'magnitude-test';
 
 export default defineConfig({
     baseUrl: "localhost:5173"
 });
 `;
 
-const exampleTestTemplate = `import { test } from 'magnitude-ts';
+const exampleTestTemplate = `import { test } from 'magnitude-test';
 
 // Example URL override, defaults to configured baseUrl
 test('can login with valid credentials', { url: "https://qa-bench.com" })

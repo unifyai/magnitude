@@ -1,4 +1,3 @@
-import OpenAI from 'openai';
 import { ClickWebAction, PixelCoordinate, Screenshot, TypeWebAction, WebAction } from '@/web/types';
 import { b } from "@/ai/baml_client/async_client";
 import { Collector, Image } from "@boundaryml/baml";
