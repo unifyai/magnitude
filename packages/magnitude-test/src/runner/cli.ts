@@ -22,6 +22,7 @@ interface CliOptions {
     plain: boolean;
     tunnel: boolean;
     remote: string;
+    key: string;
 }
 
 function getRelativePath(projectRoot: string, absolutePath: string): string {
@@ -115,6 +116,7 @@ program
     .option('-l, --local', 'run agent locally (requires Playwright and LLM provider configuration)')
     .option('-t, --tunnel', '(remote mode only) force enable HTTP tunneling regardless of whether target URL appears local/private')
     .option('-r, --remote <url>', 'specify a custom remote runner')
+    .option('-k, --key <apiKey>', 'provide API key')
     .action(async (filters, options: CliOptions) => {
         if (!options.plain) {
             remoteLogger.level = 'silent';
@@ -170,7 +172,7 @@ program
         if (useRemote) {
             if (!customRemoteUrl) {
                 // Get API key
-                const apiKey = process.env.MAGNITUDE_API_KEY || config.apiKey;
+                const apiKey = options.key || process.env.MAGNITUDE_API_KEY || config.apiKey || null;
                 
                 if (!apiKey) {
                     console.error("Missing API key! Either set env var MAGNITUDE_API_KEY or assign apiKey in magnitude.config.ts");
@@ -181,8 +183,11 @@ program
                     { ...runnerConfig, apiKey, forceUseTunnel: options.tunnel }
                 );
             } else {
+                // If custom remote, try read API key if provided
+                const apiKey = options.key || process.env.MAGNITUDE_API_KEY || config.apiKey || null;
+                // Remote server may or may not actually require API key depending on configuration (if observer)
                 runner = new RemoteTestRunner(
-                    { ...runnerConfig, remoteRunnerUrl: customRemoteUrl, forceUseTunnel: options.tunnel, }
+                    { ...runnerConfig, apiKey, remoteRunnerUrl: customRemoteUrl, forceUseTunnel: options.tunnel, }
                 );
             }
         } else {

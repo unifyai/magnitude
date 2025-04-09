@@ -6,14 +6,15 @@ import { isLocalUrl } from '@/util';
 
 export interface RemoteRunnerConfig extends BaseTestRunnerConfig {
     remoteRunnerUrl: string;
-    apiKey?: string;
+    apiKey: string | null;
     forceUseTunnel: boolean;
 }
 
-const DEFAULT_CONFIG: Omit<RemoteRunnerConfig, 'apiKey'> = {
+const DEFAULT_CONFIG: RemoteRunnerConfig = {
     ...BASE_TEST_RUNNER_DEFAULT_CONFIG,
     remoteRunnerUrl: 'https://remote.magnitude.run:4444',
-    forceUseTunnel: false
+    forceUseTunnel: false,
+    apiKey: null
     //apiKey: process.env.MAGNITUDE_API_KEY
 } 
 
@@ -43,7 +44,7 @@ export class RemoteTestRunner extends BaseTestRunner {
         const agent = new RemoteTestCaseAgent({
             listeners: [listener],
             serverUrl: this.config.remoteRunnerUrl,
-            apiKey: this.config.apiKey || null,
+            apiKey: this.config.apiKey,
             useTunnel: useTunnel
             //forceUseTunnel: this.config.forceUseTunnel
         });
