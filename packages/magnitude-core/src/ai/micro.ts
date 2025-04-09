@@ -6,6 +6,8 @@ import { downscaleScreenshot, extractCoordinates, relToPixelCoords } from './uti
 import { ActionIngredient, CheckIngredient, ClickIngredient, Ingredient, TypeIngredient } from '@/recipe/types';
 import { CheckResult } from './types';
 import { BamlAsyncClient } from "./baml_client/async_client";
+import logger from "@/logger";
+import { Logger } from 'pino';
 
 
 interface MicroAgentConfig {
@@ -29,11 +31,13 @@ export class MicroAgent {
     private config: MicroAgentConfig;
     private collector: Collector;
     private baml: BamlAsyncClient;
+    private logger: Logger;
 
     constructor(config: Partial<MicroAgentConfig> = {}) {
         this.config = {...DEFAULT_CONFIG, ...config};
         this.collector = new Collector("micro");
         this.baml = b.withOptions({ collector: this.collector });
+        this.logger = logger.child({ name: 'magnus.executor' });
     }
 
     private async transformScreenshot (screenshot: Screenshot) {
@@ -45,10 +49,12 @@ export class MicroAgent {
 
     async locateTarget(screenshot: Screenshot, target: string): Promise<PixelCoordinate> {
         const downscaledScreenshot = await this.transformScreenshot(screenshot);
+        const start = Date.now();
         const response = await this.baml.LocateTarget(
             Image.fromBase64('image/png', downscaledScreenshot.image),
             target
         );
+        this.logger.trace(`locateTarget took ${Date.now()-start}ms`);
 
         //console.log(response);
 
@@ -72,10 +78,12 @@ export class MicroAgent {
         // TODO: Make more robust, add logp analysis for confidence
         const downscaledScreenshot = await this.transformScreenshot(screenshot);
 
+        const start = Date.now();
         const response = await this.baml.EvaluateCheck(
             Image.fromBase64('image/png', downscaledScreenshot.image),
             check.description
         );
+        this.logger.trace(`evaluateCheck took ${Date.now()-start}ms`);
 
         //console.log("Check response:", response);
 

@@ -21,7 +21,7 @@ test('company-create', { url: `https://qa-bench.com` })
         .secureData({ password: "test" })
     .step("Create a new company")
         .data("Make up the first 2 values and use defaults for the rest")
-        .check("Company added successfully");  
+        .check("Company added successfully");
 
 // Example URL override, defaults to configured baseUrl
 // test('can login with valid credentials')

@@ -6,7 +6,7 @@ import { Logger } from 'pino';
 // Maximum wait time for page stability in ms
 const DEFAULT_PAGE_STABILITY_TIMEOUT = 5000;
 // Default minimum wait time for page load
-const DEFAULT_MINIMUM_WAIT_PAGE_LOAD_TIME = 250;
+const DEFAULT_MINIMUM_WAIT_PAGE_LOAD_TIME = 500;
 // Default time to wait for network requests to finish
 const DEFAULT_WAIT_FOR_NETWORK_IDLE_TIME = 500;
 // Default maximum time to wait for page load
@@ -49,7 +49,7 @@ export class PageStabilityAnalyzer {
         this.page = page;
         this.options = {
             differenceThreshold: options.differenceThreshold ?? 0.01,
-            requiredStableChecks: options.requiredStableChecks ?? 2,
+            requiredStableChecks: options.requiredStableChecks ?? 3,
             checkInterval: options.checkInterval ?? 200, // 200ms
             minimumWaitPageLoadTime: options.minimumWaitPageLoadTime ?? DEFAULT_MINIMUM_WAIT_PAGE_LOAD_TIME,
             waitForNetworkIdleTime: options.waitForNetworkIdleTime ?? DEFAULT_WAIT_FOR_NETWORK_IDLE_TIME,

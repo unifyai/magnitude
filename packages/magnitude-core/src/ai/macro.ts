@@ -5,6 +5,8 @@ import { Image, Collector, ClientRegistry } from "@boundaryml/baml";
 import { ActionIngredient, Ingredient } from "@/recipe/types";
 import { TestCaseDefinition, TestStepDefinition } from "@/types";
 import { BamlAsyncClient } from "./baml_client/async_client";
+import logger from "@/logger";
+import { Logger } from 'pino';
 
 
 interface MacroAgentConfig {
@@ -25,13 +27,22 @@ export class MacroAgent {
     private collector: Collector;
     private cr: ClientRegistry;
     private baml: BamlAsyncClient;
+    private logger: Logger;
 
     constructor(config: Partial<MacroAgentConfig> = {}) {
         this.config = {...DEFAULT_CONFIG, ...config};
         this.collector = new Collector("macro");
         this.cr = new ClientRegistry();
-        this.cr.setPrimary(this.config.provider);
+        if (process.env.MAGNITUDE_PLANNER_CLIENT) {
+            // Client override (useful for debugging/testing)
+            logger.info(`Using planner client from env: ${process.env.MAGNITUDE_PLANNER_CLIENT}`);
+            this.cr.setPrimary(process.env.MAGNITUDE_PLANNER_CLIENT);
+        } else {
+            logger.info(`Using planner client: ${this.config.provider}`);
+            this.cr.setPrimary(this.config.provider);
+        }
         this.baml = b.withOptions({ collector: this.collector, clientRegistry: this.cr });
+        this.logger = logger.child({ name: 'magnus.planner' });
     }
 
     private async transformScreenshot(screenshot: Screenshot) {
@@ -50,12 +61,13 @@ export class MacroAgent {
         }
 
         //console.log("existing:", stringifiedExistingRecipe);
-
+        const start = Date.now();
         const response = await this.baml.CreatePartialRecipe(
             Image.fromBase64('image/png', downscaledScreenshot.image),
             testStep,
             stringifiedExistingRecipe
         );
+        this.logger.trace(`createPartialRecipe took ${Date.now()-start}ms`);
         return response;
     }
 
@@ -72,11 +84,13 @@ export class MacroAgent {
             stringifiedExistingRecipe.push(JSON.stringify(action, null, 4))
         }
 
+        const start = Date.now();
         const response = await this.baml.RemoveImplicitCheckContext(
             Image.fromBase64('image/png', downscaledScreenshot.image),
             check,
             stringifiedExistingRecipe
         );
+        this.logger.trace(`removeImplicitCheckContext took ${Date.now()-start}ms`);
         return response.check;
     }
 
