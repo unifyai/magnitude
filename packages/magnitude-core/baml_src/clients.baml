@@ -15,7 +15,7 @@ client<llm> SonnetAnthropic {
     provider anthropic
     retry_policy Exponential
     options {
-        model "claude-3-5-sonnet-20241022"
+        model "claude-3-5-sonnet-20240620"
         api_key env.ANTHROPIC_API_KEY
         temperature 0.0
     }
