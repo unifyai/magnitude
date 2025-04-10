@@ -1,5 +1,5 @@
 import { TestCaseBuilder } from './testCaseBuilder';
-import { TestDeclaration, TestGlobalConfig, TestOptions } from './types';
+import { TestDeclaration, MagnitudeConfig, TestOptions } from './types';
 import { TestRegistry } from './testRegistry';
 
 

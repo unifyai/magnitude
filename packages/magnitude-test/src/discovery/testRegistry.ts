@@ -1,4 +1,4 @@
-import { TestOptions, TestGroup, TestGlobalConfig, CategorizedTestCases } from "./types";
+import { TestOptions, TestGroup, MagnitudeConfig, CategorizedTestCases } from "./types";
 import { TestCaseBuilder } from "./testCaseBuilder";
 
 declare global {
@@ -14,7 +14,7 @@ export class TestRegistry {
     private currentGroup?: TestGroup;
     private currentFilePath?: string;
 
-    private globalOptions: TestGlobalConfig = {};
+    private globalOptions: MagnitudeConfig = {};
 
     private constructor() { }
 
@@ -78,7 +78,7 @@ export class TestRegistry {
         this.currentFilePath = undefined;
     }
 
-    public setGlobalOptions(options: TestGlobalConfig): void {
+    public setGlobalOptions(options: MagnitudeConfig): void {
         this.globalOptions = options;
     }
 
@@ -91,8 +91,8 @@ export class TestRegistry {
         //console.log("global options:", this.globalOptions)
 
         //const configuredOptions = this.globalOptions;
-        const globalOptions = this.globalOptions.baseUrl ? {
-            url: this.globalOptions.baseUrl
+        const globalOptions = this.globalOptions.url ? {
+            url: this.globalOptions.url
         } : {};
 
         const groupOptions = this.currentGroup?.options ?? {};

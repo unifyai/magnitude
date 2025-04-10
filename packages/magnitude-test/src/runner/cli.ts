@@ -7,7 +7,7 @@ import { glob } from 'glob';
 import TestRegistry from '@/discovery/testRegistry';
 import { LocalTestRunner } from '@/runner';
 import { TestCompiler } from '@/compiler';
-import { TestGlobalConfig } from '@/discovery/types';
+import { MagnitudeConfig } from '@/discovery/types';
 //import chalk from 'chalk';
 import { magnitudeBlue, brightMagnitudeBlue } from '@/renderer/colors';
 import { discoverTestFiles, findConfig, findProjectRoot, readConfig } from '@/discovery/util';
@@ -39,11 +39,11 @@ function getRelativePath(projectRoot: string, absolutePath: string): string {
     return path.relative(normalizedProjectRoot, normalizedAbsolutePath);
 }
 
-const configTemplate = `import { defineConfig } from 'magnitude-test';
+const configTemplate = `import { MagnitudeConfig } from 'magnitude-test';
 
-export default defineConfig({
-    baseUrl: "localhost:5173"
-});
+export default {
+    url: "localhost:5173"
+} satisfies MagnitudeConfig;
 `;
 
 const exampleTestTemplate = `import { test } from 'magnitude-test';
@@ -151,7 +151,7 @@ program
 
         //console.log(configPath)
 
-        const config: TestGlobalConfig = configPath ? await readConfig(configPath) : {};
+        const config: MagnitudeConfig = configPath ? await readConfig(configPath) : {};
 
         //console.log(config)
 

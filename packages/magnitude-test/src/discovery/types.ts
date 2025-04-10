@@ -5,9 +5,9 @@ export interface TestOptions {
     name?: string;
 }
 
-export type TestGlobalConfig = {
+export type MagnitudeConfig = {
     apiKey?: string;
-    baseUrl?: string;
+    url?: string;
 }//TestOptions & { apiKey?: string };
 
 export interface TestGroup {
