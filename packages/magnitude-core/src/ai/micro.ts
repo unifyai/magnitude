@@ -1,9 +1,9 @@
-import { ClickWebAction, PixelCoordinate, Screenshot, TypeWebAction, WebAction } from '@/web/types';
+import { ClickWebAction, PixelCoordinate, Screenshot, ScrollWebAction, TypeWebAction, WebAction } from '@/web/types';
 import { b } from "@/ai/baml_client/async_client";
 import { Collector, Image } from "@boundaryml/baml";
 import sharp from 'sharp';
 import { downscaleScreenshot, extractCoordinates, relToPixelCoords } from './util';
-import { ActionIngredient, CheckIngredient, ClickIngredient, Ingredient, TypeIngredient } from '@/recipe/types';
+import { ActionIngredient, CheckIngredient, ClickIngredient, Ingredient, ScrollIngredient, TypeIngredient } from '@/recipe/types';
 import { CheckResult } from './types';
 import { BamlAsyncClient } from "./baml_client/async_client";
 import logger from "@/logger";
@@ -38,6 +38,10 @@ export class MicroAgent {
         this.collector = new Collector("micro");
         this.baml = b.withOptions({ collector: this.collector });
         this.logger = logger.child({ name: 'magnus.executor' });
+    }
+
+    getCollector() {
+        return this.collector;
     }
 
     private async transformScreenshot (screenshot: Screenshot) {
@@ -117,6 +121,9 @@ export class MicroAgent {
         else if (ingredient.variant === 'type') {
             return await this.convertType(screenshot, ingredient as TypeIngredient);
         }
+        else if (ingredient.variant === 'scroll') {
+            return await this.convertScroll(screenshot, ingredient as ScrollIngredient);
+        }
 
         throw Error(`Unhandled ingredient variant: ${(ingredient as any).variant}`);
     }
@@ -148,7 +155,15 @@ export class MicroAgent {
         };
     }
 
-    getCollector() {
-        return this.collector;
+    async convertScroll(screenshot: Screenshot, ing: ScrollIngredient): Promise<ScrollWebAction> {
+        const coords = await this.locateTarget(screenshot, ing.target);
+        
+        return {
+            variant: 'scroll',
+            x: coords.x,
+            y: coords.y,
+            deltaX: ing.deltaX,
+            deltaY: ing.deltaY
+        };
     }
 }

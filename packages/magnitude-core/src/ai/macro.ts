@@ -45,6 +45,10 @@ export class MacroAgent {
         this.logger = logger.child({ name: 'magnus.planner' });
     }
 
+    getCollector() {
+        return this.collector;
+    }
+
     private async transformScreenshot(screenshot: Screenshot) {
         if (this.config.downscaling < 1.0) {
             return await downscaleScreenshot(screenshot, this.config.downscaling);
@@ -69,10 +73,6 @@ export class MacroAgent {
         );
         this.logger.trace(`createPartialRecipe took ${Date.now()-start}ms`);
         return response;
-    }
-
-    getCollector() {
-        return this.collector;
     }
 
     // Potentially smaller model could execute this op

@@ -35,13 +35,26 @@ class TypeIngredient {
     content string
 }
 
+class ScrollIngredient {
+    variant "scroll" @description(#"
+        Hover mouse over target and scroll
+    "#)
+    target string
+    deltaX int @description(#"
+        Pixels to scroll horizontally
+    "#)
+    deltaY int @description(#"
+        Pixels to scroll vertically
+    "#)
+}
+
 class CheckIngredient {
     variant "check"
     description string
 }
 
 type Ingredient = ActionIngredient | CheckIngredient
-type ActionIngredient = ClickIngredient | TypeIngredient
+type ActionIngredient = ClickIngredient | TypeIngredient | ScrollIngredient
 
 class PartialRecipe {
     reasoning string @description(#"Consider what you can see right now and what actions you can plan without guessing"#)
@@ -53,7 +66,8 @@ function CreatePartialRecipe (screenshot: image, step: TestStep, previousActions
     client SonnetAnthropic
     prompt #"
         {{ _.role("system") }}
-        Plan out web actions that should be executed in order to complete the step: {{ step.description }}
+        Plan out web actions that should be executed in order to complete the step:
+        <step>{{ step.description }}</step>
         Specified targets should be very descriptive.
         Only plan out actions that involve things you can see right now.
         

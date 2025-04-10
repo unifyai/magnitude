@@ -1,5 +1,5 @@
 import { Page, Browser } from "playwright";
-import { ClickWebAction, TypeWebAction, WebAction } from '@/web/types';
+import { ClickWebAction, ScrollWebAction, TypeWebAction, WebAction } from '@/web/types';
 import { PageStabilityAnalyzer } from "./stability";
 
 export class WebHarness {
@@ -56,12 +56,20 @@ export class WebHarness {
         // TODO: Allow content to specify keypresses like TAB/ENTER
         //await this.page.keyboard.press('Enter');
     }
+    
+    async scroll({ x, y, deltaX, deltaY }: ScrollWebAction) {
+        await this.visualizeAction(x, y);
+        await this.page.mouse.move(x, y);
+        await this.page.mouse.wheel(deltaX, deltaY);
+    }
 
     async executeAction(action: WebAction) {
         if (action.variant === 'click') {
             await this.click(action);
         } else if (action.variant === 'type') {
             await this.type(action);
+        } else if (action.variant === 'scroll') {
+            await this.scroll(action);
         } else {
             throw Error(`Unhandled web action variant: ${(action as any).variant}`);
         }

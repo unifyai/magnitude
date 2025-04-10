@@ -14,14 +14,17 @@ import { test } from 'magnitude-test';
 //         .secureData({ password: 'test' })
 //         .check('dashboard is visible');
 
-test('company-create', { url: `https://qa-bench.com` })
-    .step("Login to the app")
-        .check("Can see dashboard")
-        .data({ username: "test-user@magnitude.run" })
-        .secureData({ password: "test" })
-    .step("Create a new company")
-        .data("Make up the first 2 values and use defaults for the rest")
-        .check("Company added successfully");
+test('scroll test', { url: 'https://nike.com' })
+    .step('scroll to bottom')
+
+// test('company-create', { url: `https://qa-bench.com` })
+//     .step("Login to the app")
+//         .check("Can see dashboard")
+//         .data({ username: "test-user@magnitude.run" })
+//         .secureData({ password: "test" })
+//     .step("Create a new company")
+//         .data("Make up the first 2 values and use defaults for the rest")
+//         .check("Company added successfully");
 
 // Example URL override, defaults to configured baseUrl
 // test('can login with valid credentials')

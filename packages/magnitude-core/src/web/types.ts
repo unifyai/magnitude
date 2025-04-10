@@ -11,7 +11,7 @@ export interface Screenshot {
 //     variant: ActionVariant
 // }
 
-export type WebAction = NavigateWebAction | ClickWebAction | TypeWebAction;
+export type WebAction = NavigateWebAction | ClickWebAction | TypeWebAction | ScrollWebAction;
 
 // Currently only emitted synthetically
 export interface NavigateWebAction {
@@ -30,6 +30,14 @@ export interface TypeWebAction {
     x: number
     y: number
     content: string
+}
+
+export interface ScrollWebAction {
+    variant: 'scroll',
+    x: number,
+    y: number,
+    deltaX: number,
+    deltaY: number
 }
 
 // export type ActionVariant = 'click' | 'type';

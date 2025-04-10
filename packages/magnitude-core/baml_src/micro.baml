@@ -20,7 +20,7 @@ function LocateTarget(screenshot: image, target: string) -> string {
     prompt #"
         {{ _.role("user") }}
         {{ screenshot }}
-        Point to where you would click to interact with:  {{ target }}
+        Point to where you would click to interact with:  {{ target }}. Use only one point.
     "#
 }
 

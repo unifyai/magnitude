@@ -1,12 +1,11 @@
 import { WebAction } from "@/web/types";
 import { MicroAgent } from "@/ai/micro";
 import { MacroAgent } from "@/ai/macro";
-import { Browser, chromium } from "playwright";
+import { Browser } from "playwright";
 import { WebHarness } from "@/web/harness";
-import { TestCaseDefinition, TestCaseResult, TestStepDefinition } from "@/types";
+import { TestCaseDefinition, TestCaseResult } from "@/types";
 import { NavigationError, ActionExecutionError, ActionConversionError, TestCaseError } from "@/errors";
 import { CheckIngredient } from "./ai/baml_client";
-import { ActionIngredient } from "./recipe/types";
 import { TestAgentListener } from "./common/events";
 import logger from './logger';
 
@@ -155,6 +154,7 @@ export class TestCaseAgent {
                     stepRecipe.push(ingredient);
 
                     const postActionScreenshot = await harness.screenshot();
+
                     for (const listener of this.listeners) if(listener.onActionTaken) listener.onActionTaken({...ingredient, ...action, screenshot: postActionScreenshot.image});
                     logger.info({ action }, `Action taken`);
                 }
