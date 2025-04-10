@@ -4,6 +4,7 @@ import { glob } from 'glob';
 import { TestCompiler } from '@/compiler';
 
 export async function findProjectRoot(startDir: string = process.cwd()): Promise<string | null> {
+    // Try find package.json in cwd or parent folders
     let currentDir = startDir;
 
     // Keep track of the root directory to avoid infinite loops
@@ -30,6 +31,18 @@ export async function findProjectRoot(startDir: string = process.cwd()): Promise
     }
 
     return null; // No package.json found
+}
+
+export async function isProjectRoot(dir: string): Promise<boolean> {
+    // return whether cwd has package.json (i.e. is node project)
+    const packagePath = path.join(dir, 'package.json');
+    try {
+        // Check if package.json exists in this directory
+        await fs.promises.access(packagePath, fs.constants.F_OK);
+        return true;
+    } catch (error) {
+        return false;
+    }
 }
 
 

@@ -10,7 +10,7 @@ import { TestCompiler } from '@/compiler';
 import { MagnitudeConfig } from '@/discovery/types';
 //import chalk from 'chalk';
 import { magnitudeBlue, brightMagnitudeBlue } from '@/renderer/colors';
-import { discoverTestFiles, findConfig, findProjectRoot, readConfig } from '@/discovery/util';
+import { discoverTestFiles, findConfig, findProjectRoot, isProjectRoot, readConfig } from '@/discovery/util';
 import { BaseTestRunner, BaseTestRunnerConfig } from './baseRunner';
 import { RemoteTestRunner } from './remoteRunner';
 import { logger as remoteLogger } from 'magnitude-remote';
@@ -66,18 +66,21 @@ test('can add and complete todos', { url: 'https://demo.playwright.dev/todomvc' 
 `;
 
 async function initializeProject(): Promise<void> {
-    // Find project root (or use current directory as fallback)
-    const projectRoot = await findProjectRoot();
+    /**
+     * Initialize magnitude test case files in a node project
+     */
+    const cwd = process.cwd();
+    const isNodeProject = await isProjectRoot(cwd);
 
-    if (!projectRoot) {
-        console.error("Couldn't find package.json, please initialize Magnitude in a node.js project");
+    if (!isNodeProject) {
+        console.error("Couldn't find package.json in current directory, please initialize Magnitude in a node.js project");
         process.exit(1);
     }
 
-    console.log(magnitudeBlue(`Initializing Magnitude tests in ${projectRoot}`));
+    console.log(magnitudeBlue(`Initializing Magnitude tests in ${cwd}`));
 
     // Create directory structure
-    const testsDir = path.join(projectRoot, 'tests', 'magnitude');
+    const testsDir = path.join(cwd, 'tests', 'magnitude');
 
     const configPath = path.join(testsDir, 'magnitude.config.ts');
 
@@ -98,8 +101,8 @@ async function initializeProject(): Promise<void> {
         await fs.promises.writeFile(examplePath, exampleTestTemplate);
 
         console.log(`${brightMagnitudeBlue('✓')} Created Magnitude test directory structure:
-    - ${path.relative(projectRoot, configPath)}
-    - ${path.relative(projectRoot, examplePath)}
+    - ${path.relative(cwd, configPath)}
+    - ${path.relative(cwd, examplePath)}
   `);
         console.log(`You can now run tests with: ${brightMagnitudeBlue('magnitude')}`);
         console.log('Docs:', brightMagnitudeBlue('https://docs.magnitude.run'));
@@ -117,7 +120,6 @@ program
     .description('Run Magnitude test cases')
     .argument('[...filters]', 'glob patterns for test files')
     .option('-w, --workers <number>', 'number of parallel workers for test execution', '1')
-    //.option('-r, --remote <auto|true|false>', 'whether to run tests remotely or locally (remote requires Magnitude API key, local requires additional setup)', 'auto')
     .option('-p, --plain', 'disable pretty output and use logs')
     .option('-l, --local', 'run agent locally (requires Playwright and LLM provider configuration)')
     .option('-t, --tunnel', '(remote mode only) force enable HTTP tunneling regardless of whether target URL appears local/private')
