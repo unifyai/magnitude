@@ -1,6 +1,7 @@
 import { Page, Browser } from "playwright";
 import { ClickWebAction, ScrollWebAction, TypeWebAction, WebAction } from '@/web/types';
 import { PageStabilityAnalyzer } from "./stability";
+import { parseTypeContent } from "./util";
 
 export class WebHarness {
     /**
@@ -49,10 +50,35 @@ export class WebHarness {
     async type({ x, y, content }: TypeWebAction) {
         // TODO: Implement string placeholders and special chars e.g. <enter>
         //this.page.mouse.click(x, y);
+        const chunks = parseTypeContent(content);
+
         await this.visualizeAction(x, y);
         await this.page.mouse.click(x, y);
         //await this.removeActionVisuals();
-        await this.page.keyboard.type(content);
+
+        // Total typing period to make typing more natural, in ms
+        const totalTextDelay = 500;
+
+        let totalTextLength = 0
+        for (const chunk of chunks) {
+            if (chunk != '<enter>' && chunk != '<tab>') {
+                totalTextLength += chunk.length;
+            }
+        }
+
+        for (const chunk of chunks) {
+            if (chunk == '<enter>') {
+                await this.page.keyboard.press('Enter');
+            } else if (chunk == '<tab>') {
+                await this.page.keyboard.press('Tab')
+            } else {
+                const chunkProportion = chunk.length / totalTextLength;
+                const chunkDelay = totalTextDelay * chunkProportion;
+                const chunkCharDelay = chunkDelay / chunk.length;
+                await this.page.keyboard.type(chunk, {delay: chunkCharDelay});
+                //await this.page.keyboard.type(chunk, {delay: 50});
+            }
+        }
         // TODO: Allow content to specify keypresses like TAB/ENTER
         //await this.page.keyboard.press('Enter');
     }

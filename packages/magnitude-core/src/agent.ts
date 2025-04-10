@@ -206,6 +206,8 @@ export class TestCaseAgent {
             for (const check of stepChecks) recipe.push(check);
         }
 
+        logger.info({ recipe }, `Final recipe`);
+
         return { passed: true, recipe: recipe };
     }
 

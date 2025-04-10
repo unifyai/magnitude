@@ -32,7 +32,9 @@ class TypeIngredient {
         Click something and type into it
     "#)
     target string
-    content string
+    content string @description(#"
+        Content to type, insert sequences <enter> or <tab> for those keypresses respectively.
+    "#)
 }
 
 class ScrollIngredient {
@@ -70,6 +72,7 @@ function CreatePartialRecipe (screenshot: image, step: TestStep, previousActions
         <step>{{ step.description }}</step>
         Specified targets should be very descriptive.
         Only plan out actions that involve things you can see right now.
+        Note that many actions combine click + something else, so you may not need to click separately.
         
         {{ ctx.output_format }}
 
