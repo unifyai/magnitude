@@ -93,6 +93,12 @@ function RemoveImplicitCheckContext (screenshot: image, check: string, previousA
         {{ _.role("system") }}
         Your job is to convert a "check" which may implicitly depend on historical context to one that can be verified based on the current screenshot alone.
         You should NOT add any detail to the check, but rather replace any context-dependent details.
+        However, make sure the check is very simple, even if this means dropping some details. Only a short description.
+
+        {{ ctx.output_format }}
+
+        {{ _.role("user")}}
+
         The history of previous actions:
         {%if previousActions %}
         (there are none)
@@ -104,6 +110,7 @@ function RemoveImplicitCheckContext (screenshot: image, check: string, previousA
         The "check" to convert: 
         {{ check }}
 
-        {{ ctx.output_format }}
+        Current screenshot:
+        {{screenshot}}
     "# 
 }
