@@ -15,7 +15,7 @@
     },
     "packages/magnitude-core": {
       "name": "magnitude-core",
-      "version": "0.0.3",
+      "version": "0.0.6",
       "bin": {
         "magnus": "dist/cli.js",
       },
@@ -39,13 +39,13 @@
     },
     "packages/magnitude-remote": {
       "name": "magnitude-remote",
-      "version": "0.0.3",
+      "version": "0.0.6",
       "bin": {
         "magnus": "dist/cli.js",
       },
       "dependencies": {
         "commander": "^13.1.0",
-        "magnitude-core": "workspace:*",
+        "magnitude-core": "0.0.6",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -67,7 +67,7 @@
     },
     "packages/magnitude-test": {
       "name": "magnitude-test",
-      "version": "0.0.3",
+      "version": "0.0.8",
       "bin": {
         "magnitude": "dist/runner/cli.js",
       },
@@ -80,8 +80,8 @@
         "esbuild": "^0.25.1",
         "glob": "^11.0.1",
         "log-update": "^6.1.0",
-        "magnitude-core": "workspace:*",
-        "magnitude-remote": "workspace:*",
+        "magnitude-core": "0.0.6",
+        "magnitude-remote": "0.0.6",
         "playwright": "^1.51.1",
         "zod": "^3.24.2",
       },
@@ -316,7 +316,7 @@
 
     "@scarf/scarf": ["@scarf/scarf@1.4.0", "", {}, "sha512-xxeapPiUXdZAE3che6f3xogoJPeZgig6omHEy1rIY5WVsB3H2BHNnZH+gHG6x91SCWyQCzWGsuL2Hh3ClO5/qQ=="],
 
-    "@types/bun": ["@types/bun@1.2.8", "", { "dependencies": { "bun-types": "1.2.7" } }, "sha512-t8L1RvJVUghW5V+M/fL3Thbxcs0HwNsXsnTEBEfEVqGteiJToOlZ/fyOEaR1kZsNqnu+3XA4RI/qmnX4w6+S+w=="],
+    "@types/bun": ["@types/bun@1.2.9", "", { "dependencies": { "bun-types": "1.2.9" } }, "sha512-epShhLGQYc4Bv/aceHbmBhOz1XgUnuTZgcxjxk+WXwNyDXavv5QHD1QEFV0FwbTSQtNq6g4ZcV6y0vZakTjswg=="],
 
     "@types/estree": ["@types/estree@1.0.7", "", {}, "sha512-w28IoSUCJpidD/TGviZwwMJckNESJZXFu7NBZ5YJ4mEUnNraUn9Pm8HSZm/jDF1pDWYKspWE7oVphigUPRakIQ=="],
 
@@ -356,7 +356,7 @@
 
     "braces": ["braces@3.0.3", "", { "dependencies": { "fill-range": "^7.1.1" } }, "sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA=="],
 
-    "bun-types": ["bun-types@1.2.7", "", { "dependencies": { "@types/node": "*", "@types/ws": "*" } }, "sha512-P4hHhk7kjF99acXqKvltyuMQ2kf/rzIw3ylEDpCxDS9Xa0X0Yp/gJu/vDCucmWpiur5qJ0lwB2bWzOXa2GlHqA=="],
+    "bun-types": ["bun-types@1.2.9", "", { "dependencies": { "@types/node": "*", "@types/ws": "*" } }, "sha512-dk/kOEfQbajENN/D6FyiSgOKEuUi9PWfqKQJEgwKrCMWbjS/S6tEXp178mWvWAcUSYm9ArDlWHZKO3T/4cLXiw=="],
 
     "bunnel": ["bunnel@0.1.6", "", { "dependencies": { "commander": "^11.1.0", "pino": "^9.6.0", "ws": "^8.18.1" }, "bin": { "bunnel": "dist/cli/bunnel.js" } }, "sha512-eYRscMzayBiTIp7v9WbUEFa1SSC3SvfXUGpLfh1YtzxrkhYrmWf8HCHHTMTcLz99/LknEq5BJQ1eWaWYeRJMYw=="],
 

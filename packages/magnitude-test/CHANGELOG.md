@@ -1,5 +1,14 @@
 # magnitude-test
 
+## 0.0.8
+
+### Patch Changes
+
+- scroll and cli improvements
+- Updated dependencies
+  - magnitude-core@0.0.6
+  - magnitude-remote@0.0.6
+
 ## 0.0.6
 
 ### Patch Changes
