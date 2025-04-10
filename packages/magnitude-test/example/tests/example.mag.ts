@@ -1,5 +1,21 @@
 import { test } from 'magnitude-test';
 
+// Learn more about building test case:
+// https://docs.magnitude.run/core-concepts/building-test-cases
+
+const sampleTodos = [
+    "Take out the trash",
+    "Buy groceries",
+    "Build more test cases with Magnitude"
+];
+
+test('can add and complete todos', { url: 'https://demo.playwright.dev/todomvc' })
+    .step('create 3 todos')
+        .data(sampleTodos.join(", "))
+        .check('should see all 3 todos')
+    .step('mark each todo complete')
+        .check('says no items left')
+
 // test.group('Authorization', () => {
 //     test('login')
 //         .step("Log in to the app")
@@ -18,32 +34,35 @@ import { test } from 'magnitude-test';
 //     .step('Create a todo')
 //         .check('Todo is added')
 
-const sampleTodos = [
-    "Take out the trash",
-    //"foo",
-    "Buy groceries",
-    "Build more test cases with Magnitude"
-];
 
-test.group('todo demo tests', { url: 'https://demo.playwright.dev/todomvc' }, () => {
-    // test('can add a todo')
-    //     .step('Enter and add a todo')
-    //         .data({ todo: sampleTodos[0]! })
-    //         .check('Todo appears')
 
-    test('can add todos')
-        .step('Create 3 todos')
-            .data(sampleTodos.join(", "))
-            .check('Should see all 3 todos')
-        .step('Mark each todo complete')
-            .check('Says no items left')
 
-    // test('can mark todos complete')
-    //     .step('Add a todo')
-    //         .check('Says one item left')
-    //     .step('Mark the todo as done')
-    //         .check('Says no items left')
-})
+// const sampleTodos = [
+//     "Take out the trash",
+//     //"foo",
+//     "Buy groceries",
+//     "Build more test cases with Magnitude"
+// ];
+
+// test.group('todo demo tests', { url: 'https://demo.playwright.dev/todomvc' }, () => {
+//     // test('can add a todo')
+//     //     .step('Enter and add a todo')
+//     //         .data({ todo: sampleTodos[0]! })
+//     //         .check('Todo appears')
+
+//     test('can add todos')
+//         .step('Create 3 todos')
+//             .data(sampleTodos.join(", "))
+//             .check('Should see all 3 todos')
+//         .step('Mark each todo complete')
+//             .check('Says no items left')
+
+//     // test('can mark todos complete')
+//     //     .step('Add a todo')
+//     //         .check('Says one item left')
+//     //     .step('Mark the todo as done')
+//     //         .check('Says no items left')
+// })
 
 
 // test('scroll test', { url: 'https://en.wikipedia.org/wiki/Sloth' })

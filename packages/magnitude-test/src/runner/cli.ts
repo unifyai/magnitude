@@ -39,7 +39,7 @@ function getRelativePath(projectRoot: string, absolutePath: string): string {
     return path.relative(normalizedProjectRoot, normalizedAbsolutePath);
 }
 
-const configTemplate = `import { MagnitudeConfig } from 'magnitude-test';
+const configTemplate = `import { type MagnitudeConfig } from 'magnitude-test';
 
 export default {
     url: "localhost:5173"
@@ -48,15 +48,21 @@ export default {
 
 const exampleTestTemplate = `import { test } from 'magnitude-test';
 
-// Example URL override, defaults to configured baseUrl
-test('can login with valid credentials', { url: "https://qa-bench.com" })
-    .step('Log in to the app')
-        .data({ username: "test-user@magnitude.run" }) // arbitrary key/values
-        .secureData({ password: "test" }) // sensitive data
-        .check('Can see dashboard') // natural language assertion
-    .step('Create a new company')
-        .data("Make up the first 2 values and use defaults for the rest")
-        .check("Company added successfully");
+// Learn more about building test case:
+// https://docs.magnitude.run/core-concepts/building-test-cases
+
+const sampleTodos = [
+    "Take out the trash",
+    "Buy groceries",
+    "Build more test cases with Magnitude"
+];
+
+test('can add and complete todos', { url: 'https://demo.playwright.dev/todomvc' })
+    .step('create 3 todos')
+        .data(sampleTodos.join(", "))
+        .check('should see all 3 todos')
+    .step('mark each todo complete')
+        .check('says no items left')
 `;
 
 async function initializeProject(): Promise<void> {

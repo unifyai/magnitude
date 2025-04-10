@@ -1,7 +1,5 @@
-// magnitude.config.ts
-import { defineConfig } from "magnitude-test";
+import { type MagnitudeConfig } from 'magnitude-test';
 
-export default defineConfig({
-    //url: "localhost:5173"
-    url: "https://qa-bench.com",
-});
+export default {
+    url: "localhost:5173"
+} satisfies MagnitudeConfig;
