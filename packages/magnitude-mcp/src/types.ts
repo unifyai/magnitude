@@ -1,41 +1,23 @@
 /**
- * Entry in test data
+ * Re-export types from Zod schemas
  */
-export interface TestDataEntry {
-  key: string;
-  value: string;
-  sensitive: boolean;
-}
+export {
+  TestDataEntry,
+  TestData,
+  TestStepDefinition,
+  TestCaseDefinition,
+  MagnitudeConfig,
+} from './schemas/commonSchemas.js';
 
 /**
- * Test data for a step
+ * Re-export tool input types
  */
-export interface TestData {
-  data?: TestDataEntry[];
-  other?: string;
-}
-
-/**
- * Definition of a test step
- */
-export interface TestStepDefinition {
-  description: string;
-  checks: string[];
-  testData: TestData;
-}
-
-/**
- * Definition of a test case
- */
-export interface TestCaseDefinition {
-  url: string;
-  steps: TestStepDefinition[];
-}
-
-/**
- * Magnitude configuration
- */
-export type MagnitudeConfig = {
-  apiKey?: string;
-  url?: string;
-};
+export {
+  InitializeProjectInput,
+  CreateTestCaseInput,
+  ReadTestCaseInput,
+  EditTestCaseInput,
+  RunTestsInput,
+  GetConfigurationInput,
+  UpdateConfigurationInput,
+} from './schemas/toolSchemas.js';

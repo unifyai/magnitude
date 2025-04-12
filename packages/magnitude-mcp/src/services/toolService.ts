@@ -5,6 +5,7 @@ import {
   McpError,
 } from '@modelcontextprotocol/sdk/types.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { z } from 'zod';
 
 // Import handlers
 import { initializeProject } from '../handlers/project.js';
@@ -12,262 +13,92 @@ import { createTestCase, readTestCase, editTestCase } from '../handlers/testCase
 import { runTests } from '../handlers/testRunner.js';
 import { getConfiguration, updateConfiguration } from '../handlers/config.js';
 
+// Import schemas
+import {
+  createToolDefinition,
+  toolSchemas,
+  InitializeProjectInput,
+  CreateTestCaseInput,
+  ReadTestCaseInput,
+  EditTestCaseInput,
+  RunTestsInput,
+  GetConfigurationInput,
+  UpdateConfigurationInput,
+} from '../schemas/toolSchemas.js';
+
 /**
  * Service for handling MCP tools
  */
 export class ToolService {
-  // Tool handler mapping
-  private toolHandlers: Record<string, Function> = {
-    'initialize_project': initializeProject,
-    'create_test_case': createTestCase,
-    'read_test_case': readTestCase,
-    'edit_test_case': editTestCase,
-    'run_tests': runTests,
-    'get_configuration': getConfiguration,
-    'update_configuration': updateConfiguration,
+  // Tool handler mapping with type-safe input validation
+  private toolHandlers: Record<string, { handler: Function; schema: z.ZodType }> = {
+    'initialize_project': { 
+      handler: initializeProject, 
+      schema: toolSchemas.initialize_project 
+    },
+    'create_test_case': { 
+      handler: createTestCase, 
+      schema: toolSchemas.create_test_case 
+    },
+    'read_test_case': { 
+      handler: readTestCase, 
+      schema: toolSchemas.read_test_case 
+    },
+    'edit_test_case': { 
+      handler: editTestCase, 
+      schema: toolSchemas.edit_test_case 
+    },
+    'run_tests': { 
+      handler: runTests, 
+      schema: toolSchemas.run_tests 
+    },
+    'get_configuration': { 
+      handler: getConfiguration, 
+      schema: toolSchemas.get_configuration 
+    },
+    'update_configuration': { 
+      handler: updateConfiguration, 
+      schema: toolSchemas.update_configuration 
+    },
   };
 
-  // Tool definitions for MCP
+  // Tool definitions for MCP generated from Zod schemas
   private toolDefinitions = [
-    {
-      name: 'initialize_project',
-      description: 'Initialize a new Magnitude project in the current working directory',
-      inputSchema: {
-        type: 'object',
-        properties: {},
-        additionalProperties: false,
-      },
-    },
-    {
-      name: 'create_test_case',
-      description: 'Create a new Magnitude test case file',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          filename: {
-            type: 'string',
-            description: 'Path to the test file to create',
-          },
-          name: {
-            type: 'string',
-            description: 'Name of the test case',
-          },
-          testCase: {
-            type: 'object',
-            properties: {
-              url: {
-                type: 'string',
-                description: 'URL to test',
-              },
-              steps: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    description: {
-                      type: 'string',
-                      description: 'Step description',
-                    },
-                    checks: {
-                      type: 'array',
-                      items: {
-                        type: 'string',
-                      },
-                      description: 'Checks to perform after the step',
-                    },
-                    testData: {
-                      type: 'object',
-                      properties: {
-                        data: {
-                          type: 'array',
-                          items: {
-                            type: 'object',
-                            properties: {
-                              key: {
-                                type: 'string',
-                              },
-                              value: {
-                                type: 'string',
-                              },
-                              sensitive: {
-                                type: 'boolean',
-                              },
-                            },
-                            required: ['key', 'value', 'sensitive'],
-                          },
-                        },
-                        other: {
-                          type: 'string',
-                        },
-                      },
-                    },
-                  },
-                  required: ['description', 'checks', 'testData'],
-                },
-              },
-            },
-            required: ['url', 'steps'],
-          },
-        },
-        required: ['filename', 'name', 'testCase'],
-      },
-    },
-    {
-      name: 'read_test_case',
-      description: 'Read an existing Magnitude test case file',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          filename: {
-            type: 'string',
-            description: 'Path to the test file to read',
-          },
-        },
-        required: ['filename'],
-      },
-    },
-    {
-      name: 'edit_test_case',
-      description: 'Edit an existing Magnitude test case file',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          filename: {
-            type: 'string',
-            description: 'Path to the test file to edit',
-          },
-          name: {
-            type: 'string',
-            description: 'New name for the test case',
-          },
-          testCase: {
-            type: 'object',
-            properties: {
-              url: {
-                type: 'string',
-              },
-              steps: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    description: {
-                      type: 'string',
-                    },
-                    checks: {
-                      type: 'array',
-                      items: {
-                        type: 'string',
-                      },
-                    },
-                    testData: {
-                      type: 'object',
-                      properties: {
-                        data: {
-                          type: 'array',
-                          items: {
-                            type: 'object',
-                            properties: {
-                              key: {
-                                type: 'string',
-                              },
-                              value: {
-                                type: 'string',
-                              },
-                              sensitive: {
-                                type: 'boolean',
-                              },
-                            },
-                          },
-                        },
-                        other: {
-                          type: 'string',
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-          operations: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                type: {
-                  type: 'string',
-                  enum: ['addStep', 'removeStep', 'editStep', 'changeUrl'],
-                },
-                index: {
-                  type: 'number',
-                },
-                value: {
-                  type: 'object',
-                },
-              },
-              required: ['type'],
-            },
-          },
-        },
-        required: ['filename'],
-      },
-    },
-    {
-      name: 'run_tests',
-      description: 'Run Magnitude tests',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          pattern: {
-            type: 'string',
-            description: 'Glob pattern for test files',
-          },
-          workers: {
-            type: 'number',
-            description: 'Number of parallel workers',
-          },
-        },
-      },
-    },
-    {
-      name: 'get_configuration',
-      description: 'Get Magnitude configuration',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          configPath: {
-            type: 'string',
-            description: 'Path to the configuration file',
-          },
-        },
-      },
-    },
-    {
-      name: 'update_configuration',
-      description: 'Update Magnitude configuration',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          configPath: {
-            type: 'string',
-            description: 'Path to the configuration file',
-          },
-          config: {
-            type: 'object',
-            properties: {
-              apiKey: {
-                type: 'string',
-              },
-              url: {
-                type: 'string',
-              },
-            },
-          },
-        },
-        required: ['config'],
-      },
-    },
+    createToolDefinition(
+      toolSchemas.initialize_project,
+      'initialize_project',
+      'Initialize a new Magnitude project in the current working directory'
+    ),
+    createToolDefinition(
+      toolSchemas.create_test_case,
+      'create_test_case',
+      'Create a new Magnitude test case file'
+    ),
+    createToolDefinition(
+      toolSchemas.read_test_case,
+      'read_test_case',
+      'Read an existing Magnitude test case file'
+    ),
+    createToolDefinition(
+      toolSchemas.edit_test_case,
+      'edit_test_case',
+      'Edit an existing Magnitude test case file'
+    ),
+    createToolDefinition(
+      toolSchemas.run_tests,
+      'run_tests',
+      'Run Magnitude tests'
+    ),
+    createToolDefinition(
+      toolSchemas.get_configuration,
+      'get_configuration',
+      'Get Magnitude configuration'
+    ),
+    createToolDefinition(
+      toolSchemas.update_configuration,
+      'update_configuration',
+      'Update Magnitude configuration'
+    ),
   ];
 
   /**
@@ -279,13 +110,25 @@ export class ToolService {
   async callTool(name: string, args: any): Promise<any> {
     console.error(`[Tool] Calling tool: ${name}`);
     
-    const handler = this.toolHandlers[name];
-    if (!handler) {
+    const toolInfo = this.toolHandlers[name];
+    if (!toolInfo) {
       throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
     }
     
     try {
-      return await handler(args);
+      // Validate input against schema
+      const validationResult = toolInfo.schema.safeParse(args);
+      
+      if (!validationResult.success) {
+        console.error(`[Validation] Failed for tool ${name}:`, validationResult.error);
+        throw new McpError(
+          ErrorCode.InvalidParams, 
+          `Invalid parameters for tool ${name}: ${validationResult.error.message}`
+        );
+      }
+      
+      // Execute handler with validated input
+      return await toolInfo.handler(validationResult.data);
     } catch (error) {
       console.error(`[Error] Tool execution failed: ${error}`);
       if (error instanceof McpError) {
