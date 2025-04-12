@@ -23,7 +23,7 @@ export async function ensureDirectoryExists(dirPath: string): Promise<void> {
   try {
     await fs.mkdir(dirPath, { recursive: true });
   } catch (error: any) {
-    console.error('[Error] Failed to create directory:', error);
+    console.log('[Error] Failed to create directory:', error);
     throw error;
   }
 }

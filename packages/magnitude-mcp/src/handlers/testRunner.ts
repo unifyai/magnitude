@@ -6,7 +6,7 @@ import { executeCliCommand, handleError } from '../utils/cliUtils.js';
  * @returns MCP response
  */
 export async function runTests(args: any): Promise<any> {
-  console.error('[Test] Running Magnitude tests');
+  console.log('[Test] Running Magnitude tests');
   
   try {
     const { pattern, workers } = args || {};
@@ -22,7 +22,7 @@ export async function runTests(args: any): Promise<any> {
       command += ` -w ${workers}`;
     }
     
-    console.error(`[Test] Executing command: ${command}`);
+    console.log(`[Test] Executing command: ${command}`);
     
     // Execute command
     try {

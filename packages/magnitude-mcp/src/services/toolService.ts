@@ -108,7 +108,7 @@ export class ToolService {
    * @returns Tool execution result
    */
   async callTool(name: string, args: any): Promise<any> {
-    console.error(`[Tool] Calling tool: ${name}`);
+    console.log(`[Tool] Calling tool: ${name}`);
     
     const toolInfo = this.toolHandlers[name];
     if (!toolInfo) {
@@ -120,7 +120,7 @@ export class ToolService {
       const validationResult = toolInfo.schema.safeParse(args);
       
       if (!validationResult.success) {
-        console.error(`[Validation] Failed for tool ${name}:`, validationResult.error);
+        console.log(`[Validation] Failed for tool ${name}:`, validationResult.error);
         throw new McpError(
           ErrorCode.InvalidParams, 
           `Invalid parameters for tool ${name}: ${validationResult.error.message}`
@@ -130,7 +130,7 @@ export class ToolService {
       // Execute handler with validated input
       return await toolInfo.handler(validationResult.data);
     } catch (error) {
-      console.error(`[Error] Tool execution failed: ${error}`);
+      console.log(`[Error] Tool execution failed: ${error}`);
       if (error instanceof McpError) {
         throw error;
       }

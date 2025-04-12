@@ -7,7 +7,7 @@ import { execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
  * @returns Promise resolving to the command output
  */
 export function executeCliCommand(command: string, options: ExecSyncOptionsWithStringEncoding = { encoding: 'utf-8' }): string {
-  console.error(`[CLI] Executing: ${command}`);
+  console.log(`[CLI] Executing: ${command}`);
   return execSync(command, options);
 }
 
@@ -18,7 +18,7 @@ export function executeCliCommand(command: string, options: ExecSyncOptionsWithS
  * @returns Formatted error response for MCP
  */
 export function handleError(message: string, error: any): any {
-  console.error(`[Error] ${message}:`, error);
+  console.log(`[Error] ${message}:`, error);
   return {
     content: [
       {

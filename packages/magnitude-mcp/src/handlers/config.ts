@@ -10,7 +10,7 @@ import { handleError } from '../utils/cliUtils.js';
  * @returns MCP response
  */
 export async function getConfiguration(args: any): Promise<any> {
-  console.error('[Config] Getting Magnitude configuration');
+  console.log('[Config] Getting Magnitude configuration');
   
   try {
     const { configPath = './tests/magnitude/magnitude.config.ts' } = args || {};
@@ -58,7 +58,7 @@ export async function getConfiguration(args: any): Promise<any> {
  * @returns MCP response
  */
 export async function updateConfiguration(args: any): Promise<any> {
-  console.error('[Config] Updating Magnitude configuration');
+  console.log('[Config] Updating Magnitude configuration');
   
   try {
     const { configPath = './tests/magnitude/magnitude.config.ts', config } = args;

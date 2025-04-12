@@ -5,13 +5,13 @@ import { executeCliCommand, handleError } from '../utils/cliUtils.js';
  * @returns MCP response
  */
 export async function initializeProject(): Promise<any> {
-  console.error('[Setup] Initializing Magnitude project...');
+  console.log('[Setup] Initializing Magnitude project...');
   
   try {
     // Use the Magnitude CLI directly
     const output = executeCliCommand('npx magnitude init');
     
-    console.error('[Setup] Magnitude project initialized successfully');
+    console.log('[Setup] Magnitude project initialized successfully');
     return {
       content: [
         {

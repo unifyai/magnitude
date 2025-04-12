@@ -23,7 +23,7 @@ async function prepareTestEnvironment() {
     await fs.mkdir(TEST_DIR, { recursive: true });
     console.log(`Created test directory: ${TEST_DIR}`);
   } catch (err: any) {
-    console.error(`Error creating test directory: ${err}`);
+    console.log(`Error creating test directory: ${err}`);
   }
 
   // Clean up any existing test files
@@ -36,7 +36,7 @@ async function prepareTestEnvironment() {
   } catch (err: any) {
     // Directory might not exist yet, which is fine
     if (err.code !== 'ENOENT') {
-      console.error(`Error cleaning up test files: ${err}`);
+      console.log(`Error cleaning up test files: ${err}`);
     }
   }
 }
@@ -104,7 +104,7 @@ async function runTests() {
       process.exit(1);
     }
   } catch (error) {
-    console.error('Tests failed:', error);
+    console.log('Tests failed:', error);
     process.exit(1);
   } finally {
     // Clean up
@@ -112,7 +112,7 @@ async function runTests() {
     try {
       await client.close();
     } catch (err) {
-      console.error('Error closing client:', err);
+      console.log('Error closing client:', err);
     }
     
     serverProcess.kill();
@@ -135,7 +135,7 @@ async function testInitializeProject(client: Client): Promise<boolean> {
     console.log('✅ initialize_project succeeded:', content[0].text);
     return true;
   } catch (error) {
-    console.error('❌ initialize_project failed:', error);
+    console.log('❌ initialize_project failed:', error);
     return false;
   }
 }
@@ -177,13 +177,13 @@ async function testCreateTestCase(client: Client): Promise<boolean> {
     // Verify the file was created
     const fileExists = await fs.access(TEST_CASE_PATH).then(() => true).catch(() => false);
     if (!fileExists) {
-      console.error('❌ Test case file was not created');
+      console.log('❌ Test case file was not created');
       return false;
     }
     
     return true;
   } catch (error) {
-    console.error('❌ create_test_case failed:', error);
+    console.log('❌ create_test_case failed:', error);
     return false;
   }
 }
@@ -209,14 +209,14 @@ async function testReadTestCase(client: Client): Promise<boolean> {
     const responseData = JSON.parse(responseText);
     
     if (!responseData.name || !responseData.testCase) {
-      console.error('❌ read_test_case returned invalid data');
+      console.log('❌ read_test_case returned invalid data');
       return false;
     }
     
     console.log('Test case data:', responseData.name);
     return true;
   } catch (error) {
-    console.error('❌ read_test_case failed:', error);
+    console.log('❌ read_test_case failed:', error);
     return false;
   }
 }
@@ -266,13 +266,13 @@ async function testEditTestCase(client: Client): Promise<boolean> {
     // Verify the file was updated
     const fileContent = await fs.readFile(TEST_CASE_PATH, 'utf-8');
     if (!fileContent.includes('Updated Test Case') || !fileContent.includes('example.org')) {
-      console.error('❌ Test case file was not properly updated');
+      console.log('❌ Test case file was not properly updated');
       return false;
     }
     
     return true;
   } catch (error) {
-    console.error('❌ edit_test_case failed:', error);
+    console.log('❌ edit_test_case failed:', error);
     return false;
   }
 }
@@ -296,7 +296,7 @@ async function testRunTests(client: Client): Promise<boolean> {
     console.log('✅ run_tests succeeded:', content[0].text);
     return true;
   } catch (error) {
-    console.error('❌ run_tests failed:', error);
+    console.log('❌ run_tests failed:', error);
     return false;
   }
 }
@@ -330,14 +330,14 @@ export default {
     const config = JSON.parse(responseText);
     
     if (!config.url || !config.apiKey) {
-      console.error('❌ get_configuration returned invalid data');
+      console.log('❌ get_configuration returned invalid data');
       return false;
     }
     
     console.log('Configuration data:', config);
     return true;
   } catch (error) {
-    console.error('❌ get_configuration failed:', error);
+    console.log('❌ get_configuration failed:', error);
     return false;
   }
 }
@@ -366,13 +366,13 @@ async function testUpdateConfiguration(client: Client): Promise<boolean> {
     // Verify the file was updated
     const fileContent = await fs.readFile(TEST_CONFIG_PATH, 'utf-8');
     if (!fileContent.includes('updated.magnitude.test') || !fileContent.includes('updated-api-key')) {
-      console.error('❌ Configuration file was not properly updated');
+      console.log('❌ Configuration file was not properly updated');
       return false;
     }
     
     return true;
   } catch (error) {
-    console.error('❌ update_configuration failed:', error);
+    console.log('❌ update_configuration failed:', error);
     return false;
   }
 }
@@ -381,6 +381,6 @@ async function testUpdateConfiguration(client: Client): Promise<boolean> {
 prepareTestEnvironment()
   .then(runTests)
   .catch(error => {
-    console.error('Test execution failed:', error);
+    console.log('Test execution failed:', error);
     process.exit(1);
   });

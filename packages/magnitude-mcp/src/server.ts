@@ -32,7 +32,7 @@ export class MagnitudeMCPServer {
     this.toolService = new ToolService();
 
     // Error handling
-    this.server.onerror = (error: any) => console.error('[MCP Error]', error);
+    this.server.onerror = (error: any) => console.log('[MCP Error]', error);
     process.on('SIGINT', async () => {
       await this.server.close();
       process.exit(0);
@@ -49,6 +49,6 @@ export class MagnitudeMCPServer {
   async run() {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    console.error('Magnitude MCP server running on stdio');
+    console.log('Magnitude MCP server running on stdio');
   }
 }
