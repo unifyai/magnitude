@@ -1,6 +1,5 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { ResourceService } from './services/resourceService.js';
 import { ToolService } from './services/toolService.js';
 
 /**
@@ -8,7 +7,6 @@ import { ToolService } from './services/toolService.js';
  */
 export class MagnitudeMCPServer {
   private server: Server;
-  private resourceService: ResourceService;
   private toolService: ToolService;
 
   /**
@@ -28,7 +26,6 @@ export class MagnitudeMCPServer {
       }
     );
 
-    this.resourceService = new ResourceService();
     this.toolService = new ToolService();
 
     // Error handling
@@ -39,7 +36,6 @@ export class MagnitudeMCPServer {
     });
 
     // Register handlers
-    this.resourceService.registerResourceHandlers(this.server);
     this.toolService.registerToolHandlers(this.server);
   }
 
