@@ -1,5 +1,10 @@
-import { execSync } from 'child_process';
+import { executeCliCommand, handleError } from '../utils/cliUtils.js';
 
+/**
+ * Run Magnitude tests
+ * @param args Arguments for running tests
+ * @returns MCP response
+ */
 export async function runTests(args: any): Promise<any> {
   console.error('[Test] Running Magnitude tests');
   
@@ -21,7 +26,7 @@ export async function runTests(args: any): Promise<any> {
     
     // Execute command
     try {
-      const output = execSync(command, { encoding: 'utf-8' });
+      const output = executeCliCommand(command);
       
       return {
         content: [
@@ -45,15 +50,6 @@ export async function runTests(args: any): Promise<any> {
       };
     }
   } catch (error) {
-    console.error('[Error] Failed to run tests:', error);
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Failed to run tests: ${error}`,
-        },
-      ],
-      isError: true,
-    };
+    return handleError('Failed to run tests', error);
   }
 }

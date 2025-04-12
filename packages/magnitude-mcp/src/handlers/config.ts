@@ -1,21 +1,14 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { MagnitudeConfig } from '../types.js';
+import { fileExists, ensureDirectoryExists } from '../utils/fileUtils.js';
+import { handleError } from '../utils/cliUtils.js';
 
-export type MagnitudeConfig = {
-  apiKey?: string;
-  url?: string;
-};
-
-// Helper to check if a file exists
-export async function fileExists(filePath: string): Promise<boolean> {
-  try {
-    await fs.access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
+/**
+ * Get Magnitude configuration
+ * @param args Arguments for getting configuration
+ * @returns MCP response
+ */
 export async function getConfiguration(args: any): Promise<any> {
   console.error('[Config] Getting Magnitude configuration');
   
@@ -55,19 +48,15 @@ export async function getConfiguration(args: any): Promise<any> {
       ],
     };
   } catch (error) {
-    console.error('[Error] Failed to get configuration:', error);
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Failed to get configuration: ${error}`,
-        },
-      ],
-      isError: true,
-    };
+    return handleError('Failed to get configuration', error);
   }
 }
 
+/**
+ * Update Magnitude configuration
+ * @param args Arguments for updating configuration
+ * @returns MCP response
+ */
 export async function updateConfiguration(args: any): Promise<any> {
   console.error('[Config] Updating Magnitude configuration');
   
@@ -92,7 +81,7 @@ export default {
       
       // Ensure directory exists
       const dir = path.dirname(configPath);
-      await fs.mkdir(dir, { recursive: true });
+      await ensureDirectoryExists(dir);
       
       // Write file
       await fs.writeFile(configPath, content);
@@ -145,15 +134,6 @@ export default {
       };
     }
   } catch (error) {
-    console.error('[Error] Failed to update configuration:', error);
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Failed to update configuration: ${error}`,
-        },
-      ],
-      isError: true,
-    };
+    return handleError('Failed to update configuration', error);
   }
 }
