@@ -1,17 +1,18 @@
 import { executeCliCommand, handleError } from '../utils/cliUtils.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * Initialize a new Magnitude project
  * @returns MCP response
  */
 export async function initializeProject(): Promise<any> {
-  console.log('[Setup] Initializing Magnitude project...');
+  logger.info('[Setup] Initializing Magnitude project...');
   
   try {
     // Use the Magnitude CLI directly
     const output = executeCliCommand('npx magnitude init');
     
-    console.log('[Setup] Magnitude project initialized successfully');
+    logger.info('[Setup] Magnitude project initialized successfully');
     return {
       content: [
         {

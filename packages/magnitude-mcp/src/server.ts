@@ -1,6 +1,7 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { ToolService } from './services/toolService.js';
+import { logger } from './utils/logger.js';
 
 /**
  * Magnitude MCP Server
@@ -29,7 +30,7 @@ export class MagnitudeMCPServer {
     this.toolService = new ToolService();
 
     // Error handling
-    this.server.onerror = (error: any) => console.log('[MCP Error]', error);
+    this.server.onerror = (error: any) => logger.error('[MCP Error]', error);
     process.on('SIGINT', async () => {
       await this.server.close();
       process.exit(0);
@@ -45,6 +46,6 @@ export class MagnitudeMCPServer {
   async run() {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    console.log('Magnitude MCP server running on stdio');
+    logger.info('Magnitude MCP server running on stdio');
   }
 }

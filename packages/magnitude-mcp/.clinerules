@@ -30,9 +30,9 @@
    - Implement comprehensive logging
      - TypeScript (for web/JS projects):
        ```typescript
-       console.error('[Setup] Initializing server...');
-       console.error('[API] Request to endpoint:', endpoint);
-       console.error('[Error] Failed with:', error);
+       console.log('[Setup] Initializing server...');
+       console.log('[API] Request to endpoint:', endpoint);
+       console.log('[Error] Failed with:', error);
        ```
      - Python (for data science/ML projects):
        ```python

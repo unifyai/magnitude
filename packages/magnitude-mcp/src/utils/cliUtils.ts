@@ -1,4 +1,5 @@
 import { execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
+import { logger } from './logger.js';
 
 /**
  * Execute a CLI command and return its output
@@ -7,7 +8,7 @@ import { execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
  * @returns Promise resolving to the command output
  */
 export function executeCliCommand(command: string, options: ExecSyncOptionsWithStringEncoding = { encoding: 'utf-8' }): string {
-  console.log(`[CLI] Executing: ${command}`);
+  logger.info(`[CLI] Executing: ${command}`);
   return execSync(command, options);
 }
 
@@ -18,7 +19,7 @@ export function executeCliCommand(command: string, options: ExecSyncOptionsWithS
  * @returns Formatted error response for MCP
  */
 export function handleError(message: string, error: any): any {
-  console.log(`[Error] ${message}:`, error);
+  logger.error(`[Error] ${message}:`, error);
   return {
     content: [
       {

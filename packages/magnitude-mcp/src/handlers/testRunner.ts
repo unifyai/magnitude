@@ -1,4 +1,5 @@
 import { executeCliCommand, handleError } from '../utils/cliUtils.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * Run Magnitude tests
@@ -6,13 +7,13 @@ import { executeCliCommand, handleError } from '../utils/cliUtils.js';
  * @returns MCP response
  */
 export async function runTests(args: any): Promise<any> {
-  console.log('[Test] Running Magnitude tests');
+  logger.info('[Test] Running Magnitude tests');
   
   try {
     const { pattern, workers } = args || {};
     
     // Build command
-    let command = 'npx magnitude';
+    let command = 'cd /home/anerli/Sync/lab/25.04.12/magnitude-demo-repo && npx magnitude';
     
     if (pattern) {
       command += ` ${pattern}`;
@@ -22,7 +23,7 @@ export async function runTests(args: any): Promise<any> {
       command += ` -w ${workers}`;
     }
     
-    console.log(`[Test] Executing command: ${command}`);
+    logger.info(`[Test] Executing command: ${command}`);
     
     // Execute command
     try {

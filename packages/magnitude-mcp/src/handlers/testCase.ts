@@ -3,6 +3,7 @@ import path from 'path';
 import { TestDataEntry, TestStepDefinition, TestCaseDefinition } from '../types.js';
 import { fileExists, ensureDirectoryExists } from '../utils/fileUtils.js';
 import { handleError } from '../utils/cliUtils.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * Create a new test case file
@@ -10,7 +11,7 @@ import { handleError } from '../utils/cliUtils.js';
  * @returns MCP response
  */
 export async function createTestCase(args: any): Promise<any> {
-  console.log('[Test] Creating test case:', args.filename);
+  logger.info('[Test] Creating test case:', args.filename);
   
   try {
     const { filename, name, testCase } = args;
@@ -84,7 +85,7 @@ export async function createTestCase(args: any): Promise<any> {
  * @returns MCP response
  */
 export async function readTestCase(args: any): Promise<any> {
-  console.log('[Test] Reading test case:', args.filename);
+  logger.info('[Test] Reading test case:', args.filename);
   
   try {
     const { filename } = args;
@@ -140,7 +141,7 @@ export async function readTestCase(args: any): Promise<any> {
             });
           }
         } catch (e) {
-          console.log('[Error] Failed to parse data:', e);
+          logger.error('[Error] Failed to parse data:', e);
         }
       }
       
@@ -155,7 +156,7 @@ export async function readTestCase(args: any): Promise<any> {
             });
           }
         } catch (e) {
-          console.log('[Error] Failed to parse secure data:', e);
+          logger.error('[Error] Failed to parse secure data:', e);
         }
       }
       
@@ -194,7 +195,7 @@ export async function readTestCase(args: any): Promise<any> {
  * @returns MCP response
  */
 export async function editTestCase(args: any): Promise<any> {
-  console.log('[Test] Editing test case:', args.filename);
+  logger.info('[Test] Editing test case:', args.filename);
   
   try {
     const { filename, name, testCase, operations } = args;

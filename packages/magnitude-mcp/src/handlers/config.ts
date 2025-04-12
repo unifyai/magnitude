@@ -3,6 +3,7 @@ import path from 'path';
 import { MagnitudeConfig } from '../types.js';
 import { fileExists, ensureDirectoryExists } from '../utils/fileUtils.js';
 import { handleError } from '../utils/cliUtils.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * Get Magnitude configuration
@@ -10,7 +11,7 @@ import { handleError } from '../utils/cliUtils.js';
  * @returns MCP response
  */
 export async function getConfiguration(args: any): Promise<any> {
-  console.log('[Config] Getting Magnitude configuration');
+  logger.info('[Config] Getting Magnitude configuration');
   
   try {
     const { configPath = './tests/magnitude/magnitude.config.ts' } = args || {};
@@ -58,7 +59,7 @@ export async function getConfiguration(args: any): Promise<any> {
  * @returns MCP response
  */
 export async function updateConfiguration(args: any): Promise<any> {
-  console.log('[Config] Updating Magnitude configuration');
+  logger.info('[Config] Updating Magnitude configuration');
   
   try {
     const { configPath = './tests/magnitude/magnitude.config.ts', config } = args;
