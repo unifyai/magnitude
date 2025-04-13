@@ -18,6 +18,11 @@ export const runTestsSchema = z.object({
 }).strict();
 
 /**
+ * Schema for build_tests tool
+ */
+export const buildTestsSchema = z.object({}).strict();
+
+/**
  * Helper function to convert a Zod schema to a JSON Schema for MCP compatibility
  * @param schema Zod schema
  * @param name Tool name
@@ -30,7 +35,7 @@ export function createToolDefinition(schema: z.ZodType, name: string, descriptio
     $refStrategy: 'none',
     target: 'jsonSchema7',
   });
-  
+
   return {
     name,
     description,
@@ -42,8 +47,10 @@ export function createToolDefinition(schema: z.ZodType, name: string, descriptio
 export const toolSchemas = {
   initialize_project: initializeProjectSchema,
   run_tests: runTestsSchema,
+  build_tests: buildTestsSchema,
 };
 
 // Type exports derived from Zod schemas
 export type InitializeProjectInput = z.infer<typeof initializeProjectSchema>;
 export type RunTestsInput = z.infer<typeof runTestsSchema>;
+export type BuildTestsInput = z.infer<typeof buildTestsSchema>;

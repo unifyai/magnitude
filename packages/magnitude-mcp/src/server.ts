@@ -1,6 +1,6 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { ToolService } from './services/toolService.js';
+import { ToolService } from './toolService.js';
 import { logger } from './utils/logger.js';
 
 /**

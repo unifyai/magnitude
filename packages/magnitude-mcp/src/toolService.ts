@@ -6,19 +6,16 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { z } from 'zod';
-import { logger } from '../utils/logger.js';
+import { logger } from './utils/logger.js';
 
-// Import handlers
-import { initializeProject } from '../handlers/project.js';
-import { runTests } from '../handlers/testRunner.js';
+// Import from tools file
+import { initializeProject, runTests, buildTests } from './tools.js';
 
 // Import schemas
 import {
   createToolDefinition,
-  toolSchemas,
-  InitializeProjectInput,
-  RunTestsInput,
-} from '../schemas/toolSchemas.js';
+  toolSchemas
+} from './schemas/toolSchemas.js';
 
 /**
  * Service for handling MCP tools
@@ -26,13 +23,17 @@ import {
 export class ToolService {
   // Tool handler mapping with type-safe input validation
   private toolHandlers: Record<string, { handler: Function; schema: z.ZodType }> = {
-    'initialize_project': { 
-      handler: initializeProject, 
-      schema: toolSchemas.initialize_project 
+    'initialize_project': {
+      handler: initializeProject,
+      schema: toolSchemas.initialize_project
     },
-    'run_tests': { 
-      handler: runTests, 
-      schema: toolSchemas.run_tests 
+    'run_tests': {
+      handler: runTests,
+      schema: toolSchemas.run_tests
+    },
+    'build_tests': {
+      handler: buildTests,
+      schema: toolSchemas.build_tests
     },
   };
 
@@ -41,12 +42,17 @@ export class ToolService {
     createToolDefinition(
       toolSchemas.initialize_project,
       'initialize_project',
-      'Initialize a new Magnitude project in the specified project directory'
+      'Initialize a new Magnitude project in the given project directory'
     ),
     createToolDefinition(
       toolSchemas.run_tests,
       'run_tests',
-      'Run Magnitude tests in the specified project directory'
+      'Run Magnitude tests matching the given pattern in the given project directory'
+    ),
+    createToolDefinition(
+      toolSchemas.build_tests,
+      'build_tests',
+      'Build Magnitude test cases for a certain piece of functionality'
     ),
   ];
 
@@ -58,24 +64,24 @@ export class ToolService {
    */
   async callTool(name: string, args: any): Promise<any> {
     logger.info(`[Tool] Calling tool: ${name}`);
-    
+
     const toolInfo = this.toolHandlers[name];
     if (!toolInfo) {
       throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
     }
-    
+
     try {
       // Validate input against schema
       const validationResult = toolInfo.schema.safeParse(args);
-      
+
       if (!validationResult.success) {
         logger.error(`[Validation] Failed for tool ${name}:`, validationResult.error);
         throw new McpError(
-          ErrorCode.InvalidParams, 
+          ErrorCode.InvalidParams,
           `Invalid parameters for tool ${name}: ${validationResult.error.message}`
         );
       }
-      
+
       // Execute handler with validated input
       return await toolInfo.handler(validationResult.data);
     } catch (error) {

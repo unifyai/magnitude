@@ -15,4 +15,5 @@ export {
 export {
   InitializeProjectInput,
   RunTestsInput,
+  BuildTestsInput,
 } from './schemas/toolSchemas.js';
