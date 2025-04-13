@@ -117,7 +117,10 @@ export async function buildTests(): Promise<any> {
         const exampleSectionIndex = fullText.indexOf("### Example of migrating a Playwright test case to Magnitude", startIndex);
 
         // Extract the content from "## Test Cases" to the start of the example section
-        const content = fullText.substring(startIndex, exampleSectionIndex).trim();
+        let content = fullText.substring(startIndex, exampleSectionIndex).trim();
+
+        // Insert the import statement at the beginning of each TypeScript code snippet
+        content = content.replace(/```typescript\s*/g, '```typescript\nimport { test } from \'magnitude-test\';\n\n');
 
         // Add the introductory text at the beginning and the concluding text at the end with markdown formatting
         const introText = "This is the section from the Magnitude docs on how to design proper test cases:\n\n";
@@ -130,7 +133,8 @@ export async function buildTests(): Promise<any> {
             "- Put the test cases in a **new** .mag.ts file if building a fresh page/feature, or edit the relevant **existing** .mag.ts file if expanding on an existing page/feature.\n\n" +
             "- Follow the Magnitude docs **extremely closely** when building test cases.\n" +
             "- Do not overcomplicate. Keep the test cases **simple and straightforward**.\n" +
-            "- Do not write too many test cases. Just cover the **main flows** for whatever the user is asking about.";
+            "- Do not write too many test cases. Just cover the **main flows** for whatever the user is asking about.\n\n" +
+            "After you are finished building Magnitude tests for the user, please suggest to run them with the \"npx magnitude\" terminal command.";
 
         const formattedContent = introText + content + loginNote + concludingText;
 

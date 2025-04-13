@@ -27,10 +27,10 @@ export class ToolService {
       handler: initializeProject,
       schema: toolSchemas.initialize_project
     },
-    'magnitude_run_tests': {
-      handler: runTests,
-      schema: toolSchemas.run_tests
-    },
+    // 'magnitude_run_tests': {
+    //   handler: runTests,
+    //   schema: toolSchemas.run_tests
+    // },
     'magnitude_build_tests': {
       handler: buildTests,
       schema: toolSchemas.build_tests
@@ -43,15 +43,15 @@ export class ToolService {
       'magnitude_initialize_project',
       'Initialize the user\'s project to be able to be tested by Magnitude. Use this tool when the user has NO "magnitude.config.ts" file present anywhere in their project but wants to write tests with Magnitude.'
     ),
-    createToolDefinition(
-      toolSchemas.run_tests,
-      'magnitude_run_tests',
-      'Run Magnitude tests matching the given pattern in the user\'s project. Use this tool after building tests with the "build_tests" tool or when the user explicitly asks to run Magnitudetests.'
-    ),
+    // createToolDefinition(
+    //   toolSchemas.run_tests,
+    //   'magnitude_run_tests',
+    //   'Run Magnitude tests matching the given pattern in the user\'s project. Use this tool after building tests with the "build_tests" tool or when the user explicitly asks to run Magnitude tests.'
+    // ),
     createToolDefinition(
       toolSchemas.build_tests,
       'magnitude_build_tests',
-      'Build Magnitude test cases for a certain piece of functionality. Use this tool when the user asks to build tests with Magnitude or to build end-to-end (E2E) tests.'
+      'Build Magnitude test cases for a certain piece of functionality. Use this tool when the user asks to build tests with Magnitude or to build end-to-end (E2E) tests. This tool assumes that the "magnitude.config.ts" file is present in the user\'s project OR that the "initialize_project" tool has been called to create one.'
     ),
   ];
 
