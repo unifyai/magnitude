@@ -42,17 +42,17 @@ export class ToolService {
     createToolDefinition(
       toolSchemas.initialize_project,
       'initialize_project',
-      'Initialize a new Magnitude project in the given project directory'
+      'Initialize the user\'s project to be able to be tested by Magnitude. Use this tool when the user has NO "magnitude.config.ts" file present anywhere in their project but wants to write tests with Magnitude.'
     ),
     createToolDefinition(
       toolSchemas.run_tests,
       'run_tests',
-      'Run Magnitude tests matching the given pattern in the given project directory'
+      'Run Magnitude tests matching the given pattern in the user\'s project. Use this tool after building tests with the "build_tests" tool or when the user explicitly asks to run Magnitudetests.'
     ),
     createToolDefinition(
       toolSchemas.build_tests,
       'build_tests',
-      'Build Magnitude test cases for a certain piece of functionality'
+      'Build Magnitude test cases for a certain piece of functionality. Use this tool when the user asks to build tests with Magnitude or to build E2E tests.'
     ),
   ];
 
