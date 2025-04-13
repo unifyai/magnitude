@@ -1,4 +1,4 @@
-import { executeCliCommand, handleError } from './utils/cliUtils.js';
+import { executeCliCommand, handleError, watchProcessForUrls } from './utils/cliUtils.js';
 import { logger } from './utils/logger.js';
 import { InitializeProjectInput, RunTestsInput } from './types.js';
 
@@ -32,15 +32,15 @@ export async function initializeProject(args: InitializeProjectInput): Promise<a
 }
 
 /**
- * Run Magnitude tests
+ * Run Magnitude tests and collect URLs from stdout
  * @param args Arguments for running tests
- * @returns MCP response
+ * @returns MCP response with collected URLs
  */
 export async function runTests(args: RunTestsInput): Promise<any> {
-    logger.info('[Test] Running Magnitude tests');
+    logger.info('[Test] Running Magnitude tests and collecting URLs');
 
     try {
-        const { projectDir, pattern, workers } = args;
+        const { projectDir, pattern } = args;
 
         // Build command arguments
         const cmdArgs = ['magnitude'];
@@ -49,37 +49,38 @@ export async function runTests(args: RunTestsInput): Promise<any> {
             cmdArgs.push(pattern);
         }
 
-        if (workers && Number.isInteger(workers) && workers > 0) {
-            cmdArgs.push('-w', workers.toString());
-        }
+        // if (workers && Number.isInteger(workers) && workers > 0) {
+        //     cmdArgs.push('-w', workers.toString());
+        // }
+        cmdArgs.push('-w', '10');
 
-        logger.info(`[Test] Executing command: npx ${cmdArgs.join(' ')} in ${projectDir}`);
+        logger.info(`[Test] Watching command for URLs: npx ${cmdArgs.join(' ')} in ${projectDir}`);
 
-        // Execute command
-        try {
-            const output = await executeCliCommand('npx', cmdArgs, {
-                cwd: projectDir // This handles the directory change
-            });
+        // Execute command and watch for URLs
+        const urls = await watchProcessForUrls('npx', cmdArgs, {
+            cwd: projectDir // This handles the directory change
+        });
 
+        if (urls.length > 0) {
+            // Format the URLs for display
+            const formattedUrls = urls.map(url => `- ${url}`).join('\n');
+            
             return {
                 content: [
                     {
                         type: 'text',
-                        text: `Tests executed successfully:\n\n${output}`,
+                        text: `Test run initiated. Collected run URLs:\n\n${formattedUrls}\n\nProcess continues running in the background.`,
                     },
                 ],
             };
-        } catch (error: any) {
-            // If the tests fail, the process will exit with a non-zero code
-            // But we still want to return the output
+        } else {
             return {
                 content: [
                     {
                         type: 'text',
-                        text: `Tests executed with failures:\n\n${error.message || ''}`,
+                        text: `Test run initiated, but no Magnitude run URLs detected in the first 2 seconds. Process continues running in the background.`,
                     },
                 ],
-                isError: true,
             };
         }
     } catch (error) {
@@ -144,4 +145,4 @@ export async function buildTests(): Promise<any> {
     } catch (error) {
         return handleError('Failed to fetch test case documentation', error);
     }
-} 
+}

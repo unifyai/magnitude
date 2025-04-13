@@ -13,8 +13,7 @@ export const initializeProjectSchema = z.object({
  */
 export const runTestsSchema = z.object({
   projectDir: z.string().describe('Root directory of the Node.js project where Magnitude tests will be run'),
-  pattern: z.string().optional().describe('Glob pattern for test files'),
-  workers: z.number().optional().describe('Number of parallel workers'),
+  pattern: z.string().optional().describe('Glob pattern for test files')
 }).strict();
 
 /**
