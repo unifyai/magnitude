@@ -14,10 +14,5 @@ export {
  */
 export {
   InitializeProjectInput,
-  CreateTestCaseInput,
-  ReadTestCaseInput,
-  EditTestCaseInput,
   RunTestsInput,
-  GetConfigurationInput,
-  UpdateConfigurationInput,
 } from './schemas/toolSchemas.js';

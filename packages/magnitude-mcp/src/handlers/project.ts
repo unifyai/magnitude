@@ -3,16 +3,19 @@ import { logger } from '../utils/logger.js';
 
 /**
  * Initialize a new Magnitude project
+ * @param projectDir Optional directory to initialize the project in
  * @returns MCP response
  */
 export async function initializeProject(): Promise<any> {
+  const projectDir = '/home/anerli/Sync/lab/25.04.12/magnitude-demo-repo';
   logger.info('[Setup] Initializing Magnitude project...');
-  
+
   try {
-    // Use the Magnitude CLI directly
-    const output = executeCliCommand('npx magnitude init');
+    // Use the Magnitude CLI with spawn approach
+    const output = await executeCliCommand('npx', ['magnitude', 'init'], { cwd: projectDir });
     
     logger.info('[Setup] Magnitude project initialized successfully');
+    
     return {
       content: [
         {

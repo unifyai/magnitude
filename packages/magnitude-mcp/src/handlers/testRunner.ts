@@ -1,3 +1,4 @@
+import { RunTestsInput } from '../types.js';
 import { executeCliCommand, handleError } from '../utils/cliUtils.js';
 import { logger } from '../utils/logger.js';
 
@@ -6,28 +7,31 @@ import { logger } from '../utils/logger.js';
  * @param args Arguments for running tests
  * @returns MCP response
  */
-export async function runTests(args: any): Promise<any> {
+export async function runTests(args: RunTestsInput): Promise<any> {
   logger.info('[Test] Running Magnitude tests');
   
   try {
     const { pattern, workers } = args || {};
+    const projectDir = '/home/anerli/Sync/lab/25.04.12/magnitude-demo-repo';
     
-    // Build command
-    let command = 'cd /home/anerli/Sync/lab/25.04.12/magnitude-demo-repo && npx magnitude';
+    // Build command arguments
+    const cmdArgs = ['magnitude'];
     
     if (pattern) {
-      command += ` ${pattern}`;
+      cmdArgs.push(pattern);
     }
     
     if (workers && Number.isInteger(workers) && workers > 0) {
-      command += ` -w ${workers}`;
+      cmdArgs.push('-w', workers.toString());
     }
     
-    logger.info(`[Test] Executing command: ${command}`);
+    logger.info(`[Test] Executing command: npx ${cmdArgs.join(' ')} in ${projectDir}`);
     
     // Execute command
     try {
-      const output = executeCliCommand(command);
+      const output = await executeCliCommand('npx', cmdArgs, {
+        cwd: projectDir // This handles the directory change
+      });
       
       return {
         content: [
@@ -44,7 +48,7 @@ export async function runTests(args: any): Promise<any> {
         content: [
           {
             type: 'text',
-            text: `Tests executed with failures:\n\n${error.stdout || ''}`,
+            text: `Tests executed with failures:\n\n${error.message || ''}`,
           },
         ],
         isError: true,
