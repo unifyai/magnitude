@@ -23,36 +23,35 @@ import {
 export class ToolService {
   // Tool handler mapping with type-safe input validation
   private toolHandlers: Record<string, { handler: Function; schema: z.ZodType }> = {
-    'initialize_project': {
+    'magnitude_initialize_project': {
       handler: initializeProject,
       schema: toolSchemas.initialize_project
     },
-    'run_tests': {
+    'magnitude_run_tests': {
       handler: runTests,
       schema: toolSchemas.run_tests
     },
-    'build_tests': {
+    'magnitude_build_tests': {
       handler: buildTests,
       schema: toolSchemas.build_tests
     },
   };
 
-  // Tool definitions for MCP generated from Zod schemas
   private toolDefinitions = [
     createToolDefinition(
       toolSchemas.initialize_project,
-      'initialize_project',
+      'magnitude_initialize_project',
       'Initialize the user\'s project to be able to be tested by Magnitude. Use this tool when the user has NO "magnitude.config.ts" file present anywhere in their project but wants to write tests with Magnitude.'
     ),
     createToolDefinition(
       toolSchemas.run_tests,
-      'run_tests',
+      'magnitude_run_tests',
       'Run Magnitude tests matching the given pattern in the user\'s project. Use this tool after building tests with the "build_tests" tool or when the user explicitly asks to run Magnitudetests.'
     ),
     createToolDefinition(
       toolSchemas.build_tests,
-      'build_tests',
-      'Build Magnitude test cases for a certain piece of functionality. Use this tool when the user asks to build tests with Magnitude or to build E2E tests.'
+      'magnitude_build_tests',
+      'Build Magnitude test cases for a certain piece of functionality. Use this tool when the user asks to build tests with Magnitude or to build end-to-end (E2E) tests.'
     ),
   ];
 
