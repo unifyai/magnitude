@@ -41,12 +41,12 @@ export class ToolService {
     createToolDefinition(
       toolSchemas.initialize_project,
       'initialize_project',
-      'Initialize a new Magnitude project in the current working directory'
+      'Initialize a new Magnitude project in the specified project directory'
     ),
     createToolDefinition(
       toolSchemas.run_tests,
       'run_tests',
-      'Run Magnitude tests'
+      'Run Magnitude tests in the specified project directory'
     ),
   ];
 

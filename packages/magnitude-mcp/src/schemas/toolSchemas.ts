@@ -3,14 +3,16 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 
 /**
  * Schema for initialize_project tool
- * No input parameters required
  */
-export const initializeProjectSchema = z.object({}).strict();
+export const initializeProjectSchema = z.object({
+  projectDir: z.string().describe('Root directory of the Node.js project where Magnitude will be initialized'),
+}).strict();
 
 /**
  * Schema for run_tests tool
  */
 export const runTestsSchema = z.object({
+  projectDir: z.string().describe('Root directory of the Node.js project where Magnitude tests will be run'),
   pattern: z.string().optional().describe('Glob pattern for test files'),
   workers: z.number().optional().describe('Number of parallel workers'),
 }).strict();

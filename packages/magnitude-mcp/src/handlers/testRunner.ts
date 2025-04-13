@@ -11,8 +11,7 @@ export async function runTests(args: RunTestsInput): Promise<any> {
   logger.info('[Test] Running Magnitude tests');
   
   try {
-    const { pattern, workers } = args || {};
-    const projectDir = '/home/anerli/Sync/lab/25.04.12/magnitude-demo-repo';
+    const { projectDir, pattern, workers } = args;
     
     // Build command arguments
     const cmdArgs = ['magnitude'];
