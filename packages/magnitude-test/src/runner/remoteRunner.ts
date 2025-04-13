@@ -3,6 +3,7 @@ import { Browser, chromium } from 'playwright';
 import { BASE_TEST_RUNNER_DEFAULT_CONFIG, BaseTestRunner, BaseTestRunnerConfig } from './baseRunner';
 import { RemoteTestCaseAgent } from 'magnitude-remote';
 import { isLocalUrl } from '@/util';
+import logger from '@/logger';
 
 export interface RemoteRunnerConfig extends BaseTestRunnerConfig {
     remoteRunnerUrl: string;
@@ -42,7 +43,9 @@ export class RemoteTestRunner extends BaseTestRunner {
         const useTunnel = this.config.forceUseTunnel || isLocalUrl(url);
 
         const agent = new RemoteTestCaseAgent({
-            listeners: [listener],
+            listeners: [listener, { onStart(testCase, runMetadata) {
+                if(runMetadata.dashboardUrl) logger.info(`Dashboard URL: ${runMetadata.dashboardUrl}`);
+            },}],
             serverUrl: this.config.remoteRunnerUrl,
             apiKey: this.config.apiKey,
             useTunnel: useTunnel
