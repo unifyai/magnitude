@@ -10,7 +10,7 @@
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.cts",
   "bin": {
-    "magnitude": "dist/runner/cli.js"
+    "magnitude": "dist/cli.js"
   },
   "exports": {
     "require": {
@@ -37,8 +37,8 @@
     "build": "tsc && pkgroll",
     "check": "tsc --noEmit",
     "prepare": "npm run build",
-    "cli": "bun src/runner/cli.ts",
-    "cli-bin": "bun dist/runner/cli.js",
+    "cli": "bun src/cli.ts",
+    "cli-bin": "bun dist/cli.js",
     "pubdev": "npm run build && yalc publish --force --push"
   },
   "keywords": [

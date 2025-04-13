@@ -1,3 +1,6 @@
+// For defining tests and config
 export { test } from '@/discovery/testDeclaration';
-//export { defineConfig } from './discovery/testConfig';
 export { type MagnitudeConfig } from '@/discovery/types';
+
+// For programatic CLI usage
+export { magnitudeCli } from '@/cli';
