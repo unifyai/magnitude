@@ -1,5 +1,11 @@
 # magnitude-test
 
+## 0.0.10
+
+### Patch Changes
+
+- change default remote port
+
 ## 0.0.9
 
 ### Patch Changes

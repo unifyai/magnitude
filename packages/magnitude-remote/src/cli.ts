@@ -29,7 +29,7 @@ program
     .action(async (options: { }) => {
         //console.log("client starting")
         const agent = new RemoteTestCaseAgent({
-            serverUrl: "https://remote.magnitude.run:4444",
+            serverUrl: "https://remote.magnitude.run",
             //serverUrl: "http://localhost:4444",
             //tunnelUrl: "http://localhost:3000",
             listeners: [{

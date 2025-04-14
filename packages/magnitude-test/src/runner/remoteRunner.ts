@@ -12,7 +12,7 @@ export interface RemoteRunnerConfig extends BaseTestRunnerConfig {
 
 const DEFAULT_CONFIG: RemoteRunnerConfig = {
     ...BASE_TEST_RUNNER_DEFAULT_CONFIG,
-    remoteRunnerUrl: 'https://remote.magnitude.run:4444',
+    remoteRunnerUrl: 'https://remote.magnitude.run',
     forceUseTunnel: false,
     apiKey: null
     //apiKey: process.env.MAGNITUDE_API_KEY
