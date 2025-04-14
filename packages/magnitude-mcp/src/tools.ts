@@ -1,13 +1,13 @@
 import { executeCliCommand, handleError, watchProcessForUrls } from './utils/cliUtils.js';
 import { logger } from './utils/logger.js';
-import { InitializeProjectInput, RunTestsInput } from './types.js';
+import { InitializeProjectInput, RunTestsInput, BuildTestsInput } from './schemas.js';
 
 /**
  * Initialize a new Magnitude project
  * @param args Arguments for initializing project
  * @returns MCP response
  */
-export async function initializeProject(args: InitializeProjectInput): Promise<any> {
+export async function initProject(args: InitializeProjectInput): Promise<any> {
     const { projectDir } = args;
     logger.info('[Setup] Initializing Magnitude project...');
 
@@ -37,62 +37,70 @@ export async function initializeProject(args: InitializeProjectInput): Promise<a
  * @returns MCP response with collected URLs
  */
 export async function runTests(args: RunTestsInput): Promise<any> {
-    logger.info('[Test] Running Magnitude tests and collecting URLs');
+    return {
+        content: [
+            {
+                type: 'text',
+                text: "Run tests for the user by executing `npx magnitude`"
+            }
+        ]
+    };
+    // logger.info('[Test] Running Magnitude tests and collecting URLs');
 
-    try {
-        const { projectDir, pattern } = args;
+    // try {
+    //     const { projectDir, pattern } = args;
 
-        // Build command arguments
-        const cmdArgs = ['magnitude'];
+    //     // Build command arguments
+    //     const cmdArgs = ['magnitude'];
 
-        if (pattern) {
-            cmdArgs.push(pattern);
-        }
+    //     if (pattern) {
+    //         cmdArgs.push(pattern);
+    //     }
 
-        // if (workers && Number.isInteger(workers) && workers > 0) {
-        //     cmdArgs.push('-w', workers.toString());
-        // }
-        cmdArgs.push('-w', '10');
+    //     // if (workers && Number.isInteger(workers) && workers > 0) {
+    //     //     cmdArgs.push('-w', workers.toString());
+    //     // }
+    //     cmdArgs.push('-w', '10');
 
-        logger.info(`[Test] Watching command for URLs: npx ${cmdArgs.join(' ')} in ${projectDir}`);
+    //     logger.info(`[Test] Watching command for URLs: npx ${cmdArgs.join(' ')} in ${projectDir}`);
 
-        // Execute command and watch for URLs
-        const urls = await watchProcessForUrls('npx', cmdArgs, {
-            cwd: projectDir // This handles the directory change
-        });
+    //     // Execute command and watch for URLs
+    //     const urls = await watchProcessForUrls('npx', cmdArgs, {
+    //         cwd: projectDir // This handles the directory change
+    //     });
 
-        if (urls.length > 0) {
-            // Format the URLs for display
-            const formattedUrls = urls.map(url => `- ${url}`).join('\n');
+    //     if (urls.length > 0) {
+    //         // Format the URLs for display
+    //         const formattedUrls = urls.map(url => `- ${url}`).join('\n');
             
-            return {
-                content: [
-                    {
-                        type: 'text',
-                        text: `Test run initiated. Collected run URLs:\n\n${formattedUrls}\n\nProcess continues running in the background.`,
-                    },
-                ],
-            };
-        } else {
-            return {
-                content: [
-                    {
-                        type: 'text',
-                        text: `Test run initiated, but no Magnitude run URLs detected in the first 2 seconds. Process continues running in the background.`,
-                    },
-                ],
-            };
-        }
-    } catch (error) {
-        return handleError('Failed to run tests', error);
-    }
+    //         return {
+    //             content: [
+    //                 {
+    //                     type: 'text',
+    //                     text: `Test run initiated. Collected run URLs:\n\n${formattedUrls}\n\nProcess continues running in the background.`,
+    //                 },
+    //             ],
+    //         };
+    //     } else {
+    //         return {
+    //             content: [
+    //                 {
+    //                     type: 'text',
+    //                     text: `Test run initiated, but no Magnitude run URLs detected in the first 2 seconds. Process continues running in the background.`,
+    //                 },
+    //             ],
+    //         };
+    //     }
+    // } catch (error) {
+    //     return handleError('Failed to run tests', error);
+    // }
 }
 
 /**
  * Build test cases by fetching documentation on how to design proper Magnitude test cases
  * @returns MCP response with formatted documentation
  */
-export async function buildTests(): Promise<any> {
+export async function buildTests(args: BuildTestsInput): Promise<any> {
     logger.info('[Build] Fetching Magnitude test case documentation');
 
     try {

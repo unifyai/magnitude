@@ -9,13 +9,13 @@ import { z } from 'zod';
 import { logger } from './utils/logger.js';
 
 // Import from tools file
-import { initializeProject, runTests, buildTests } from './tools.js';
+import { initProject, runTests, buildTests } from './tools.js';
 
 // Import schemas
 import {
   createToolDefinition,
   toolSchemas
-} from './schemas/toolSchemas.js';
+} from './schemas.js';
 
 /**
  * Service for handling MCP tools
@@ -23,14 +23,14 @@ import {
 export class ToolService {
   // Tool handler mapping with type-safe input validation
   private toolHandlers: Record<string, { handler: Function; schema: z.ZodType }> = {
-    'magnitude_initialize_project': {
-      handler: initializeProject,
-      schema: toolSchemas.initialize_project
+    'magnitude_init_project': {
+      handler: initProject,
+      schema: toolSchemas.init_project
     },
-    // 'magnitude_run_tests': {
-    //   handler: runTests,
-    //   schema: toolSchemas.run_tests
-    // },
+    'magnitude_run_tests': {
+      handler: runTests,
+      schema: toolSchemas.run_tests
+    },
     'magnitude_build_tests': {
       handler: buildTests,
       schema: toolSchemas.build_tests
@@ -39,19 +39,20 @@ export class ToolService {
 
   private toolDefinitions = [
     createToolDefinition(
-      toolSchemas.initialize_project,
-      'magnitude_initialize_project',
+      toolSchemas.init_project,
+      'magnitude_init_project',
       'Initialize the user\'s project to be able to be tested by Magnitude. Use this tool when the user has NO "magnitude.config.ts" file present anywhere in their project but wants to write tests with Magnitude.'
     ),
-    // createToolDefinition(
-    //   toolSchemas.run_tests,
-    //   'magnitude_run_tests',
-    //   'Run Magnitude tests matching the given pattern in the user\'s project. Use this tool after building tests with the "build_tests" tool or when the user explicitly asks to run Magnitude tests.'
-    // ),
+    createToolDefinition(
+      toolSchemas.run_tests,
+      'magnitude_run_tests',
+      'Run Magnitude tests matching the given pattern in the user\'s project. Use this tool after building tests with the "build_tests" tool or when the user explicitly asks to run Magnitude tests.'
+    ),
     createToolDefinition(
       toolSchemas.build_tests,
       'magnitude_build_tests',
-      'Build Magnitude test cases for a certain piece of functionality. Use this tool when the user asks to build tests with Magnitude or to build end-to-end (E2E) tests. This tool assumes that the "magnitude.config.ts" file is present in the user\'s project OR that the "initialize_project" tool has been called to create one.'
+      'Use this tool IMMEDIATELY whenever a user wants to build tests with Magnitude, assuming that "magniude.config.ts" exists in the project. If not, call magnitude_init_project'
+      //'Build Magnitude test cases for a certain piece of functionality. Use this tool when the user asks to build tests with Magnitude or to build end-to-end (E2E) tests. This tool assumes that the "magnitude.config.ts" file is present in the user\'s project OR that the "initialize_project" tool has been called to create one.'
     ),
   ];
 

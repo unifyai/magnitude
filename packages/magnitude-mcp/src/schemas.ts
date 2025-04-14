@@ -4,16 +4,16 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 /**
  * Schema for initialize_project tool
  */
-export const initializeProjectSchema = z.object({
-  projectDir: z.string().describe('Root directory of the Node.js project where Magnitude will be initialized'),
+export const initProjectSchema = z.object({
+  projectDir: z.string().describe('Absolute root directory of the Node.js project where Magnitude should be initialized'),
 }).strict();
 
 /**
  * Schema for run_tests tool
  */
 export const runTestsSchema = z.object({
-  projectDir: z.string().describe('Root directory of the Node.js project where Magnitude tests will be run'),
-  pattern: z.string().optional().describe('Glob pattern for test files')
+//   projectDir: z.string().describe('Absolute directory of the Node.js project where Magnitude tests should be run'),
+//   pattern: z.string().optional().describe('Glob pattern for test files to run')
 }).strict();
 
 /**
@@ -44,12 +44,12 @@ export function createToolDefinition(schema: z.ZodType, name: string, descriptio
 
 // Map of all tool schemas
 export const toolSchemas = {
-  initialize_project: initializeProjectSchema,
+  init_project: initProjectSchema,
   run_tests: runTestsSchema,
   build_tests: buildTestsSchema,
 };
 
 // Type exports derived from Zod schemas
-export type InitializeProjectInput = z.infer<typeof initializeProjectSchema>;
+export type InitializeProjectInput = z.infer<typeof initProjectSchema>;
 export type RunTestsInput = z.infer<typeof runTestsSchema>;
 export type BuildTestsInput = z.infer<typeof buildTestsSchema>;
