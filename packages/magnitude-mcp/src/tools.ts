@@ -31,6 +31,31 @@ export async function initProject(args: InitializeProjectInput): Promise<any> {
     }
 }
 
+const runTestsInstructions = `
+Run tests for the user by executing 'npx magnitude'
+
+Usage: npx magnitude [options] [command] [filter]
+
+Run Magnitude test cases
+
+Arguments:
+  filter                  glob pattern for test files (quote if contains spaces or wildcards)
+
+Options:
+  -w, --workers <number>  number of parallel workers for test execution (default: "1")
+  -p, --plain             disable pretty output and use logs
+  -l, --local             run agent locally (requires Playwright and LLM provider configuration)
+  -t, --tunnel            (remote mode only) force enable HTTP tunneling regardless of whether
+                          target URL appears local/private
+  -r, --remote <url>      specify a custom remote runner
+  -k, --key <apiKey>      provide API key
+  -h, --help              display help for command
+
+Run tests according to the user's query using this CLI and appropriate options.
+
+When using directly after a build_tests tool call, run just the new or updated test files using a glob pattern.
+`
+
 /**
  * Run Magnitude tests and collect URLs from stdout
  * @param args Arguments for running tests
@@ -41,60 +66,77 @@ export async function runTests(args: RunTestsInput): Promise<any> {
         content: [
             {
                 type: 'text',
-                text: "Run tests for the user by executing `npx magnitude`"
+                text: runTestsInstructions
             }
         ]
     };
-    // logger.info('[Test] Running Magnitude tests and collecting URLs');
-
-    // try {
-    //     const { projectDir, pattern } = args;
-
-    //     // Build command arguments
-    //     const cmdArgs = ['magnitude'];
-
-    //     if (pattern) {
-    //         cmdArgs.push(pattern);
-    //     }
-
-    //     // if (workers && Number.isInteger(workers) && workers > 0) {
-    //     //     cmdArgs.push('-w', workers.toString());
-    //     // }
-    //     cmdArgs.push('-w', '10');
-
-    //     logger.info(`[Test] Watching command for URLs: npx ${cmdArgs.join(' ')} in ${projectDir}`);
-
-    //     // Execute command and watch for URLs
-    //     const urls = await watchProcessForUrls('npx', cmdArgs, {
-    //         cwd: projectDir // This handles the directory change
-    //     });
-
-    //     if (urls.length > 0) {
-    //         // Format the URLs for display
-    //         const formattedUrls = urls.map(url => `- ${url}`).join('\n');
-            
-    //         return {
-    //             content: [
-    //                 {
-    //                     type: 'text',
-    //                     text: `Test run initiated. Collected run URLs:\n\n${formattedUrls}\n\nProcess continues running in the background.`,
-    //                 },
-    //             ],
-    //         };
-    //     } else {
-    //         return {
-    //             content: [
-    //                 {
-    //                     type: 'text',
-    //                     text: `Test run initiated, but no Magnitude run URLs detected in the first 2 seconds. Process continues running in the background.`,
-    //                 },
-    //             ],
-    //         };
-    //     }
-    // } catch (error) {
-    //     return handleError('Failed to run tests', error);
-    // }
 }
+
+const buildTestInstructions = `
+The following instructions will guide you on how to build effective test cases in Magnitude.
+
+Magnitude is a test framework for writing test cases in *natural language*.
+
+## Syntax
+Example test case:
+\`\`\`ts
+import { test } from 'magnitude-test';
+
+test('can log in')
+    .step('Log in')
+        .data({ email: "foo@bar.com", password: "foo" })
+        .check('Dashboard is visible')
+\`\`\`
+
+Notice that it appears more like a DSL than plain typescript.
+
+Every test case begins with test('<what it is testing>').
+Then attach steps with .step('<description of what to do in the browser>')
+Each step can have:
+.check('<visual assertion>')
+.data('<freeform description of data>') or
+.data({ arbitraryKey: arbitraryValue }) or
+.secureData({ arbitraryKey: arbitraryValue }) (for sensitive fields)
+
+check/data/secureData must ALWAYS follow a step, they cannot be attached to the test directly.
+
+Tests can have multiple steps, but you should separate distinct flows into their own tests.
+
+## Style
+You should indent steps one level and check/data/secureData two levels. Always follow this style.
+
+## Test Management
+Put the test cases in a **new** .mag.ts file if building a fresh page/feature, or edit the relevant **existing** .mag.ts file if expanding on an existing page/feature.
+
+Put related tests in a test.group like this:
+\`\`\`ts
+import { test } from 'magnitude-test';
+
+test.group('authentication tests', () => {
+    test('can log in')
+        .step('Log in')
+            .data({ email: "foo@bar.com", password: "foo" })
+            .check('Dashboard is visible')
+    
+    test('can sign up')
+        .step('Sign up for a new account')
+            .data({ email: "foo@bar.com", password: "foo" })
+            .check('Profile page is visible')
+})
+\`\`\`
+
+Unless otherwise specified by the user, only cover the main flows of the page or feature.
+Tests should be minimalistic.
+
+## Designing tests
+- Keep tests short (a few steps)
+- Group related tests with test.group
+- Checks should be simple and direct
+- Do not add more checks than necessary, only enough to generally verify functionality
+- Every test MUST have at least one step. Each check MUST ALWAYS belong to a step.
+
+Now comply with the user's instructions using these building principles.
+`;
 
 /**
  * Build test cases by fetching documentation on how to design proper Magnitude test cases
@@ -103,58 +145,12 @@ export async function runTests(args: RunTestsInput): Promise<any> {
 export async function buildTests(args: BuildTestsInput): Promise<any> {
     logger.info('[Build] Fetching Magnitude test case documentation');
 
-    try {
-        // Fetch the LLMs full text file
-        const response = await fetch("https://docs.magnitude.run/llms-full.txt");
-
-        if (!response.ok) {
-            throw new Error(`Failed to fetch documentation: ${response.status} ${response.statusText}`);
-        }
-
-        const fullText = await response.text();
-
-        // Find the start of the "## Test Cases" section instead of "# Building Test Cases"
-        const buildingTestCasesIndex = fullText.indexOf("# Building Test Cases");
-        const testCasesIndex = fullText.indexOf("## Test Cases", buildingTestCasesIndex);
-
-        // Use testCasesIndex as the starting point
-        const startIndex = testCasesIndex;
-
-        // Find the start of the "Example of migrating a Playwright test case to Magnitude" section
-        // which is where we want to end our extraction
-        const exampleSectionIndex = fullText.indexOf("### Example of migrating a Playwright test case to Magnitude", startIndex);
-
-        // Extract the content from "## Test Cases" to the start of the example section
-        let content = fullText.substring(startIndex, exampleSectionIndex).trim();
-
-        // Insert the import statement at the beginning of each TypeScript code snippet
-        content = content.replace(/```typescript\s*/g, '```typescript\nimport { test } from \'magnitude-test\';\n\n');
-
-        // Add the introductory text at the beginning and the concluding text at the end with markdown formatting
-        const introText = "This is the section from the Magnitude docs on how to design proper test cases:\n\n";
-
-        // Add an important note about login requirements
-        const loginNote = "\n\n## IMPORTANT NOTE:\n\n" +
-            "If the user's site requires login, then **EVERY test case** will need to start with a login step with proper data attached.\n\n";
-
-        const concludingText = "## Now that you know how to build proper Magnitude test cases, build test cases for the user for whatever they are asking about.\n\n" +
-            "- Put the test cases in a **new** .mag.ts file if building a fresh page/feature, or edit the relevant **existing** .mag.ts file if expanding on an existing page/feature.\n\n" +
-            "- Follow the Magnitude docs **extremely closely** when building test cases.\n" +
-            "- Do not overcomplicate. Keep the test cases **simple and straightforward**.\n" +
-            "- Do not write too many test cases. Just cover the **main flows** for whatever the user is asking about.\n\n" +
-            "After you are finished building Magnitude tests for the user, please suggest to run them with the \"npx magnitude\" terminal command.";
-
-        const formattedContent = introText + content + loginNote + concludingText;
-
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: formattedContent,
-                },
-            ],
-        };
-    } catch (error) {
-        return handleError('Failed to fetch test case documentation', error);
+    return {
+        content: [
+            {
+                type: 'text',
+                text: buildTestInstructions
+            }
+        ]
     }
 }
