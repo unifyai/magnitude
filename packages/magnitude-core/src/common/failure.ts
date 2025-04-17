@@ -7,46 +7,62 @@
  * - Time or action based timeout
  * - ...
  */
-export interface FailureDescriptor {
-    description: string
-}
+// export interface FailureDescriptor {
+//     description: string
+// }
+export type FailureDescriptor = BugDetectedFailure | MisalignmentFailure | NetworkFailure | BrowserFailure | UnknownFailure;
 
 export type BugSeverity = 'critical' | 'high' | 'medium' | 'low';
 
-export interface BugClassification {
-    title: string,
-    expectedResult: string,
-    actualResult: string,
+/**
+ * Step and check failures are classified into one of:
+ * BugDetectedFailure: seems to be something wrong with the application itself
+ * MisalignmentFailure: seems to be a discrepency between the test case and the interface
+ *    OR the agent did not properly recognize the relationship between test case and interface
+ */
+
+export interface BugDetectedFailure {
+    variant: 'bug'
+    title: string
+    expectedResult: string
+    actualResult: string
     severity: BugSeverity
 }
 
-export interface StepFailure {
+export interface MisalignmentFailure {
     /**
-     * A step fails when agent cannot find a way to complete it.
-     * When can this happen?
-     * (A) There's a bug that prevents in the step from being completed
-     * (B) The step doesn't align at all with how the interface currently works
-     *     (i.e. the interface changed completely or a step was written incorrectly)
+     * Major misalignment: when a step/check fails due to:
+     * 1. Poorly written step/check that is completely unrelated to the interface
+     * 2. Or interface has changed so much that step/check no longer applicable
+     * 3. Planner did not do good enough job adjusting recipe for minor misalignment
+     * Misalignment could be due to a poorly written test case OR bad agent behavior.
      */
-    variant: 'step',
-    bug: BugClassification
+    variant: 'misalignment',
+    // Some message speculating about what may have gone wrong, ideally that would help user know how to adjust TC to fix
+    message: string
 }
 
-export interface CheckFailure {
+export interface NetworkFailure {
     /**
-     * A check fails when it is evaluated and does not hold true.
-     * When can this happen?
-     * (A) There's a bug that causes the check to fail
-     * (B) The check was written in a way that will always fail / doesn't align with interface
+     * For example, failure to connect to starting URL, or any other network errors
+     * that would completely prevent the test from executing.
      */
-    variant: 'check'
-    bug: BugClassification
+    variant: 'network'
+    message: string
 }
 
+export interface BrowserFailure {
+    /**
+     * E.g. something goes wrong with playwright interactions, any DOM manipulation, etc.
+     */
+    variant: 'browser'
+    message: string
+}
 
 export interface UnknownFailure {
     // Failure due to some unknown / unhandled error.
     // If these are being returned we should identify and handle them specifically
-    variant: 'unknown',
-
+    variant: 'unknown'
+    message: string
 }
+

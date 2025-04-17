@@ -1,51 +1,51 @@
-// Agent will only throw these types of errors
+// // Agent will only throw these types of errors
 
-import { ActionIngredient } from "./recipe/types";
-import { WebAction } from "./web/types";
+// import { ActionIngredient } from "./recipe/types";
+// import { WebAction } from "./web/types";
 
-export class TestCaseError extends Error {};
+// export class TestCaseError extends Error {};
 
-// Base class for wrapping errors
-class WrapperError extends TestCaseError {
-    public readonly originalError: Error;
+// // Base class for wrapping errors
+// class WrapperError extends TestCaseError {
+//     public readonly originalError: Error;
 
-    constructor(message: string, originalError: Error) {
-        super(`${message} - ${originalError.message}`);
-        this.name = this.constructor.name;
-        this.originalError = originalError;
+//     constructor(message: string, originalError: Error) {
+//         super(`${message} - ${originalError.message}`);
+//         this.name = this.constructor.name;
+//         this.originalError = originalError;
 
-        // Preserve the stack trace
-        if (Error.captureStackTrace) {
-            Error.captureStackTrace(this, this.constructor);
-        }
-    }
-}
+//         // Preserve the stack trace
+//         if (Error.captureStackTrace) {
+//             Error.captureStackTrace(this, this.constructor);
+//         }
+//     }
+// }
 
-export class NavigationError extends WrapperError {
-    public readonly url: string;
+// export class NavigationError extends WrapperError {
+//     public readonly url: string;
 
-    constructor(url: string, originalError: Error) {
-        super(`Failed to navigate to URL: ${url}`, originalError);
-        this.url = url;
-    }
-}
+//     constructor(url: string, originalError: Error) {
+//         super(`Failed to navigate to URL: ${url}`, originalError);
+//         this.url = url;
+//     }
+// }
 
-export class ActionExecutionError extends WrapperError {
-    public readonly action: WebAction;
-    public readonly statusCode?: number;
+// export class ActionExecutionError extends WrapperError {
+//     public readonly action: WebAction;
+//     public readonly statusCode?: number;
 
-    constructor(action: WebAction, originalError: Error) {
-        super(`Browser encountered error while executing action: ${action}`, originalError);
-        this.action = action;
-    }
-}
+//     constructor(action: WebAction, originalError: Error) {
+//         super(`Browser encountered error while executing action: ${action}`, originalError);
+//         this.action = action;
+//     }
+// }
 
-export class ActionConversionError extends WrapperError {
-    public readonly action: ActionIngredient;
-    public readonly statusCode?: number;
+// export class ActionConversionError extends WrapperError {
+//     public readonly action: ActionIngredient;
+//     public readonly statusCode?: number;
 
-    constructor(action: ActionIngredient, originalError: Error) {
-        super(`Micro failed to convert action (does the target line up with the screenshot?): ${action}`, originalError);
-        this.action = action;
-    }
-}
+//     constructor(action: ActionIngredient, originalError: Error) {
+//         super(`Micro failed to convert action (does the target line up with the screenshot?): ${action}`, originalError);
+//         this.action = action;
+//     }
+// }

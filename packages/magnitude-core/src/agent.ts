@@ -4,19 +4,12 @@ import { MacroAgent } from "@/ai/macro";
 import { Browser } from "playwright";
 import { WebHarness } from "@/web/harness";
 import { TestCaseDefinition, TestCaseResult } from "@/types";
-import { NavigationError, ActionExecutionError, ActionConversionError, TestCaseError } from "@/errors";
+//import { NavigationError, ActionExecutionError, ActionConversionError, TestCaseError } from "@/errors";
 import { CheckIngredient } from "./ai/baml_client";
 import { TestAgentListener } from "./common/events";
 import logger from './logger';
 
 export interface TestCaseAgentConfig {
-    // Event listeners
-    //onActionTaken: (ingredient: ActionIngredient, action: WebAction) => void;
-    //onStepCompleted: (step: TestStep) => void;
-    // testCaseCheck: check provided in test case
-    // ingredient: contains transformed check
-    //onCheckCompleted: (testCaseCheck: string, ingredient: CheckIngredient) => void;
-    //onRecipeUpdated()
     listeners: TestAgentListener[]
     plannerModelProvider: 'SonnetBedrock' | 'SonnetAnthropic'
     // Browser options
@@ -27,20 +20,15 @@ export interface TestCaseAgentConfig {
 const DEFAULT_CONFIG: TestCaseAgentConfig = {
     listeners: [],
     plannerModelProvider: 'SonnetBedrock'
-    // onActionTaken: () => {},
-    // onStepCompleted: () => {},
-    // onCheckCompleted: () => {}
 }
 
 export class TestCaseAgent {
-    //private testCase: TestCase;
     private config: TestCaseAgentConfig;
     private listeners: TestAgentListener[];
     private macro: MacroAgent;
     private micro: MicroAgent;
     
     constructor (config: Partial<TestCaseAgentConfig> = {})  {
-        //this.testCase = testCase;
         this.config = { ...DEFAULT_CONFIG, ...config };
         this.listeners = config.listeners || [];
         this.macro = new MacroAgent({ provider: this.config.plannerModelProvider });
@@ -48,44 +36,45 @@ export class TestCaseAgent {
     }
 
     async run(browser: Browser, testCase: TestCaseDefinition): Promise<TestCaseResult> {
+        /**
+         * Wrapper for running to set up / cleanup browser context and handle unexpected errors.
+         */
         // Should NOT throw unless truly unexpected error occurs
         //console.log("Agent is running test case:", testCase);
 
-        // Setup browser
         // TODO: Set browser options and stuff
-        //const browser = await chromium.launch({ headless: false });
         logger.info("Creating browser context");
         const context = await browser.newContext({ viewport: { width: 1280, height: 720 }});
         const page = await context.newPage();
         const harness = new WebHarness(page);
 
+        let result: TestCaseResult;
+
         try {
-            const result = await this._run(testCase, harness);
-            for (const listener of this.listeners) if(listener.onDone) listener.onDone(result);
-            return result;
+            result = await this._run(testCase, harness);
         } catch (error) {
-            if (error instanceof TestCaseError) {
-                //console.log("got error:", error)
-                // Not necessarily a real "error"
-                logger.info(`Exception during run: ${error}`);
-                const failure = { description: error.message };
-                const result: TestCaseResult = { passed: false, failure: failure };
-                for (const listener of this.listeners) if(listener.onDone) listener.onDone(result);
-                return { passed: false, failure: failure };
-            } else {
-                // ^ these can also be unexpected tho
-                // TODO: still wrap error into a special variant to prevent any straight up crashes?
-                logger.warn(`Unexpected error: ${error}`, );
-                throw error;
+            // Any unhandled errors are not expected, but wrap to prevent crashes
+            logger.error(`Unexpected error: ${(error as Error).message}`);
+            result = {
+                passed: false,
+                failure: {
+                    variant: 'unknown',
+                    message: `Unexpected error: ${(error as Error).message}`
+                }
             }
         } finally {
-            //console.log("Agent done running test case");
-            await context.close();//browser.close();
+            await context.close();
         }
+
+        logger.info({ result }, "Test run complete");
+        
+        for (const listener of this.listeners) if(listener.onDone) listener.onDone(result);
+        return result;
     }
 
     private async _run(testCase: TestCaseDefinition, harness: WebHarness): Promise<TestCaseResult> {
-        // May throw TestCaseErrors that get handled by run()
+        // Not expected to throw errors. If it does - gets caught by run and converted to UnknownFailure result
+        // ~~May throw TestCaseErrors that get handled by run()~~
         
         logger.info("Agent started");
 
@@ -105,7 +94,15 @@ export class TestCaseAgent {
             
             logger.info(`Successfully navigated to starting URL: ${testCase.url}`);   
         } catch (error) {
-            throw new NavigationError(testCase.url, error as Error);
+            //throw new NavigationError(testCase.url, error as Error);
+            logger.warn(`Failed to navigate to starting URL: ${testCase.url}`);
+            return {
+                passed: false,
+                failure: {
+                    variant: 'network',
+                    message: `Could not connect to starting URL ${testCase.url}. Is the site running and accessible?`
+                }
+            }
         }
 
         const recipe = [];
@@ -137,7 +134,19 @@ export class TestCaseAgent {
                         logger.info({ ingredient, action }, `Converted action`);
                     } catch(error) {
                         logger.error(`Error converting action: ${error}`);
-                        throw new ActionConversionError(ingredient, error as Error);
+                        
+                        // action conversion error = bug in app or misalignment
+                        // TODO: classify as app bug or misalignment
+                        // TODO: handle minor misalignments and adjust plan
+                        // tmp
+                        return {
+                            passed: false,
+                            failure: {
+                                'variant': 'misalignment',
+                                'message': `Could not align ${ingredient.variant} action`
+                            }
+                        };
+                        //throw new ActionConversionError(ingredient, error as Error);
                     }
 
                     //console.log('Action:', action);
@@ -149,7 +158,14 @@ export class TestCaseAgent {
                     } catch (error) {
                         logger.error(`Error executing action: ${error}`);
                         // TODO: retries
-                        throw new ActionExecutionError(action, error as Error);
+                        //throw new ActionExecutionError(action, error as Error);
+                        return {
+                            passed: false,
+                            failure: {
+                                variant: 'browser',
+                                message: `Failed to execute ${action.variant} action`
+                            }
+                        };
                     }
                     stepRecipe.push(ingredient);
 
@@ -197,7 +213,17 @@ export class TestCaseAgent {
                 } else {
                     // Failed check
                     logger.info(`Failed check`);
-                    return { passed: false, failure: { description: `Failed check: ${check}` } };//, recipe: recipe };
+                    // TODO: classify as app bug or misalignment
+                    // TODO: adjust plan for minor misalignments
+                    // tmp
+                    return {
+                        passed: false,
+                        failure: {
+                            'variant': 'misalignment',
+                            'message': `Failed check: ${check}`
+                        }
+                    };
+                    //return { passed: false, failure: { description: `Failed check: ${check}` } };//, recipe: recipe };
                 }
             }
 
