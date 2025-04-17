@@ -2,6 +2,13 @@ import { executeCliCommand, handleError, watchProcessForUrls } from './utils/cli
 import { logger } from './utils/logger.js';
 import { InitializeProjectInput, RunTestsInput, BuildTestsInput } from './schemas.js';
 
+
+const configureInstructions = `
+NOW: Make sure the url in tests/magnitude/magnitude.config.ts uses the same port as the user's development server, and adjust it if not.
+Check ALL OF THE appropriate files (e.g. package.json, .env, webpack.config.js, server.js, app.js, index.js, angular.json, vue.config.js, nuxt.config.js, next.config.js, svelte.config.js, ember-cli-build.js, astro.config.mjs, quasar.conf.js, gatsby-config.js, vite.config.js, remix.config.js, snowpack.config.js) until you are confident what the developement port is.
+ALWAYS check at least package.json to see what their dev command is. If you are unsure what the port is, ask the user.
+`
+
 /**
  * Initialize a new Magnitude project
  * @param args Arguments for initializing project
@@ -22,7 +29,7 @@ export async function initProject(args: InitializeProjectInput): Promise<any> {
             content: [
                 {
                     type: 'text',
-                    text: `${installOutput}\n\n${initOutput}\nMagnitude project initialized successfully.`,
+                    text: `${installOutput}\n\n${initOutput}\nMagnitude project initialized successfully.${configureInstructions}`,
                 },
             ],
         };
