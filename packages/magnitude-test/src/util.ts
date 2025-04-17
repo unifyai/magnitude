@@ -120,3 +120,18 @@ export function sanitizeTestCase(testCase: TestCaseDefinition) {
         }
     }
 }
+
+export async function isServerUp(url: string): Promise<boolean> {
+    try {
+        const response = await fetch(url, {
+            method: 'HEAD', // HEAD request is lightweight - just gets headers, not body
+            cache: 'no-cache' // Avoid cached responses
+        });
+
+        // If we get any response, even an error response, the server is running
+        return true;
+    } catch (error) {
+        // Network error usually means no server is responding
+        return false;
+    }
+}

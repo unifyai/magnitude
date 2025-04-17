@@ -11,6 +11,7 @@ import { TestAgentListener, TestCaseAgent, TestCaseDefinition, TestCaseResult, T
 import { Browser, chromium } from 'playwright';
 import path from 'path';
 import { logger } from '@/logger';
+import { isServerUp } from '@/util';
 
 export interface BaseTestRunnerConfig {
     workerCount: number;
@@ -76,7 +77,7 @@ export abstract class BaseTestRunner {
         }
     }
 
-    protected collectTestsForExecution(): Array<{ filePath: string, groupName: string | null, renderId: string, testCase: TestCaseBuilder }> {
+    public collectTestsForExecution(): Array<{ filePath: string, groupName: string | null, renderId: string, testCase: TestCaseBuilder }> {
         const tests: Array<{ filePath: string, groupName: string | null, renderId: string, testCase: TestCaseBuilder }> = [];
         
         // First, collect all tests into a flat array for easier parallelization
@@ -239,6 +240,26 @@ export abstract class BaseTestRunner {
         
         // Collect all tests into a flat array for parallelization
         const tests = this.collectTestsForExecution();
+
+        // Check all servers are up
+        let urls = new Set<string>();
+        for (const test of tests) {
+            const url = test.testCase.getUrl();
+            console.log(url);
+            urls = urls.add(url);
+        }
+        const urlList = [...urls];
+        const isEachUrlUp = await Promise.all(urlList.map(url => isServerUp(url)));
+        let anyUrlDown = false;
+        for (let i = 0; i < urlList.length; i++) {
+            if (!isEachUrlUp[i]) {
+                anyUrlDown = true;
+                console.error(`No server running on URL: ${urlList[i]}`);
+            }
+        }
+        if (anyUrlDown) {
+            throw new Error("At least one test case URL has no server running, aborting tests");
+        }
         
         // Create a queue of pending tests
         const pendingTests = [...tests];

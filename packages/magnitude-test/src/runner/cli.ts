@@ -215,14 +215,21 @@ program
             await runner.loadTestFile(filePath, getRelativePath(projectRoot, filePath));
         }
 
-        const success = await runner.runTests();
+        try {
+            const success = await runner.runTests();
 
-        if (!success) {
-            console.error('Tests failed');
-            process.exit(1);
-        } else {
-            //console.log('All tests passed');
-            process.exit(0);
+            if (!success) {
+                console.error('Tests failed');
+                process.exit(1);
+            } else {
+                //console.log('All tests passed');
+                process.exit(0);
+            }
+
+        } catch (error) {
+            // e.g. URL check fails
+            console.error((error as Error).message);
+            process.exit(1)
         }
     });
 
