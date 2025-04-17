@@ -9,12 +9,25 @@ const sampleTodos = [
     "Build more test cases with Magnitude"
 ];
 
-test('can add and complete todos', { url: 'https://demo.playwright.dev/todomvc' })
-    .step('create 3 todos')
-        .data(sampleTodos.join(", "))
-        .check('should see all 3 todos')
-    .step('mark each todo complete')
-        .check('says no items left')
+// test('can add and complete todos')
+//     .step('create 3 todos')
+//         .data(sampleTodos.join(", "))
+//         .check('should see all 3 todos')
+//     .step('mark each todo complete')
+//         .check('says no items left')
+
+// test.group('more todo tests', () => {
+//     test('can add one todo', { url: "https://asdfjisdoajfasjfklejlf.com" })
+//         .step('create a todo')
+//             .data("Pay Antropic bill")
+//             .check('see todo')
+    
+//     test('can add one todo')
+//         .step('create a todo')
+//             .data("Pay AWS bill")
+//             .check('see todo')
+// })
+
 
 // test.group('Authorization', () => {
 //     test('login')

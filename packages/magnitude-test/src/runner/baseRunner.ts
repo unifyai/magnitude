@@ -10,6 +10,7 @@ import { CategorizedTestCasesWithRenderIds, RenderIdTestCasePair } from './types
 import { TestAgentListener, TestCaseAgent, TestCaseDefinition, TestCaseResult, TestCaseStateTracker } from 'magnitude-core';
 import { Browser, chromium } from 'playwright';
 import path from 'path';
+import { logger } from '@/logger';
 
 export interface BaseTestRunnerConfig {
     workerCount: number;
@@ -137,10 +138,10 @@ export abstract class BaseTestRunner {
             if (result.passed) {
             
                 // Update test status to passed
-                this.viewer.updateTestStatus(renderId, 'passed');
+                this.viewer.updateTestStatus(renderId, 'passed', result);
             } else {
                 // jank AF
-                this.viewer.updateTestStatus(renderId, 'failed', new Error(result.failure.description));
+                this.viewer.updateTestStatus(renderId, 'failed', result);
             }
 
             await new Promise(resolve => setTimeout(resolve, 2000));
@@ -153,10 +154,13 @@ export abstract class BaseTestRunner {
             return true;
         } catch (error) {
             // UNEXPECTED ERROR
-            console.error("Unexpected error!")
+            logger.error("Unexpected error!")
             //console.log("Caught error in runSingleTest")
             // Update test status to failed
-            this.viewer.updateTestStatus(renderId, 'failed', error as Error);
+            this.viewer.updateTestStatus(renderId, 'failed', {
+                passed: false,
+                failure: { variant: 'unknown', message: (error as Error).message }
+            });
             //console.log("updated test status")
 
             await new Promise(resolve => setTimeout(resolve, 2000));

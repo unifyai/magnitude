@@ -101,6 +101,9 @@ function CreatePartialRecipe (screenshot: image, step: TestStep, previousActions
 }
 
 class CheckNoContext {
+    reasoning string
+    // Not used as output rn but as an indicator for the LLM, it will not convert and return original check
+    should_pass bool
     check string
 }
 
@@ -111,6 +114,8 @@ function RemoveImplicitCheckContext (screenshot: image, check: string, previousA
         Your job is to convert a "check" which may implicitly depend on historical context to one that can be verified based on the current screenshot alone.
         You should NOT add any detail to the check, but rather replace any context-dependent details.
         However, make sure the check is very simple, even if this means dropping some details. Only a short description.
+
+        If the check does NOT hold true based on the screenshot, instead set should_pass to false, and return the original check.
 
         {{ ctx.output_format }}
 

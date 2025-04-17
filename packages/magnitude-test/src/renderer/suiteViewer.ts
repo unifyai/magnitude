@@ -3,8 +3,9 @@ import { TestRegistry } from '@/discovery/testRegistry';
 import { TestCaseRenderer } from '@/renderer/testRenderer';
 import logUpdate from 'log-update';
 import chalk from 'chalk';
-import { magnitudeBlue, brightMagnitudeBlue } from '@/renderer/colors';
-import { TestCaseStateTracker } from 'magnitude-core';
+import { magnitudeBlue, brightMagnitudeBlue, errorRed } from '@/renderer/colors';
+import { FailureDescriptor, TestCaseResult, TestCaseStateTracker } from 'magnitude-core';
+import { indentBlock, renderFailure } from './util';
 
 // test suite viewer
 
@@ -19,7 +20,8 @@ interface TestExecutionState {
     renderer?: TestCaseRenderer;
     startTime?: number;
     endTime?: number;
-    error?: Error;
+    failure?: FailureDescriptor;
+    //error?: Error;
     url?: string; // URL of the test, available when running or completed
 }
 
@@ -73,7 +75,8 @@ export class TestSuiteViewer {
     /**
      * Update the status of a test
      */
-    public updateTestStatus(testId: string, status: TestStatus, error?: Error): void {
+    public updateTestStatus(testId: string, status: TestStatus, result?: TestCaseResult): void {
+        // ugly and jank
         const state = this.testStates.get(testId);
         
         if (!state) {
@@ -90,7 +93,7 @@ export class TestSuiteViewer {
                         startTime: Date.now(),
                         url: testCase.getUrl() // Store the basic URL when starting
                     } : {}),
-                    ...(status === 'failed' && error ? { error } : {})
+                    ...(result && !result.passed ? { failure: result.failure } : {})
                 });
             } else {
                 console.warn(`Warning: Test not found for ID ${testId}, cannot update status`);
@@ -106,11 +109,14 @@ export class TestSuiteViewer {
                 if (!state.url) {
                     state.url = state.testCase.getUrl();
                 }
-            } else if (status === 'passed' || status === 'failed') {
+            } else if (result) {
                 state.endTime = Date.now();
-                if (status === 'failed' && error) {
-                    state.error = error;
+                if (!result.passed) {
+                    state.failure = result.failure;
                 }
+                // if (status === 'failed' && error) {
+                //     state.error = error;
+                // }
                 
                 // We don't need to manually set the URL here.
                 // The URL is already updated by the onProgress callback in registerRuntime
@@ -243,14 +249,15 @@ export class TestSuiteViewer {
         // Show a summary of failed tests if any
         const failedTests = Array.from(this.testStates.entries())
             .filter(([_, state]) => state.status === 'failed')
-            .map(([id, state]) => ({id, error: state.error}));
+            .map(([id, state]) => state);//({id, error: state.error}));
             
         if (failedTests.length > 0) {
-            console.log(chalk.redBright(`\n${failedTests.length} tests failed:`));
-            failedTests.forEach(({id, error}) => {
-                console.log(`  ${chalk.redBright('✗')} ${id}`);
-                if (error) {
-                    console.log(`    ${chalk.gray(error.message)}`);
+            console.log(errorRed(`\n${failedTests.length} tests failed:`));
+            failedTests.forEach((execState) => {
+                console.log(`  ${errorRed('✗')} ${execState.displayName}`);
+                if (execState.failure) {
+                    //console.log(`    ${chalk.gray(error.message)}`);
+                    console.log(indentBlock(renderFailure(execState.failure), 2));
                 }
             });
         } else {
