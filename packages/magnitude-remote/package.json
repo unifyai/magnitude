@@ -1,6 +1,6 @@
 {
   "name": "magnitude-remote",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Magnitude e2e testing agent",
   "publishConfig": {
     "access": "public"
@@ -64,7 +64,7 @@
   },
   "dependencies": {
     "commander": "^13.1.0",
-    "magnitude-core": "0.0.6"
+    "magnitude-core": "0.0.7"
   },
   "peerDependencies": {
     "bun": "*",

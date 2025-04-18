@@ -1,5 +1,14 @@
 # magnitude-test
 
+## 0.0.11
+
+### Patch Changes
+
+- improved check conversions, failure classification
+- Updated dependencies
+  - magnitude-core@0.0.7
+  - magnitude-remote@0.0.7
+
 ## 0.0.10
 
 ### Patch Changes
