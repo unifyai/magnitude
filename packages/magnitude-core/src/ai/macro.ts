@@ -128,4 +128,45 @@ export class MacroAgent {
             }
         }
     }
+
+    // async diagnoseTargetNotFound(
+    //     screenshot: Screenshot,
+    //     step: TestStepDefinition,
+    //     target: string,
+    //     existingRecipe: ActionIngredient[]
+    // ): Promise<BugDetectedFailure | MisalignmentFailure> {
+    //     const downscaledScreenshot = await this.transformScreenshot(screenshot);
+
+    //     const stringifiedExistingRecipe = [];
+    //     for (const action of existingRecipe) {
+    //         stringifiedExistingRecipe.push(JSON.stringify(action, null, 4))
+    //     }
+
+    //     const start = Date.now();
+    //     const response = await this.baml.DiagnoseTargetNotFound(
+    //         Image.fromBase64('image/png', downscaledScreenshot.image),
+    //         step,
+    //         target,
+    //         //action.target,
+    //         //JSON.stringify(action, null, 4),//action,
+    //         stringifiedExistingRecipe
+    //     );
+    //     this.logger.trace(`classifyStepActionFailure took ${Date.now()-start}ms`);
+
+    //     if (response.classification === 'bug') {
+    //         return {
+    //             variant: 'bug',
+    //             title: response.title,
+    //             expectedResult: response.expectedResult,
+    //             actualResult: response.actualResult,
+    //             severity: response.severity
+    //         }
+    //     }
+    //     else {
+    //         return {
+    //             variant: 'misalignment',
+    //             message: response.message
+    //         }
+    //     }
+    // }
 }

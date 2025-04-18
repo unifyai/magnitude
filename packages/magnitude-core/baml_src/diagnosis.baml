@@ -46,9 +46,7 @@ function ClassifyCheckFailure (screenshot: image, check: string, previousActions
     client SonnetAnthropic
     prompt #"
         {{ _.role("system") }}
-        You are observing the execution of an LLM agent that runs test cases.
-
-        This agent executes test cases by observing screenshots from the browser, acting out steps, and verifying checks.
+        {{ BaseMeta() }}
 
         The agent just marked a check as failed. Your job is to figure out why.
 
@@ -81,3 +79,42 @@ function ClassifyCheckFailure (screenshot: image, check: string, previousActions
         {{screenshot}}
     "#
 }
+
+// function DiagnoseTargetNotFound (screenshot: image, step: TestStep, target: string, previousActions: string[]) -> BugFailureClassification | MisalignmentClassification {
+//     client SonnetAnthropic
+//     prompt #"
+//         {{ _.role("system") }}
+//         {{ BaseMeta() }}
+
+//         The agent had an issue acting out a step because it could not find a target. Your job is to figure out why.
+
+//         Either:
+//         (1) The web application actually has a bug in it
+//         or
+//         (2) There's some misalignment between the test case and what is in the interface
+
+//         If there is a bug, please break it down in detail.
+//         If it is a misalignment, please describe what you think happened.
+
+//         Use the provided history of actions the agent took as well as the most recent screenshot to help you identify what happened.
+
+//         {{ ctx.output_format }}
+
+//         {{ _.role("user") }}
+
+//         The history of previous actions:
+//         {%if previousActions %}
+//         (there are none)
+//         {%endif%}
+//         {%for action in previousActions%}
+//         {{ action }}
+//         {%endfor%}
+        
+//         The step that failed: <step>{{ step.description }}</step>
+//         Target that could not be found: <target>{{ target }}</target>
+        
+
+//         Current screenshot:
+//         {{screenshot}}
+//     "#
+// }
