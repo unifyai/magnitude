@@ -25,7 +25,7 @@ export function renderFailure(failure: FailureDescriptor): string {
         return `${errorRed('Unexpected error:')} ${failure.message}`;
     }
     else if (failure.variant === 'misalignment') {
-        return `${errorRed('Test case / interface misalignment:')} ${failure.message}`
+        return `${errorRed('Misalignment:')} ${failure.message}`
     }
     else if (failure.variant === 'bug') {
         return `Found Bug: ${failure.title}` +

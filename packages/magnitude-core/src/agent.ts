@@ -216,13 +216,18 @@ export class TestCaseAgent {
                     // TODO: classify as app bug or misalignment
                     // TODO: adjust plan for minor misalignments
                     // tmp
+                    const failure = await this.macro.classifyCheckFailure(checkScreenshot, check, stepRecipe);
                     return {
                         passed: false,
-                        failure: {
-                            'variant': 'misalignment',
-                            'message': `Failed check: ${check}`
-                        }
-                    };
+                        failure: failure
+                    }
+                    // return {
+                    //     passed: false,
+                    //     failure: {
+                    //         'variant': 'misalignment',
+                    //         'message': `Failed check: ${check}`
+                    //     }
+                    // };
                     //return { passed: false, failure: { description: `Failed check: ${check}` } };//, recipe: recipe };
                 }
             }

@@ -112,8 +112,8 @@ function RemoveImplicitCheckContext (screenshot: image, check: string, previousA
     prompt #"
         {{ _.role("system") }}
         Your job is to convert a "check" which may implicitly depend on historical context to one that can be verified based on the current screenshot alone.
-        You should NOT add any detail to the check, but rather replace any context-dependent details.
-        However, make sure the check is very simple, even if this means dropping some details. Only a short description.
+        The converted check will be verified by a small visual LLM. This LLM is capable of understanding basic descriptions but not lengthy descriptions or high level concepts.
+        The new check should be simple, grounded in specific visual details without being complex, and depend only on what is visible in the current screenshot.
 
         If the check does NOT hold true based on the screenshot, instead set should_pass to false, and return the original check.
 

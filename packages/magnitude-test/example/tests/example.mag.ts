@@ -16,17 +16,17 @@ const sampleTodos = [
 //     .step('mark each todo complete')
 //         .check('says no items left')
 
-test.group('more todo tests', () => {
-    test('can add one todo', { url: "https://asdfjisdoajfasjfklejlf.com" })
-        .step('create a todo')
-            .data("Pay Antropic bill")
-            .check('see todo')
+// test.group('more todo tests', () => {
+//     test('can add one todo')//, { url: "https://asdfjisdoajfasjfklejlf.com" })
+//         .step('create a todo')
+//             .data("Pay Antropic bill")
+//             .check('see todo')
     
-    test('can add one todo')
-        .step('create a todo')
-            .data("Pay AWS bill")
-            .check('see todo')
-})
+//     test('can add one todo')
+//         .step('create a todo')
+//             .data("Pay AWS bill")
+//             .check('see todo')
+// })
 
 
 // test.group('Authorization', () => {

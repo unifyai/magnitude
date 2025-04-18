@@ -1,0 +1,80 @@
+
+// class FailureClassification {
+//     classification "bug" | "misalignment"
+// }
+
+class BugFailureClassification {
+    classification "bug"
+    title string
+    expectedResult string
+    actualResult string
+    severity "critical" | "high" | "medium" | "low"
+}
+
+class MisalignmentClassification {
+    classification "misalignment"
+
+    fault "test" | "agent" @description(#"
+        Is this likely a problem with the test case or some issue with the agent?
+    "#)
+    
+    message string @description(#"
+        Message to the developer who wrote the test case to help them understand what may have happened and how they might be able to fix it.
+        Be simple, direct, and informative.
+    "#)
+}
+
+// class FailureClassification {
+//     reasoning
+//     classification "bug" | "misalignment"
+// }
+
+template_string BaseMeta #"
+    You are observing the execution of an LLM agent that runs test cases.
+    This agent executes test cases by observing screenshots from the browser, acting out steps, and verifying checks.
+"#
+
+// should this be given the original or adjusted check?
+// should this be given more ctx of the overall step or test case?
+// this is a tricky prompt, but its not as critical to get right as others
+// it does become more important if we rely on classify as bug/misalign then correct minor misaligns only if not bug
+// ^ if we need this then we should think of a more isolated/logical prompt to detect misalignments
+function ClassifyCheckFailure (screenshot: image, check: string, previousActions: string[]) -> BugFailureClassification | MisalignmentClassification {
+    client SonnetAnthropic
+    prompt #"
+        {{ _.role("system") }}
+        You are observing the execution of an LLM agent that runs test cases.
+
+        This agent executes test cases by observing screenshots from the browser, acting out steps, and verifying checks.
+
+        The agent just marked a check as failed. Your job is to figure out why.
+
+        Either:
+        (1) The web application actually has a bug in it
+        or
+        (2) There's some misalignment between the test case and what is in the interface
+
+        If there is a bug, please break it down in detail.
+        If it is a misalignment, please describe what you think happened.
+
+        Use the provided history of actions the agent took as well as the most recent screenshot to help you identify what happened.
+
+        {{ ctx.output_format }}
+
+        {{ _.role("user") }}
+
+        The history of previous actions:
+        {%if previousActions %}
+        (there are none)
+        {%endif%}
+        {%for action in previousActions%}
+        {{ action }}
+        {%endfor%}
+        
+        The "check" that was marked as failed:
+        {{ check }}
+
+        Current screenshot:
+        {{screenshot}}
+    "#
+}
