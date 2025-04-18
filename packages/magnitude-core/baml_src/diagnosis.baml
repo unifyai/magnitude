@@ -19,8 +19,11 @@ class MisalignmentClassification {
     "#)
     
     message string @description(#"
+        If fault of test case:
         Message to the developer who wrote the test case to help them understand what may have happened and how they might be able to fix it.
         Be simple, direct, and informative.
+        If fault of agent:
+        Message to the developer who wrote the test case (not the person who wrote the agent) to help them understand what may have happened, and suggest possible ways to adjust the test case to accommodate the issue.
     "#)
 }
 
