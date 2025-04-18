@@ -245,7 +245,6 @@ export abstract class BaseTestRunner {
         let urls = new Set<string>();
         for (const test of tests) {
             const url = test.testCase.getUrl();
-            console.log(url);
             urls = urls.add(url);
         }
         const urlList = [...urls];
