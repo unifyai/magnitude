@@ -9,6 +9,7 @@ import { CheckIngredient } from "./ai/baml_client";
 import { TestAgentListener } from "./common/events";
 import logger from './logger';
 import { ActionIngredient } from "./recipe/types";
+import { traceAsync } from '@/ai/baml_client/tracing';
 
 export interface TestCaseAgentConfig {
     listeners: TestAgentListener[]
@@ -52,7 +53,8 @@ export class TestCaseAgent {
         let result: TestCaseResult;
 
         try {
-            result = await this._run(testCase, harness);
+            // only passthrough test case so that input gets logged in BAML dashboard
+            result = await traceAsync('magnus', async (testCase): Promise<TestCaseResult> => { return await this._run(testCase, harness) })(testCase);
         } catch (error) {
             // Any unhandled errors are not expected, but wrap to prevent crashes
             logger.error(`Unexpected error: ${(error as Error).message}`);
