@@ -58,7 +58,7 @@ export function convertToBamlClientOptions(client: PlannerClient): Record<string
         };
     } else if (client.provider === 'aws-bedrock') {
         options = {
-            model: client.options.model,
+            model_id: client.options.model,
             inference_configuration: {
                 temperature: temp,
             }
