@@ -12,7 +12,7 @@ import { MagnitudeConfig } from '@/discovery/types';
 import { magnitudeBlue, brightMagnitudeBlue } from '@/renderer/colors';
 import { discoverTestFiles, findConfig, findProjectRoot, isProjectRoot, readConfig } from '@/discovery/util';
 //import { BaseTestRunner, BaseTestRunnerConfig } from './runner/baseRunner';
-import { logger as coreLogger } from 'magnitude-core';
+import { logger as coreLogger, Magnus } from 'magnitude-core';
 import logger from '@/logger';
 import { describeModel, tryDeriveEnvironmentPlannerClient } from './util';
 import * as dotenv from 'dotenv';
@@ -227,19 +227,25 @@ program
 
         // === Run Tests ===
 
-        console.log("Tests:", registry.getRegisteredTestCases());
-        console.log("Tests:", registry.getFlattenedTestCases());
+        // console.log("Tests:", registry.getRegisteredTestCases());
+        // console.log("Tests:", registry.getFlattenedTestCases());
 
         // trivial serial version
+        for (const test of registry.getFlattenedTestCases()) {
+            console.log("test:", test);
 
-        for (const [filename, tests] of Object.entries(registry.getRegisteredTestCases())) {
-            console.log("file:", filename);
-            console.log("tests:", tests);
-
-            // for (const test of tests) {
-
-            // }
+            const agent = new Magnus();
+            await test.fn({ ai: agent });
         }
+
+        // for (const [filename, tests] of Object.entries(registry.getRegisteredTestCases())) {
+        //     console.log("file:", filename);
+        //     console.log("tests:", tests);
+
+        //     // for (const test of tests) {
+
+        //     // }
+        // }
         
 
 
