@@ -5,13 +5,13 @@ import fs from 'fs';
 import { glob } from 'glob';
 //import { Magnitude, TestCase } from '..';
 import TestRegistry from '@/discovery/testRegistry';
-import { LocalTestRunner } from '@/runner';
+//import { LocalTestRunner } from '@/runner';
 import { TestCompiler } from '@/compiler';
 import { MagnitudeConfig } from '@/discovery/types';
 //import chalk from 'chalk';
 import { magnitudeBlue, brightMagnitudeBlue } from '@/renderer/colors';
 import { discoverTestFiles, findConfig, findProjectRoot, isProjectRoot, readConfig } from '@/discovery/util';
-import { BaseTestRunner, BaseTestRunnerConfig } from './runner/baseRunner';
+//import { BaseTestRunner, BaseTestRunnerConfig } from './runner/baseRunner';
 import { logger as coreLogger } from 'magnitude-core';
 import logger from '@/logger';
 import { describeModel, tryDeriveEnvironmentPlannerClient } from './util';
@@ -153,18 +153,14 @@ program
             '!**/dist/**'
         ];
 
-        // Add direct argument (filter)
-        if (filter) { // Check if the single filter argument was provided
-            patterns.push(filter); // Add the single pattern
+        if (filter) {
+            patterns.push(filter);
         } else {
             // Default pattern if no filter is provided
             patterns.push('**/*.{mag,magnitude}.{js,jsx,ts,tsx}');
         }
 
-        // Parse worker count
         const workerCount = options.workers ? parseInt(options.workers as unknown as string, 10) : 1;
-
-        // Validate worker count
         if (isNaN(workerCount) || workerCount < 1) {
             console.error('Invalid worker count. Using default of 1.');
         }
@@ -218,42 +214,63 @@ program
         logger.info({ ...config.executor }, "Executor:");
         console.log(magnitudeBlue(`Using executor: ${config.executor.provider}`));
 
-        let runner: BaseTestRunner;
 
-        const browserContextOptions = config.browser?.contextOptions ?? {};
 
-        const runnerConfig: BaseTestRunnerConfig = {
-            workerCount: workerCount,
-            //printLogs: options.plain,
-            prettyDisplay: !(options.plain || options.debug),
-            planner: config.planner,
-            executor: config.executor,
-            browserContextOptions: browserContextOptions,
-            telemetry: config.telemetry ?? true
-        };
 
-        runner = new LocalTestRunner(runnerConfig);
+
+        // === Compile test files ===
 
         for (const filePath of absoluteFilePaths) {
-            await runner.loadTestFile(filePath, getRelativePath(projectRoot, filePath));
+            await registry.loadTestFile(filePath, getRelativePath(projectRoot, filePath));
         }
 
-        try {
-            const success = await runner.runTests();
 
-            if (!success) {
-                console.error('Tests failed');
-                process.exit(1);
-            } else {
-                //console.log('All tests passed');
-                process.exit(0);
-            }
+        // === Run Tests ===
 
-        } catch (error) {
-            // e.g. URL check fails
-            console.error((error as Error).message);
-            process.exit(1)
-        }
+        console.log("Tests:", registry.getRegisteredTestCases());
+        
+
+
+
+
+
+
+        // let runner: BaseTestRunner;
+
+        // const browserContextOptions = config.browser?.contextOptions ?? {};
+
+        // const runnerConfig: BaseTestRunnerConfig = {
+        //     workerCount: workerCount,
+        //     //printLogs: options.plain,
+        //     prettyDisplay: !(options.plain || options.debug),
+        //     planner: config.planner,
+        //     executor: config.executor,
+        //     browserContextOptions: browserContextOptions,
+        //     telemetry: config.telemetry ?? true
+        // };
+
+        // runner = new LocalTestRunner(runnerConfig);
+
+        // for (const filePath of absoluteFilePaths) {
+        //     await runner.loadTestFile(filePath, getRelativePath(projectRoot, filePath));
+        // }
+
+        // try {
+        //     const success = await runner.runTests();
+
+        //     if (!success) {
+        //         console.error('Tests failed');
+        //         process.exit(1);
+        //     } else {
+        //         //console.log('All tests passed');
+        //         process.exit(0);
+        //     }
+
+        // } catch (error) {
+        //     // e.g. URL check fails
+        //     console.error((error as Error).message);
+        //     process.exit(1)
+        // }
     });
 
 program

@@ -1,38 +1,57 @@
 import { TestCaseBuilder } from './testCaseBuilder';
-import { TestDeclaration, MagnitudeConfig, TestOptions } from './types';
+import { TestDeclaration, MagnitudeConfig, TestOptions, TestFunction, TestGroupFunction, TestRunnable } from './types';
 import { TestRegistry } from './testRegistry';
 
 
 
 function testDecl(
-    id: string,
-    options?: TestOptions
-): TestCaseBuilder {
-    // Returns a TestCase tracked by test registry so it can be run by test runner
-    const registry = TestRegistry.getInstance();
-    //console.log("registry.getActiveOptions()", registry.getActiveOptions())
-    const combinedOptions = { ...registry.getActiveOptions(), id: id, ...(options ?? {}) };
+    title: string,
+    optionsOrTestFn: TestOptions | TestFunction,
+    testFnOrNothing?: TestFunction
+): void {
+    // First deal with the weird parameter ordering
+    let options: TestOptions;
+    let testFn: TestFunction;
 
-    //console.log("combined:", combinedOptions);
+    if (typeof optionsOrTestFn == 'function') {
+        options = {};
+        testFn = optionsOrTestFn
+    }
+    else {
+        options = optionsOrTestFn;
+        if (!testFnOrNothing) {
+            throw new Error("Test function is required");
+        }
+        testFn = testFnOrNothing;
+    }
+
+    // Get global registry
+    const registry = TestRegistry.getInstance();
+    const combinedOptions = { ...registry.getActiveOptions(), ...(options ?? {}) };
 
     // TODO: implement relative URLs
     if (!combinedOptions.url) {
         throw Error("URL must be provided either through (1) env var MAGNITUDE_TEST_URL, (2) via test.config, or (3) in group or test options");
     }
-    const tc = new TestCaseBuilder(
-        combinedOptions as TestOptions & Required<Pick<TestOptions, 'url'>> & { id: string }
-    );
-    registry.register(tc);
-    return tc;
+
+    // Add the declared test function as a runnable to the registry
+    const runnable: TestRunnable = {
+        fn: testFn,
+        title: title,
+        url: combinedOptions.url
+    }
+    registry.register(runnable);
+
+    // TODO: maybe return an object to enable some kind of chaining
 }
 
 testDecl.group = function (
     id: string,
-    optionsOrTestFn: TestOptions | (() => void),
-    testFnOrNothing?: () => void
+    optionsOrTestFn: TestOptions | TestGroupFunction,
+    testFnOrNothing?: TestGroupFunction
 ): void {
     let options: TestOptions;
-    let testFn: () => void;
+    let testFn: TestGroupFunction;
 
     if (typeof optionsOrTestFn == 'function') {
         options = {};

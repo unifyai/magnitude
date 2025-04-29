@@ -1,5 +1,7 @@
-import { TestOptions, TestGroup, MagnitudeConfig, CategorizedTestCases } from "./types";
+import { TestOptions, TestGroup, MagnitudeConfig, CategorizedTestCases, TestFunction, TestRunnable } from "./types";
 import { TestCaseBuilder } from "./testCaseBuilder";
+import { TestCompiler } from "@/compiler";
+import { pathToFileURL } from "url";
 
 declare global {
     var __testRegistry: TestRegistry | undefined;
@@ -16,7 +18,11 @@ export class TestRegistry {
 
     private globalOptions!: MagnitudeConfig;
 
-    private constructor() { }
+    private compiler: TestCompiler;
+
+    private constructor() {
+        this.compiler = new TestCompiler();
+    }
 
     public static getInstance(): TestRegistry {
         // Use global to ensure same instance is used across module boundaries
@@ -25,14 +31,13 @@ export class TestRegistry {
         }
 
         if (!(global as any).__magnitude__.registry) {
-
             (global as any).__magnitude__.registry = new TestRegistry();
-
         }
+
         return (global as any).__magnitude__.registry;
     }
 
-    public register(testCase: TestCaseBuilder): void {
+    public register(testCase: TestRunnable): void {
         // Register a test case to be tracked by test runner
         if (!this.currentFilePath) {
             throw Error("File path context not set before registering test");
@@ -106,6 +111,32 @@ export class TestRegistry {
         //console.log("combinedOptions:", combinedOptions)
 
         return combinedOptions;
+    }
+
+    async loadTestFile(absoluteFilePath: string, relativeFilePath: string): Promise<void> {
+        // adding this back in causes ES module err
+        //logUpdate("foo")
+        try {
+            // Set current file path in registry
+            this.setCurrentFilePath(relativeFilePath);
+
+            // Compile the file
+            const compiledPath = await this.compiler.compileFile(absoluteFilePath);
+
+            // Import the compiled file - triggering it to register its test cases
+            await import(pathToFileURL(compiledPath).href);
+
+            //console.log(`Loaded test file: ${relativeFilePath}`);
+            
+            // Notify the viewer about the loaded file
+            //this.viewer.addLoadedFile(relativeFilePath);
+        } catch (error) {
+            console.error(`Failed to load test file ${relativeFilePath}:`, error);
+            throw error;
+        } finally {
+            // Always unset the current file path when done
+            this.unsetCurrentFilePath();
+        }
     }
 }
 
