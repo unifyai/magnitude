@@ -1,6 +1,9 @@
 {
   "compilerOptions": {
+    //"allowSyntheticDefaultImports": true,
     "target": "ESNext",
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
     "module": "esnext",
     "moduleResolution": "bundler",
     "declaration": true,

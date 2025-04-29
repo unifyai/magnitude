@@ -17,6 +17,9 @@ import logger from '@/logger';
 import { describeModel, tryDeriveEnvironmentPlannerClient } from './util';
 import * as dotenv from 'dotenv';
 import { execSync } from 'child_process';
+import React from 'react';
+import { App } from './app';
+import { render } from 'ink';
 
 interface CliOptions {
     workers?: number;
@@ -230,23 +233,15 @@ program
         // console.log("Tests:", registry.getRegisteredTestCases());
         // console.log("Tests:", registry.getFlattenedTestCases());
 
-        // trivial serial version
-        for (const test of registry.getFlattenedTestCases()) {
-            console.log("test:", test);
 
-            const agent = new Magnus();
-            await test.fn({ ai: agent });
+        for (const [filename, tests] of Object.entries(registry.getRegisteredTestCases())) {
+            console.log("file:", filename);
+            console.log("tests:", tests);
         }
-
-        // for (const [filename, tests] of Object.entries(registry.getRegisteredTestCases())) {
-        //     console.log("file:", filename);
-        //     console.log("tests:", tests);
-
-        //     // for (const test of tests) {
-
-        //     // }
-        // }
         
+        render(React.createElement(App));
+        //render(React.createElement(App, { name: cli.flags.name }));
+
 
 
 
@@ -299,3 +294,4 @@ program
     });
 
 program.parse();
+
