@@ -25,13 +25,15 @@ export interface TestFunctionContext {
 }
 
 export type TestFunction = (context: TestFunctionContext) => Promise<void>;
-export type TestGroupFunction = () => Promise<void>;
+export type TestGroupFunction = () => void;
 
 export interface TestRunnable {
     fn: TestFunction
     title: string
     url: string
 }
+
+export type CategorizedTestRunnable = TestRunnable & { file: string, group: string | null };
 
 export interface TestGroup {
     name: string;

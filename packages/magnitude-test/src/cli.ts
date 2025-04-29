@@ -228,6 +228,18 @@ program
         // === Run Tests ===
 
         console.log("Tests:", registry.getRegisteredTestCases());
+        console.log("Tests:", registry.getFlattenedTestCases());
+
+        // trivial serial version
+
+        for (const [filename, tests] of Object.entries(registry.getRegisteredTestCases())) {
+            console.log("file:", filename);
+            console.log("tests:", tests);
+
+            // for (const test of tests) {
+
+            // }
+        }
         
 
 

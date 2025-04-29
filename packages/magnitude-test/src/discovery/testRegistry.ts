@@ -1,4 +1,4 @@
-import { TestOptions, TestGroup, MagnitudeConfig, CategorizedTestCases, TestFunction, TestRunnable } from "./types";
+import { TestOptions, TestGroup, MagnitudeConfig, CategorizedTestCases, TestFunction, TestRunnable, CategorizedTestRunnable } from "./types";
 import { TestCaseBuilder } from "./testCaseBuilder";
 import { TestCompiler } from "@/compiler";
 import { pathToFileURL } from "url";
@@ -61,6 +61,26 @@ export class TestRegistry {
 
     public getRegisteredTestCases(): CategorizedTestCases {
         return this.tests;
+    }
+
+    public getFlattenedTestCases(): Array<CategorizedTestRunnable> {
+        const tests = [];
+        
+        for (const filePath in this.tests) {
+            // Add ungrouped tests
+            for (const runnable of this.tests[filePath].ungrouped) {
+                tests.push({ ...runnable, file: filePath, group: null });
+            }
+            
+            // Add grouped tests
+            for (const groupName in this.tests[filePath].groups) {
+                for (const runnable of this.tests[filePath].groups[groupName]) {
+                    tests.push({ ...runnable, file: filePath, group: groupName });
+                }
+            }
+        }
+        
+        return tests;
     }
 
     public setCurrentGroup(group: TestGroup): void {
