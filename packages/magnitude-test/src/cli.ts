@@ -238,8 +238,30 @@ program
             console.log("file:", filename);
             console.log("tests:", tests);
         }
+
+        console.log('huh')
         
-        render(React.createElement(App));
+        const { waitUntilExit, unmount } = render(React.createElement(App, { config }));
+
+        try {
+            // Wait for the app to signal it wants to exit (e.g., via useApp().exit())
+            await waitUntilExit();
+            console.log('App has exited gracefully.');
+            // unmount() is usually called automatically by Ink after exit() is called
+            // and waitUntilExit() resolves, but calling it explicitly doesn't hurt
+            // if you have complex scenarios.
+            // unmount();
+        } catch (error) {
+            console.error('App encountered an error:', error);
+            // Ensure cleanup even on error
+            unmount(); // Explicitly unmount on error
+            process.exit(1); // Exit with error code
+        } finally {
+            // Make absolutely sure cursor is shown, even if cleanup failed slightly
+            // (Though usually not needed if unmount works)
+            process.stdout.write('\x1B[?25h');
+            console.log('Ensured cursor is visible.');
+        }
         //render(React.createElement(App, { name: cli.flags.name }));
 
 
