@@ -24,3 +24,29 @@ export function formatDuration(ms: number | undefined): string {
     }
     return `${(ms / 1000).toFixed(2)}s`;
 }
+
+import { CategorizedTestCases } from "@/discovery/types";
+import { AllTestStates } from "./index"; // This should now correctly import AllTestStates
+
+/**
+ * Creates the initial state object for all tests, marking them as pending.
+ * @param tests - The categorized test cases discovered.
+ * @returns An AllTestStates object with all tests set to 'pending'.
+ */
+export function initializeTestStates(tests: CategorizedTestCases): AllTestStates {
+    const initialStates: AllTestStates = {};
+    for (const filepath of Object.keys(tests)) {
+        const { ungrouped, groups } = tests[filepath];
+        ungrouped.forEach(test => {
+            const testId = getUniqueTestId(filepath, null, test.title);
+            initialStates[testId] = { status: 'pending' };
+        });
+        Object.entries(groups).forEach(([groupName, groupTests]) => {
+            groupTests.forEach(test => {
+                const testId = getUniqueTestId(filepath, groupName, test.title);
+                initialStates[testId] = { status: 'pending' };
+            });
+        });
+    }
+    return initialStates;
+}

@@ -13,15 +13,17 @@ export type TestState = {
     startTime?: number;
     duration?: number; // Final duration for completed/error states
     elapsedTime?: number; // Live elapsed time for running state
+    // Removed duplicate elapsedTime
     error?: Error;
 };
 
-export type AllTestStates = Record<string, TestState>;
+// Revert type name back to AllTestStates
+export type AllTestStates = Record<string, TestState>; 
 
 type AppProps = {
     config: Required<MagnitudeConfig>;
     tests: CategorizedTestCases;
-    initialTestStates: AllTestStates; // Add prop for initial state
+    initialTestStates: AllTestStates; // Use original type name
 };
 
 // --- TestDisplay Component (replaces TestItem) ---
@@ -82,7 +84,7 @@ type TestGroupDisplayProps = {
     groupName: string;
     tests: TestRunnable[];
     filepath: string; // Need filepath to generate unique IDs
-    testStates: AllTestStates; // Pass down all states
+    testStates: AllTestStates; // Revert variable name and type
 };
 
 const TestGroupDisplay = ({ groupName, tests, filepath, testStates }: TestGroupDisplayProps) => (
@@ -92,7 +94,7 @@ const TestGroupDisplay = ({ groupName, tests, filepath, testStates }: TestGroupD
             {tests.map((test) => {
                 const testId = getUniqueTestId(filepath, groupName, test.title);
                 // Pass the specific state for this test down to TestDisplay
-                return <TestDisplay key={testId} test={test} state={testStates[testId]} />;
+                return <TestDisplay key={testId} test={test} state={testStates[testId]} />; // Use original variable name
             })}
         </Box>
     </Box>
@@ -112,7 +114,7 @@ export const App = ({ config, tests, initialTestStates }: AppProps) => {
 	// 	};
 	// }, []);
 
-    // Directly use the state object passed via props
+    // Directly use the state object passed via props, revert variable name
     const testStates = initialTestStates;
 
     return (
@@ -129,7 +131,7 @@ export const App = ({ config, tests, initialTestStates }: AppProps) => {
                                 {ungrouped.map((test) => {
                                     const testId = getUniqueTestId(filepath, null, test.title);
                                     // Pass the specific state for this test
-                                    return <TestDisplay key={testId} test={test} state={testStates[testId]} />;
+                                    return <TestDisplay key={testId} test={test} state={testStates[testId]} />; // Use original variable name
                                 })}
                             </Box>
                         )}
@@ -138,13 +140,13 @@ export const App = ({ config, tests, initialTestStates }: AppProps) => {
                         {Object.entries(groups).length > 0 && (
                              <Box flexDirection="column" marginTop={1}>
                                 {Object.entries(groups).map(([groupName, groupTests]) => (
-                                    // Pass filepath and all states to TestGroupDisplay
+                                    // Pass filepath and testStates to TestGroupDisplay
                                     <TestGroupDisplay
                                         key={groupName}
                                         groupName={groupName}
                                         tests={groupTests}
                                         filepath={filepath}
-                                        testStates={testStates}
+                                        testStates={testStates} // Pass original variable name
                                     />
                                 ))}
                             </Box>
