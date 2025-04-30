@@ -65,9 +65,6 @@ export class TestCompiler {
         );
         //console.log("cache dir:", this.cacheDir);
 
-        const fs = require('fs');
-        fs.writeFileSync('/tmp/magnitude-debug.log', '');
-
         await build({
             ...this.defaultOptions,
             entryPoints: [filePath],
