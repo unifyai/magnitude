@@ -1,39 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { Text, Box } from 'ink'; // Removed render, Spacer
+import { Text, Box } from 'ink';
 import { VERSION } from '@/version';
 import { CategorizedTestCases, MagnitudeConfig, TestRunnable } from '@/discovery/types';
 import { describeModel } from '@/util';
 import { TitleBar } from './title';
 import Spinner from 'ink-spinner';
-import { getUniqueTestId, formatDuration } from './util'; // Add util imports
+import { getUniqueTestId, formatDuration } from './util';
 
-// Export needed types
 export type TestState = {
     status: 'pending' | 'running' | 'completed' | 'error';
     startTime?: number;
-    duration?: number; // Final duration for completed/error states
-    elapsedTime?: number; // Live elapsed time for running state
-    // Removed duplicate elapsedTime
+    duration?: number;
     error?: Error;
 };
 
-// Revert type name back to AllTestStates
 export type AllTestStates = Record<string, TestState>; 
 
 type AppProps = {
     config: Required<MagnitudeConfig>;
     tests: CategorizedTestCases;
-    initialTestStates: AllTestStates; // Use original type name
+    initialTestStates: AllTestStates;
 };
 
-// --- TestDisplay Component (replaces TestItem) ---
 type TestDisplayProps = {
     test: TestRunnable;
-    state: TestState | undefined; // State for this specific test, includes elapsedTime if running
+    state: TestState | undefined;
 };
 
 const TestDisplay = ({ test, state }: TestDisplayProps) => {
-    // No internal state or useEffect for timer needed anymore
 
     const getStatusIndicator = () => {
         switch (state?.status) {
@@ -50,12 +44,7 @@ const TestDisplay = ({ test, state }: TestDisplayProps) => {
     };
 
     const getTimerText = () => {
-        if (state?.status === 'running') {
-            // Display elapsedTime passed via props
-            return `(${formatDuration(state.elapsedTime)})`;
-        }
         if (state?.status === 'completed' || state?.status === 'error') {
-            // Display final duration passed via props
             return `(${formatDuration(state.duration)})`;
         }
         return '';
@@ -77,14 +66,11 @@ const TestDisplay = ({ test, state }: TestDisplayProps) => {
     );
 };
 
-
-// --- TestGroupDisplay Component ---
-// Update to accept all states and pass the correct slice down
 type TestGroupDisplayProps = {
     groupName: string;
     tests: TestRunnable[];
-    filepath: string; // Need filepath to generate unique IDs
-    testStates: AllTestStates; // Revert variable name and type
+    filepath: string;
+    testStates: AllTestStates;
 };
 
 const TestGroupDisplay = ({ groupName, tests, filepath, testStates }: TestGroupDisplayProps) => (
@@ -93,28 +79,14 @@ const TestGroupDisplay = ({ groupName, tests, filepath, testStates }: TestGroupD
         <Box marginLeft={2} marginTop={1} flexDirection="column">
             {tests.map((test) => {
                 const testId = getUniqueTestId(filepath, groupName, test.title);
-                // Pass the specific state for this test down to TestDisplay
-                return <TestDisplay key={testId} test={test} state={testStates[testId]} />; // Use original variable name
+                return <TestDisplay key={testId} test={test} state={testStates[testId]} />;
             })}
         </Box>
     </Box>
 );
 
-// --- App Component ---
-// Update to use initialTestStates and pass state down correctly
 export const App = ({ config, tests, initialTestStates }: AppProps) => {
-    // Remove the unrelated counter state and effect
-	// const [counter, setCounter] = useState(0);
-	// useEffect(() => {
-	// 	const timer = setInterval(() => {
-	// 		setCounter(previousCounter => previousCounter + 1);
-	// 	}, 100);
-	// 	return () => {
-	// 		clearInterval(timer);
-	// 	};
-	// }, []);
 
-    // Directly use the state object passed via props, revert variable name
     const testStates = initialTestStates;
 
     return (
@@ -125,28 +97,24 @@ export const App = ({ config, tests, initialTestStates }: AppProps) => {
                     <Box key={filepath} flexDirection="column" marginBottom={1}>
                         <Text bold>☰{"  "}{filepath}</Text>
 
-                        {/* Render Ungrouped Tests */}
                         {ungrouped.length > 0 && (
                             <Box flexDirection="column" marginTop={1}>
                                 {ungrouped.map((test) => {
                                     const testId = getUniqueTestId(filepath, null, test.title);
-                                    // Pass the specific state for this test
-                                    return <TestDisplay key={testId} test={test} state={testStates[testId]} />; // Use original variable name
+                                    return <TestDisplay key={testId} test={test} state={testStates[testId]} />;
                                 })}
                             </Box>
                         )}
 
-                        {/* Render Grouped Tests */}
                         {Object.entries(groups).length > 0 && (
                              <Box flexDirection="column" marginTop={1}>
                                 {Object.entries(groups).map(([groupName, groupTests]) => (
-                                    // Pass filepath and testStates to TestGroupDisplay
                                     <TestGroupDisplay
                                         key={groupName}
                                         groupName={groupName}
                                         tests={groupTests}
                                         filepath={filepath}
-                                        testStates={testStates} // Pass original variable name
+                                        testStates={testStates}
                                     />
                                 ))}
                             </Box>
