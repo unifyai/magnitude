@@ -18,7 +18,8 @@ import { describeModel, tryDeriveEnvironmentPlannerClient } from './util';
 import * as dotenv from 'dotenv';
 import { execSync } from 'child_process';
 import React from 'react';
-import { App } from './app';
+import { App, AllTestStates, TestState } from './app'; // Import state types
+import { getUniqueTestId } from './app/util'; // Import ID generator
 import { render } from 'ink';
 
 interface CliOptions {
@@ -237,34 +238,145 @@ program
         // for (const [filename, tests] of Object.entries(registry.getRegisteredTestCases())) {
         //     console.log("file:", filename);
         //     console.log("tests:", tests);
-        // }
+        const categorizedTests = registry.getRegisteredTestCases();
 
-        
-        const { waitUntilExit, unmount } = render(React.createElement(App, {
-            config: config as Required<MagnitudeConfig>,
-            tests: registry.getRegisteredTestCases()
-        }));
-
-        try {
-            // Wait for the app to signal it wants to exit (e.g., via useApp().exit())
-            await waitUntilExit();
-            console.log('App has exited gracefully.');
-            // unmount() is usually called automatically by Ink after exit() is called
-            // and waitUntilExit() resolves, but calling it explicitly doesn't hurt
-            // if you have complex scenarios.
-            // unmount();
-        } catch (error) {
-            console.error('App encountered an error:', error);
-            // Ensure cleanup even on error
-            unmount(); // Explicitly unmount on error
-            process.exit(1); // Exit with error code
-        } finally {
-            // Make absolutely sure cursor is shown, even if cleanup failed slightly
-            // (Though usually not needed if unmount works)
-            process.stdout.write('\x1B[?25h');
-            console.log('Ensured cursor is visible.');
+        // --- Initialize State ---
+        const uiTestStates: AllTestStates = {};
+        for (const filepath of Object.keys(categorizedTests)) {
+            const { ungrouped, groups } = categorizedTests[filepath];
+            ungrouped.forEach(test => {
+                const testId = getUniqueTestId(filepath, null, test.title);
+                uiTestStates[testId] = { status: 'pending' };
+            });
+            Object.entries(groups).forEach(([groupName, groupTests]) => {
+                groupTests.forEach(test => {
+                    const testId = getUniqueTestId(filepath, groupName, test.title);
+                    uiTestStates[testId] = { status: 'pending' };
+                });
+            });
         }
-        //render(React.createElement(App, { name: cli.flags.name }));
+
+        // --- Instantiate Magnus ---
+        // Adjusting based on TS error: Expected 0 arguments, but got 1.
+        const magnus = new Magnus(); 
+
+        // --- Render Initial UI ---
+        const { rerender, waitUntilExit, unmount } = render(
+            React.createElement(App, {
+                config: config as Required<MagnitudeConfig>,
+                tests: categorizedTests,
+                initialTestStates: uiTestStates // Pass initial state
+            })
+        ); // <-- Add missing semicolon here
+        // --- Run Tests Serially ---
+        const runTests = async () => {
+            let currentTestInterval: NodeJS.Timeout | null = null;
+            let hasErrors = false;
+
+            // Helper function to update state and rerender
+            const updateStateAndRender = (testId: string, newState: Partial<TestState>) => {
+                if (uiTestStates[testId]) {
+                    uiTestStates[testId] = { ...uiTestStates[testId], ...newState };
+                    // Re-render the App with the updated state object
+                    rerender(
+                        React.createElement(App, {
+                            config: config as Required<MagnitudeConfig>,
+                            tests: categorizedTests,
+                            initialTestStates: uiTestStates
+                        })
+                    );
+                } else {
+                    logger.warn(`Attempted to update state for unknown testId: ${testId}`);
+                }
+            };
+
+            try {
+                for (const filepath of Object.keys(categorizedTests)) {
+                    const { ungrouped, groups } = categorizedTests[filepath];
+
+                    // --- Run Ungrouped Tests ---
+                    for (const test of ungrouped) {
+                        const testId = getUniqueTestId(filepath, null, test.title);
+                        const startTime = Date.now();
+
+                        // Clear previous interval if any
+                        if (currentTestInterval) clearInterval(currentTestInterval);
+
+                        // Set state to running, update UI
+                        updateStateAndRender(testId, { status: 'running', startTime, elapsedTime: 0, duration: undefined, error: undefined });
+
+                        // Start timer updates for this test
+                        currentTestInterval = setInterval(() => {
+                            updateStateAndRender(testId, { elapsedTime: Date.now() - startTime });
+                        }, 100); // Update elapsed time every 100ms
+
+                        let status: 'completed' | 'error' = 'completed';
+                        let error: Error | undefined;
+                        try {
+                            await test.fn({ ai: magnus });
+                        } catch (e) {
+                            status = 'error';
+                            error = e instanceof Error ? e : new Error(String(e));
+                            hasErrors = true;
+                            logger.error(`Error in test ${testId}:`, error);
+                        } finally {
+                            if (currentTestInterval) clearInterval(currentTestInterval);
+                            currentTestInterval = null;
+                            const duration = Date.now() - startTime;
+                            updateStateAndRender(testId, { status, duration, error, elapsedTime: undefined });
+                        }
+                    }
+
+                    // --- Run Grouped Tests ---
+                    for (const groupName of Object.keys(groups)) {
+                        for (const test of groups[groupName]) {
+                            const testId = getUniqueTestId(filepath, groupName, test.title);
+                            const startTime = Date.now();
+
+                            if (currentTestInterval) clearInterval(currentTestInterval);
+                            updateStateAndRender(testId, { status: 'running', startTime, elapsedTime: 0, duration: undefined, error: undefined });
+
+                            currentTestInterval = setInterval(() => {
+                                updateStateAndRender(testId, { elapsedTime: Date.now() - startTime });
+                            }, 100);
+
+                            let status: 'completed' | 'error' = 'completed';
+                            let error: Error | undefined;
+                            try {
+                                await test.fn({ ai: magnus });
+                            } catch (e) {
+                                status = 'error';
+                                error = e instanceof Error ? e : new Error(String(e));
+                                hasErrors = true;
+                                logger.error(`Error in test ${testId}:`, error);
+                            } finally {
+                                if (currentTestInterval) clearInterval(currentTestInterval);
+                                currentTestInterval = null;
+                                const duration = Date.now() - startTime;
+                                updateStateAndRender(testId, { status, duration, error, elapsedTime: undefined });
+                            }
+                        }
+                    }
+                }
+            } catch (executionError) {
+                // Catch errors in the execution loop itself (less likely)
+                logger.error('Unhandled error during test execution loop:', executionError);
+                hasErrors = true; // Mark as error if loop fails
+            } finally {
+                 // Ensure the last interval is cleared
+                if (currentTestInterval) clearInterval(currentTestInterval);
+                // Unmount the Ink app cleanly
+                unmount();
+                // Exit with appropriate code
+                process.exit(hasErrors ? 1 : 0);
+            }
+        };
+
+        // Start the execution process
+        runTests();
+
+        // Note: We removed await waitUntilExit() because runTests now controls the exit.
+        // The Ink app will stay rendered until unmount() is called in runTests' finally block.
 
 
 
@@ -318,4 +430,3 @@ program
     });
 
 program.parse();
-
