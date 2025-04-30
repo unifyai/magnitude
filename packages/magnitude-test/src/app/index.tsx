@@ -4,6 +4,7 @@ import { VERSION } from '@/version';
 import { CategorizedTestCases, MagnitudeConfig, TestRunnable } from '@/discovery/types'; // Added TestRunnable import
 import { describeModel } from '@/util';
 import { TitleBar } from './title';
+import Spinner from 'ink-spinner';
 
 type AppProps = {
     config: Required<MagnitudeConfig>;
@@ -13,17 +14,19 @@ type AppProps = {
 // Helper component to render a single test item
 const TestItem = ({ test }: { test: TestRunnable }) => (
     <Box marginLeft={2}>
-        <Text>- {test.title}</Text>
+        <Spinner type="dots"/><Text> {test.title}</Text>
     </Box>
 );
 
 // Helper component to render a group of tests
 const TestGroupDisplay = ({ groupName, tests }: { groupName: string, tests: TestRunnable[] }) => (
-    <Box flexDirection="column" marginLeft={1}>
-        <Text italic>{groupName}</Text>
+    <Box flexDirection="column">
+        <Text>  [ {groupName} ]</Text>
+        <Box marginLeft={2} marginTop={1} flexDirection="column">
         {tests.map((test, index) => (
             <TestItem key={`${groupName}-${test.title}-${index}`} test={test} />
         ))}
+        </Box>
     </Box>
 );
 
@@ -50,7 +53,7 @@ export const App = ({ config, tests }: AppProps) => {
             <Box flexDirection="column" borderStyle="round" paddingX={1} width={80} borderColor="grey">
                 {Object.entries(tests).map(([filepath, { ungrouped, groups }]) => (
                     <Box key={filepath} flexDirection="column" marginBottom={1}>
-                        <Text bold>▶{"  "}{filepath}</Text> 
+                        <Text bold>☰{"  "}{filepath}</Text> 
 
                         {ungrouped.length > 0 && (
                             <Box flexDirection="column" marginTop={1}>
