@@ -195,7 +195,7 @@ program
         }
 
         logger.info({ ...config.planner }, "Planner:");
-        console.log(magnitudeBlue(`Using planner: ${describeModel(config.planner)}`));
+        //console.log(magnitudeBlue(`Using planner: ${describeModel(config.planner)}`));
         
         // If executor not provided, default to moondream cloud with MOONDREAM_API_KEY
         if (!config.executor || !config.executor.options || (!config.executor.options.apiKey && !config.executor.options.baseUrl)) {
@@ -215,7 +215,7 @@ program
         }
 
         logger.info({ ...config.executor }, "Executor:");
-        console.log(magnitudeBlue(`Using executor: ${config.executor.provider}`));
+        //console.log(magnitudeBlue(`Using executor: ${config.executor.provider}`));
 
 
 
@@ -234,14 +234,16 @@ program
         // console.log("Tests:", registry.getFlattenedTestCases());
 
 
-        for (const [filename, tests] of Object.entries(registry.getRegisteredTestCases())) {
-            console.log("file:", filename);
-            console.log("tests:", tests);
-        }
+        // for (const [filename, tests] of Object.entries(registry.getRegisteredTestCases())) {
+        //     console.log("file:", filename);
+        //     console.log("tests:", tests);
+        // }
 
-        console.log('huh')
         
-        const { waitUntilExit, unmount } = render(React.createElement(App, { config }));
+        const { waitUntilExit, unmount } = render(React.createElement(App, {
+            config: config as Required<MagnitudeConfig>,
+            tests: registry.getRegisteredTestCases()
+        }));
 
         try {
             // Wait for the app to signal it wants to exit (e.g., via useApp().exit())
