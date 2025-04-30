@@ -21,7 +21,7 @@ import React from 'react';
 import { App, AllTestStates, TestState } from './app'; // Import state types
 import { getUniqueTestId, initializeTestStates } from './app/util'; // Import ID generator AND initializer
 import { render } from 'ink';
-import { SerialTestExecutor } from './runner/serialExecutor'; // Import the new executor
+import { TestRunner } from './testRunner'; // Import the new executor
 
 interface CliOptions {
     workers?: number;
@@ -258,9 +258,8 @@ program
 
         // --- Instantiate Executor ---
         // Pass the initialized state and the actual rerender/unmount functions
-        const executor = new SerialTestExecutor(
+        const executor = new TestRunner(
             categorizedTests,
-            magnus,
             testStates, // Pass the shared state object
             rerender,
             unmount,
@@ -269,7 +268,7 @@ program
 
         // --- Start Execution ---
         // Start the execution process - executor handles its own lifecycle including exit
-        executor.run();
+        executor.runTests();
 
         // No need for waitUntilExit() or try/catch/finally here anymore,
         // as the executor manages the process lifecycle and cleanup.
