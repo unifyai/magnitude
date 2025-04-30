@@ -171,7 +171,7 @@ function EvaluateCheck (screenshot: image, check: string, previousActions: strin
     client GeminiPro
     prompt #"
         {{ _.role("system") }}
-        Given the actions of an LLM agent executing a test case, evaluate whether the provided check "passes" i.e. holds true or not.
+        Given the actions of an LLM agent executing a test case, and a screenshot taken afterwards, evaluate whether the provided check "passes" i.e. holds true or not.
         {{ ctx.output_format }}
 
         {{ _.role("user")}}

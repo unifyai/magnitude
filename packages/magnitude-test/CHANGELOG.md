@@ -1,5 +1,13 @@
 # magnitude-test
 
+## 0.0.20
+
+### Patch Changes
+
+- fix check eval
+- Updated dependencies
+  - magnitude-core@0.0.13
+
 ## 0.0.19
 
 ### Patch Changes
