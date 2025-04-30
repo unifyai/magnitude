@@ -222,7 +222,6 @@ program
 
 
 
-
         // === Compile test files ===
 
         for (const filePath of absoluteFilePaths) {

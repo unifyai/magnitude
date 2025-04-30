@@ -1,5 +1,11 @@
 # magnitude-core
 
+## 0.0.12
+
+### Patch Changes
+
+- enable passing headers to openai generic client
+
 ## 0.0.11
 
 ### Patch Changes

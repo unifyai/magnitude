@@ -95,6 +95,7 @@ export function convertToBamlClientOptions(client: PlannerClient): Record<string
             api_key: client.options.apiKey,
             model: client.options.model,
             temperature: temp,
+            headers: client.options.headers
         };
     } else if (client.provider === 'azure-openai') {
         options = {

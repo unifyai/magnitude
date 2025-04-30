@@ -1,4 +1,4 @@
-import { BrowserContextOptions, Page } from "playwright";
+import { BrowserContextOptions, LaunchOptions } from "playwright";
 import { TestCaseBuilder } from "./testCaseBuilder";
 import type { PlannerClient, ExecutorClient, TestCaseAgent, Magnus } from 'magnitude-core';
 
@@ -13,7 +13,8 @@ export type MagnitudeConfig = {
     planner?: PlannerClient,
     executor?: ExecutorClient,
     browser?: {
-        contextOptions?: BrowserContextOptions
+        contextOptions?: BrowserContextOptions,
+        launchOptions?: LaunchOptions
     },
     telemetry?: boolean
 }

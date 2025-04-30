@@ -1,5 +1,18 @@
 # magnitude-test
 
+## 0.0.19
+
+### Patch Changes
+
+- Updated dependencies
+  - magnitude-core@0.0.12
+
+## 0.0.18
+
+### Patch Changes
+
+- configurable browser launch options
+
 ## 0.0.17
 
 ### Patch Changes
