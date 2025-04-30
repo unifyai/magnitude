@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'; // Removed useMemo import
 import { Text, Box } from 'ink';
 import { VERSION } from '@/version';
 import { CategorizedTestCases, MagnitudeConfig, TestRunnable } from '@/discovery/types';
@@ -6,6 +6,7 @@ import { describeModel } from '@/util';
 import { TitleBar } from './title';
 import Spinner from 'ink-spinner';
 import { getUniqueTestId, formatDuration } from './util';
+import { TestSummary } from './summary'; // Import TestSummary
 
 export type TestState = {
     status: 'pending' | 'running' | 'completed' | 'error';
@@ -89,6 +90,8 @@ export const App = ({ config, tests, initialTestStates }: AppProps) => {
 
     const testStates = initialTestStates;
 
+    // Removed statusCounts calculation (moved to TestSummary)
+
     return (
         <Box flexDirection='column'>
             <TitleBar version={VERSION} model={describeModel(config.planner)}/>
@@ -122,6 +125,7 @@ export const App = ({ config, tests, initialTestStates }: AppProps) => {
                     </Box>
                 ))}
             </Box>
+            <TestSummary testStates={testStates} />
         </Box>
     );
 };

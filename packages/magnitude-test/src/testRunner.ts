@@ -31,12 +31,22 @@ export class TestRunner {
 
     private updateStateAndRender(testId: string, newState: Partial<TestState>) {
         if (this.testStates[testId]) {
-            this.testStates[testId] = { ...this.testStates[testId], ...newState };
+            // Create a new state object for immutability
+            const nextTestStates = {
+                ...this.testStates,
+                [testId]: {
+                    ...this.testStates[testId],
+                    ...newState
+                }
+            };
+            // Update internal reference (important!)
+            this.testStates = nextTestStates;
+            // Rerender with the new state object reference
             this.rerender(
                 React.createElement(App, {
                     config: this.config,
                     tests: this.tests,
-                    initialTestStates: this.testStates
+                    initialTestStates: nextTestStates // Pass the new object
                 })
             );
         } else {
