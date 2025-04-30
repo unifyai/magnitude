@@ -51,8 +51,38 @@ export class SerialTestExecutor {
         }
     }
 
+    // Private helper to execute a single test
+    private async _executeTest(test: TestRunnable, testId: string): Promise<{ success: boolean }> {
+        const startTime = Date.now();
+        let intervalId: NodeJS.Timeout | null = null;
+        let status: 'completed' | 'error' = 'completed';
+        let error: Error | undefined;
+
+        try {
+            // Set state to running and start timer interval
+            this.updateStateAndRender(testId, { status: 'running', startTime, elapsedTime: 0, duration: undefined, error: undefined });
+            intervalId = setInterval(() => {
+                this.updateStateAndRender(testId, { elapsedTime: Date.now() - startTime });
+            }, 100);
+
+            // Execute the actual test function
+            await test.fn({ ai: this.magnus });
+
+        } catch (e) {
+            status = 'error';
+            error = e instanceof Error ? e : new Error(String(e));
+            coreLogger.error(`Error in test ${testId}:`, error);
+        } finally {
+            // Clear interval and update final state
+            if (intervalId) clearInterval(intervalId);
+            const duration = Date.now() - startTime;
+            this.updateStateAndRender(testId, { status, duration, error, elapsedTime: undefined });
+        }
+        return { success: status === 'completed' };
+    }
+
+
     async run(): Promise<void> {
-        let currentTestInterval: NodeJS.Timeout | null = null;
         let hasErrors = false;
 
         try {
@@ -62,68 +92,24 @@ export class SerialTestExecutor {
                 // --- Run Ungrouped Tests ---
                 for (const test of ungrouped) {
                     const testId = getUniqueTestId(filepath, null, test.title);
-                    const startTime = Date.now();
-
-                    if (currentTestInterval) clearInterval(currentTestInterval);
-                    this.updateStateAndRender(testId, { status: 'running', startTime, elapsedTime: 0, duration: undefined, error: undefined });
-
-                    currentTestInterval = setInterval(() => {
-                        this.updateStateAndRender(testId, { elapsedTime: Date.now() - startTime });
-                    }, 100);
-
-                    let status: 'completed' | 'error' = 'completed';
-                    let error: Error | undefined;
-                    try {
-                        await test.fn({ ai: this.magnus });
-                    } catch (e) {
-                        status = 'error';
-                        error = e instanceof Error ? e : new Error(String(e));
-                        hasErrors = true;
-                        coreLogger.error(`Error in test ${testId}:`, error);
-                    } finally {
-                        if (currentTestInterval) clearInterval(currentTestInterval);
-                        currentTestInterval = null;
-                        const duration = Date.now() - startTime;
-                        this.updateStateAndRender(testId, { status, duration, error, elapsedTime: undefined });
-                    }
+                    const result = await this._executeTest(test, testId);
+                    if (!result.success) hasErrors = true;
                 }
 
                 // --- Run Grouped Tests ---
                 for (const groupName of Object.keys(groups)) {
                     for (const test of groups[groupName]) {
                         const testId = getUniqueTestId(filepath, groupName, test.title);
-                        const startTime = Date.now();
-
-                        if (currentTestInterval) clearInterval(currentTestInterval);
-                        this.updateStateAndRender(testId, { status: 'running', startTime, elapsedTime: 0, duration: undefined, error: undefined });
-
-                        currentTestInterval = setInterval(() => {
-                            this.updateStateAndRender(testId, { elapsedTime: Date.now() - startTime });
-                        }, 100);
-
-                        let status: 'completed' | 'error' = 'completed';
-                        let error: Error | undefined;
-                        try {
-                            await test.fn({ ai: this.magnus });
-                        } catch (e) {
-                            status = 'error';
-                            error = e instanceof Error ? e : new Error(String(e));
-                            hasErrors = true;
-                            coreLogger.error(`Error in test ${testId}:`, error);
-                        } finally {
-                            if (currentTestInterval) clearInterval(currentTestInterval);
-                            currentTestInterval = null;
-                            const duration = Date.now() - startTime;
-                            this.updateStateAndRender(testId, { status, duration, error, elapsedTime: undefined });
-                        }
+                        const result = await this._executeTest(test, testId);
+                        if (!result.success) hasErrors = true;
                     }
                 }
             }
         } catch (executionError) {
+            // Catch errors in the main loop orchestration (less likely now)
             coreLogger.error('Unhandled error during test execution loop:', executionError);
             hasErrors = true;
         } finally {
-            if (currentTestInterval) clearInterval(currentTestInterval);
             // Ensure cursor is visible before exiting
             process.stdout.write('\x1B[?25h');
             this.unmount();
