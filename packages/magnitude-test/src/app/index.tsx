@@ -26,7 +26,7 @@ type AppProps = {
 
 type TestDisplayProps = {
     test: TestRunnable;
-    state: TestState | undefined;
+    state: TestState;
 };
 
 const TestDisplay = ({ test, state }: TestDisplayProps) => {
@@ -46,7 +46,8 @@ const TestDisplay = ({ test, state }: TestDisplayProps) => {
     };
 
     const getTimerText = () => {
-        if (state?.status === 'completed' || state?.status === 'error') {
+        if (state?.status !== 'pending') {
+            // FIXME
             return `(${formatDuration(state.duration)})`;
         }
         return '';

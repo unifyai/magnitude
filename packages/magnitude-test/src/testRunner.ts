@@ -84,7 +84,7 @@ export class TestRunner {
             executor: this.config.executor,
             browserContextOptions: this.config.browserContextOptions
         });
-        await agent.start(browser);
+        await agent.start(browser, test.url);
 
         const startTime = Date.now();
         let status: 'completed' | 'error' = 'completed';

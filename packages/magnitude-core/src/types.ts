@@ -15,6 +15,7 @@ export interface TestData {
 
 export interface TestStepDefinition {
     description: string;
+	// TODO: remove checks
     checks: string[];
     testData: TestData;
 }
