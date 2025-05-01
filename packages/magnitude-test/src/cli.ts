@@ -243,27 +243,34 @@ program
         // --- Initialize State using utility ---
         const testStates = initializeTestStates(categorizedTests);
 
-        // --- Instantiate Magnus ---
-        const magnus = new Magnus(); 
-
         // --- Render Initial UI ---
         // Get rerender/unmount first
         const { rerender, unmount } = render(
             React.createElement(App, {
-                config: config as Required<MagnitudeConfig>,
+                model: describeModel(config.planner),//config: config as Required<MagnitudeConfig>,
                 tests: categorizedTests,
-                initialTestStates: testStates // Pass initial state
+                testStates: testStates // Pass initial state
             }) 
         ); 
 
         // --- Instantiate Executor ---
         // Pass the initialized state and the actual rerender/unmount functions
+
         const executor = new TestRunner(
+            {
+                workerCount: workerCount,
+                prettyDisplay: !(options.plain || options.debug),
+                planner: config.planner,
+                executor: config.executor,
+                browserContextOptions: config.browser?.contextOptions ?? {},
+                browserLaunchOptions: config.browser?.launchOptions ?? {},
+                telemetry: config.telemetry ?? true
+            },
             categorizedTests,
             testStates, // Pass the shared state object
             rerender,
             unmount,
-            config as Required<MagnitudeConfig>
+            //config as Required<MagnitudeConfig>
         );
 
         // --- Start Execution ---

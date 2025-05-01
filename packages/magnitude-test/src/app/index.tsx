@@ -18,9 +18,10 @@ export type TestState = {
 export type AllTestStates = Record<string, TestState>; 
 
 type AppProps = {
-    config: Required<MagnitudeConfig>;
+    //config: Required<MagnitudeConfig>;
+    model: string,
     tests: CategorizedTestCases;
-    initialTestStates: AllTestStates;
+    testStates: AllTestStates;
 };
 
 type TestDisplayProps = {
@@ -86,15 +87,14 @@ const TestGroupDisplay = ({ groupName, tests, filepath, testStates }: TestGroupD
     </Box>
 );
 
-export const App = ({ config, tests, initialTestStates }: AppProps) => {
+export const App = ({ model, tests, testStates }: AppProps) => {
 
-    const testStates = initialTestStates;
 
     // Removed statusCounts calculation (moved to TestSummary)
 
     return (
         <Box flexDirection='column'>
-            <TitleBar version={VERSION} model={describeModel(config.planner)}/>
+            <TitleBar version={VERSION} model={model}/>
             <Box flexDirection="column" borderStyle="round" paddingX={1} width={80} borderColor="grey">
                 {Object.entries(tests).map(([filepath, { ungrouped, groups }]) => (
                     <Box key={filepath} flexDirection="column" marginBottom={1}>

@@ -53,6 +53,7 @@
   "dependencies": {
     "@boundaryml/baml": "^0.86.0",
     "commander": "^13.1.0",
+    "eventemitter3": "^5.0.1",
     "moondream": "^0.1.0",
     "pino": "^9.6.0",
     "playwright": "^1.51.0",

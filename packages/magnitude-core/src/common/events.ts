@@ -5,6 +5,7 @@
 import { ActionDescriptor, ActionVariant } from "@/common/actions";
 import { FailureDescriptor } from "./failure";
 import { TestCaseDefinition, TestCaseResult } from "@/types";
+import EventEmitter from "eventemitter3";
 
 // Both local and remote runners should accept listeners with these events
 export interface TestAgentListener {
@@ -27,4 +28,18 @@ export interface TestAgentListener {
 
     // Emitted when test run is done, whether that be successful completion or failure
     onDone?: (result: TestCaseResult) => void;
+}
+
+export interface AgentEvents {
+    'start': () => void;
+
+    // Emitted after any action is taken in the browser
+    'action': (action: ActionDescriptor) => void;
+    // Which step/check can be derived from TC definition + tracked state
+    // Emitted when the actions for a step (not its checks) are completed
+    'step': () => void;
+    // Emitted when a check associated with some step is completed
+    'check': () => void;
+    // Emitted when test run is done, whether that be successful completion or failure
+    'done': (result: TestCaseResult) => void;
 }
