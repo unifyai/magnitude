@@ -19,10 +19,11 @@ export function formatDuration(ms: number | undefined): string {
     if (ms === undefined || ms === null) {
         return '';
     }
-    if (ms < 1000) {
-        return `${ms}ms`;
-    }
-    return `${(ms / 1000).toFixed(2)}s`;
+    // if (ms < 1000) {
+    //     return `${ms}ms`;
+    // }
+    //return `${(ms / 1000).toFixed(0)}s`;
+    return `${(ms / 1000).toFixed(1)}s`;
 }
 
 import { CategorizedTestCases } from "@/discovery/types";

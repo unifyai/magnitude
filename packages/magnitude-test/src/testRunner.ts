@@ -98,8 +98,7 @@ export class TestRunner {
             error = e instanceof Error ? e : new Error(String(e));
             logger.error(`Error in test ${testId}:`, error);
         } finally {
-            const duration = Date.now() - startTime;
-            this.updateStateAndRender(testId, { status, duration, error });
+            this.updateStateAndRender(testId, { status, error });
         }
 
         // Cleanup

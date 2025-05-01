@@ -11,7 +11,7 @@ import { TestSummary } from './summary'; // Import TestSummary
 export type TestState = {
     status: 'pending' | 'running' | 'completed' | 'error';
     startTime?: number;
-    duration?: number;
+    // duration?: number; // Removed as requested
     error?: Error;
 };
 
@@ -30,6 +30,31 @@ type TestDisplayProps = {
 };
 
 const TestDisplay = ({ test, state }: TestDisplayProps) => {
+    const [elapsedTime, setElapsedTime] = useState<number>(0);
+
+    useEffect(() => {
+        let intervalId: NodeJS.Timeout | undefined;
+
+        if (state?.status === 'running' && state.startTime) {
+            const updateElapsed = () => setElapsedTime(Date.now() - (state.startTime ?? Date.now()));
+            intervalId = setInterval(updateElapsed, 100);
+        } else {
+            // Clear interval if status is not 'running'
+            if (intervalId) { // Should ideally access via ref if strict mode causes double invoke
+                clearInterval(intervalId);
+                intervalId = undefined;
+            }
+        }
+
+        // Cleanup function
+        return () => {
+            if (intervalId) {
+                clearInterval(intervalId);
+            }
+        };
+        // Depend on specific properties that dictate the timer's behavior.
+    }, [state?.status, state?.startTime]);
+
 
     const getStatusIndicator = () => {
         switch (state?.status) {
@@ -46,12 +71,14 @@ const TestDisplay = ({ test, state }: TestDisplayProps) => {
     };
 
     const getTimerText = () => {
+        // Only show live elapsed time while running
         if (state?.status !== 'pending') {
-            // FIXME
-            return `(${formatDuration(state.duration)})`;
+            return `[${formatDuration(elapsedTime)}]`;
         }
+        // Return empty string otherwise (no final duration shown)
         return '';
     };
+
 
     return (
         <Box flexDirection="column" marginLeft={2}>
