@@ -1,5 +1,11 @@
 # magnitude-core
 
+## 0.0.14
+
+### Patch Changes
+
+- update baml to fix bedrock issues
+
 ## 0.0.13
 
 ### Patch Changes

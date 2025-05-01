@@ -1,19 +1,28 @@
 {
     "$schema": "https://mintlify.com/docs.json",
     "name": "Magnitude",
-    "theme": "mint",
+    "theme": "maple",
     "description": "Open source AI agents for web testing",
     "logo": "/logo.svg",
     "favicon": "/favicon.png",
+    "icons": {
+        "library": "lucide"
+    },
     "colors": {
         "primary": "#0369a1",
         "light": "#0ea5e9",
         "dark": "#075985"
     },
     "navbar": {
+        "links": [
+            {
+                "label": "Community",
+                "href": "https://discord.gg/VcdpMh9tTy"
+            }
+        ],
         "primary": {
             "type": "button",
-            "label": "View GitHub",
+            "label": "GitHub",
             "href": "https://github.com/magnitudedev/magnitude"
         }
     },
@@ -32,102 +41,83 @@
                 },
                 {
                     "anchor": "Contact",
-                    "icon": "envelope",
+                    "icon": "mail",
                     "href": "mailto:founders@magnitude.run"
                 }
             ]
         },
-        "groups": [
+        "dropdowns": [
             {
-                "group": "Getting Started",
-                "pages": [
-                    "getting-started/introduction",
-                    "getting-started/quickstart"
-                ]
-            },
-            {
-                "group": "Core Concepts",
-                "pages": [
-                    "core-concepts/building-test-cases",
-                    "core-concepts/running-tests"
-                ]
-            },
-            {
-                "group": "Customizing",
-                "pages": [
-                    "customizing/configuration",
-                    "customizing/self-hosting-moondream"
-                ]
-            },
-            {
-                "group": "Integrations",
-                "pages": [
-                    "integrations/playwright",
-                    "integrations/github-actions",
-                    "integrations/mcp"
-                ]
-            },
-            {
-                "group": "Reference",
-                "pages": [
-                    "reference/llm-configuration",
-                    "reference/test-cases",
-                    "reference/test-steps",
-                    "reference/test-groups",
-                    "reference/cli"
-                ]
-            }
-        ]
-    },
-    "footer": {
-        "socials": {
-            "github": "https://github.com/magnitudedev/magnitude",
-            "discord": "https://discord.gg/VcdpMh9tTy",
-            "linkedin": "https://linkedin.com/company/magnitude-ai",
-            "twitter": "https://twitter.com/magnitudeqa"
-        },
-        "links": [
-            {
-                "header": "Product",
-                "items": [
+                "dropdown": "Documentation",
+                "icon": "book",
+                "groups": [
                     {
-                        "label": "Sign Up",
-                        "href": "https://app.magnitude.run/signup"
+                        "group": "Getting Started",
+                        "pages": [
+                            "getting-started/introduction",
+                            "getting-started/quickstart"
+                        ]
                     },
                     {
-                        "label": "Documentation",
-                        "href": "https://docs.magnitude.run"
+                        "group": "Core Concepts",
+                        "pages": [
+                            "core-concepts/building-test-cases",
+                            "core-concepts/running-tests"
+                        ]
+                    },
+                    {
+                        "group": "Customizing",
+                        "pages": [
+                            "customizing/configuration",
+                            "customizing/self-hosting-moondream"
+                        ]
+                    },
+                    {
+                        "group": "Integrations",
+                        "pages": [
+                            "integrations/playwright",
+                            "integrations/github-actions",
+                            "integrations/mcp"
+                        ]
+                    },
+                    {
+                        "group": "Reference",
+                        "pages": [
+                            "reference/llm-configuration",
+                            "reference/test-cases",
+                            "reference/test-steps",
+                            "reference/test-groups",
+                            "reference/cli"
+                        ]
                     }
                 ]
             },
             {
-                "header": "Community",
-                "items": [
+                "dropdown": "Contributing",
+                "icon": "wrench",
+                "groups": [
                     {
-                        "label": "Discord",
-                        "href": "https://discord.gg/VcdpMh9tTy"
-                    },
-                    {
-                        "label": "GitHub",
-                        "href": "https://github.com/magnitudedev/magnitude"
-                    }
-                ]
-            },
-            {
-                "header": "Company",
-                "items": [
-                    {
-                        "label": "Contact",
-                        "href": "mailto:founders@magnitude.run"
+                        "group": "Contributing",
+                        "pages": [
+                            "contributing/introduction",
+                            "contributing/setup",
+                            "contributing/suggestions"
+                        ]
                     }
                 ]
             }
         ]
     },
     "search": {
-        "prompt": "Search Magnitude docs..."
+        "prompt": "Search or ask..."
     },
     "seo": {
         "indexing": "all"
+    },
+    "contextual": {
+        "options": [
+            "copy",
+            "view"
+        ]
     }
 }
