@@ -1,6 +1,6 @@
 import React from 'react';
 import logger from '@/logger';
-import { ExecutorClient, Magnus, PlannerClient } from 'magnitude-core';
+import { AgentStateTracker, ExecutorClient, Magnus, PlannerClient } from 'magnitude-core';
 import { CategorizedTestCases, TestRunnable } from '@/discovery/types';
 import { AllTestStates, TestState, App } from '@/app';
 import { getUniqueTestId } from '@/app/util';
@@ -84,7 +84,13 @@ export class TestRunner {
             executor: this.config.executor,
             browserContextOptions: this.config.browserContextOptions
         });
+        const stateTracker = new AgentStateTracker(agent);
         await agent.start(browser, test.url);
+        
+        // test
+        stateTracker.getEvents().on('update', (state) => console.log(`State updated for ${test.title}:`, state));
+
+        // TODO: Use this state instead of existing stupid state stuff in tsx
 
         const startTime = Date.now();
         let status: 'completed' | 'error' = 'completed';

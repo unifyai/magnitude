@@ -12,6 +12,7 @@ import { ActionIngredient } from "./recipe/types";
 import { traceAsync } from '@/ai/baml_client/tracing';
 import { PlannerClient, ExecutorClient } from "@/ai/types";
 import EventEmitter from "eventemitter3";
+import { AgentState, StepDescriptor } from "./state";
 
 interface TestCaseAgentConfig {
     planner: PlannerClient,
@@ -29,7 +30,8 @@ export class Magnus {
     private micro: MicroAgent;
     private harness!: WebHarness;
     private context!: BrowserContext;
-    private info: Partial<TestRunInfo>;
+    //private info: Partial<TestRunInfo>;
+    //private state!: AgentState;
     private events: EventEmitter<AgentEvents>;
     private lastScreenshot: Screenshot | null;
     private lastStepActions: ActionIngredient[] | null;
@@ -43,7 +45,7 @@ export class Magnus {
         this.config = { ...DEFAULT_CONFIG, ...config };
         this.macro = new MacroAgent({ client: this.config.planner });
         this.micro = new MicroAgent({ client: this.config.executor });
-        this.info = { actionCount: 0 };
+        //this.info = { actionCount: 0 };
         this.events = new EventEmitter<AgentEvents>();
         this.lastScreenshot = null;
         this.lastStepActions = null;
@@ -52,14 +54,30 @@ export class Magnus {
     getEvents() {
         return this.events;
     }
+
+    getMacro() {
+        return this.macro;
+    }
+
+    getMicro() {
+        return this.micro;
+    }
     
     async start(browser: Browser, startingUrl: string) {
-        this.info.startedAt = Date.now();
-        this.info.testCase = {
-            numSteps: 0,//testCase.steps.length,
-            numChecks: 0//testCase.steps.reduce((count, step) => count + step.checks.length, 0)
-        }
-        this.info.cached = false;
+        // this.state = {
+        //     startedAt: Date.now(), // should this be later?
+        //     cached: false,
+        //     stepsAndChecks: [],
+        //     macroUsage: this.macro.getInfo(),
+        //     microUsage: this.micro.getInfo(),
+        // }
+        
+        // this.info.startedAt = Date.now();
+        // this.info.testCase = {
+        //     numSteps: 0,//testCase.steps.length,
+        //     numChecks: 0//testCase.steps.reduce((count, step) => count + step.checks.length, 0)
+        // }
+        // this.info.cached = false;
 
         logger.info("Creating browser context");
         const dpr = process.env.DEVICE_PIXEL_RATIO ?
@@ -73,13 +91,16 @@ export class Magnus {
         const page = await this.context.newPage();
         this.harness = new WebHarness(page);
 
+        
+
         this.events.emit('start');
         logger.info("Agent started");
 
         await this.harness.goto(startingUrl);
-        const screenshot = await this.screenshot();
+        //const screenshot = await this.screenshot();
         // Synthetic load action
-        this.events.emit('action', { 'variant': 'load', 'url': startingUrl, screenshot: screenshot.image })
+        // Removing for now since state tracker will err with no preceding step
+        //this.events.emit('action', { 'variant': 'load', 'url': startingUrl, screenshot: screenshot.image })
         
         logger.info(`Successfully navigated to starting URL: ${startingUrl}`);
     }
@@ -93,6 +114,16 @@ export class Magnus {
     async step(description: string) {
         logger.info(`Begin Step: ${description}`);
 
+        this.events.emit('stepStart', description);
+
+        // const stepState: StepDescriptor = {
+        //     variant: 'step',
+        //     description: description,
+        //     actions: [],
+        //     status: 'running'
+        // };
+        // this.state.stepsAndChecks.push(stepState);
+
         //const recipe = []
         const stepActionIngredients: ActionIngredient[] = [];
 
@@ -104,6 +135,7 @@ export class Magnus {
                 stepActionIngredients
             );
 
+            // TODO: Should emit events for recipe creation
             logger.info({ actions, finished }, `Partial recipe created`);
             //console.log('Partial recipe:', actions);
             //console.log('Finish expected?', finished);
@@ -160,26 +192,34 @@ export class Magnus {
 
                 try {
                     await this.harness.executeAction(action);
-                    this.info.actionCount!++;
+                    //this.info.actionCount!++;
                     //this.config.onActionTaken(ingredient, action);
                     // Take new screenshot after action to provide in event
                 } catch (error) {
                     logger.error(`Error executing action: ${error}`);
                     // TODO: retries
                     //throw new ActionExecutionError(action, error as Error);
-                    return {
-                        passed: false,
-                        failure: {
-                            variant: 'browser',
-                            message: `Failed to execute ${action.variant} action`
-                        }
-                    };
+                    // stepState.status = 'failed';
+                    // return {
+                    //     passed: false,
+                    //     failure: {
+                    //         variant: 'browser',
+                    //         message: `Failed to execute ${action.variant} action`
+                    //     }
+                    // };
+                    this.events.emit('fail', {
+                        variant: 'browser',
+                        message: `Failed to execute ${action.variant} action`
+                    });
+                    return;
                 }
                 stepActionIngredients.push(ingredient);
 
                 const postActionScreenshot = await this.screenshot();
-
-                this.events.emit('action', { ...ingredient, ...action, screenshot: postActionScreenshot.image });
+                
+                const actionDescriptor = { ...ingredient, ...action, screenshot: postActionScreenshot.image };
+                //stepState.actions.push(actionDescriptor);
+                this.events.emit('action', actionDescriptor);
                 //for (const listener of this.listeners) if(listener.onActionTaken) listener.onActionTaken({...ingredient, ...action, screenshot: postActionScreenshot.image});
                 logger.info({ action }, `Action taken`);
             }
@@ -187,7 +227,10 @@ export class Magnus {
             // If macro expects these actions should complete the step, break
             if (finished) {
                 logger.info(`Done with step`);
-                this.events.emit('step');
+
+                this.events.emit('stepSuccess');
+                //stepState.status = 'passed';
+                //this.events.emit('step');
                 //for (const listener of this.listeners) if (listener.onStepCompleted) listener.onStepCompleted();//(step);
                 break;
             }
@@ -195,8 +238,10 @@ export class Magnus {
     }
 
     async check(description: string) {
-        console.log("check:", description)
-        await new Promise((resolve, reject) => setTimeout(resolve, 500));
+        logger.info(`check: ${description}`);
+
+        this.events.emit('checkStart', description);
+
 
         if (!this.lastScreenshot) {
             this.lastScreenshot = await this.screenshot();
@@ -224,7 +269,7 @@ export class Magnus {
 
         if (result) {
             // Passed
-            this.events.emit('check');
+            this.events.emit('checkSuccess');
             //for (const listener of this.listeners) if (listener.onCheckCompleted) listener.onCheckCompleted();
             //this.config.onCheckCompleted(check, checkIngredient);
             logger.info(`Passed check`);
@@ -250,10 +295,13 @@ export class Magnus {
             );
             //this.analytics.macroCalls += 1;
 
-            return {
-                passed: false,
-                failure: failure
-            }
+            // return {
+            //     passed: false,
+            //     failure: failure
+            // }
+
+            this.events.emit('fail', failure);
+            return;
         }
     }
 
