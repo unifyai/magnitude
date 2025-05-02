@@ -1,5 +1,5 @@
 import React from 'react'; // Removed useMemo import
-import { Text, Box } from 'ink';
+import { Text, Box, Spacer } from 'ink';
 import { AllTestStates } from './index'; // Import type from index.tsx
 
 type TestSummaryProps = {
@@ -10,6 +10,12 @@ type TestSummaryProps = {
 // If we get an error, render a red box describing the failure instead (e.g. bug report or other error)
 export const TestSummary = ({ testStates }: TestSummaryProps) => {
     // Calculate counts directly on each render
+    // TODO: show any failures in red box at bottom
+    // TODO: show total token usage and cost
+
+    let totalInputTokens = 0;
+    let totalOutputTokens = 0;
+
     const statusCounts = {
         pending: 0,
         running: 0,
@@ -25,6 +31,8 @@ export const TestSummary = ({ testStates }: TestSummaryProps) => {
             case 'passed': statusCounts.passed++; break;
             case 'failed': statusCounts.failed++; break;
         }
+        totalInputTokens += state.macroUsage.inputTokens;
+        totalOutputTokens += state.macroUsage.outputTokens;
     }
     // Removed useMemo wrapper
 
@@ -34,6 +42,10 @@ export const TestSummary = ({ testStates }: TestSummaryProps) => {
             <Text color="red">✗ {statusCounts.failed} failed  </Text>
             <Text color="blueBright">◌ {statusCounts.running} running  </Text>
             <Text color="gray">◯ {statusCounts.pending} pending</Text>
+
+            <Spacer/>
+
+            <Text color="gray">{totalInputTokens} itok / {totalOutputTokens} otok</Text>
         </Box>
     );
 };
