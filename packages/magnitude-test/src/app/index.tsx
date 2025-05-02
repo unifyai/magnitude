@@ -99,13 +99,13 @@ const TestDisplay = ({ test, state }: TestDisplayProps) => {
         // TODO: bug render
         failureContent = <Text color="red">↳ Found bug:</Text>;
     } else {
-        let failureTitle = {
-            'unknown': 'UnexpectedError',
-            'browser': 'BrowserError',
-            'network': 'NetworkError',
-            'misalignment': 'Misalignment'
+        let failurePrefix = {
+            'unknown': '',
+            'browser': 'BrowserError: ',
+            'network': 'NetworkError: ',
+            'misalignment': 'Misalignment: '
         }[failure.variant];
-        failureContent = <Text color="red">↳ {failureTitle}: {failure.message}</Text>;
+        failureContent = <Text color="red">↳ {failurePrefix}{failure.message}</Text>;
     } 
     
     // else if (failure.variant === 'browser') {

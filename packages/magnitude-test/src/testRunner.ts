@@ -121,6 +121,7 @@ export class TestRunner {
         
 
         try {
+            // todo: maybe display errors for network start differently not as generic/unknown
             await agent.start(browser, test.url);
             await test.fn({ ai: agent });
         } catch (e) {

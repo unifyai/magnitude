@@ -35,6 +35,7 @@ import { AllTestStates, TestState } from "./index"; // This should now correctly
  * @returns An AllTestStates object with all tests set to 'pending'.
  */
 export function initializeTestStates(tests: CategorizedTestCases): AllTestStates {
+    // can we avoid having to do this?
     const blankTestState: TestState = {
         status: 'pending',
         stepsAndChecks: [],
