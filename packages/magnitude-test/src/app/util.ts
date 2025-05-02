@@ -1,3 +1,6 @@
+import { CategorizedTestCases } from "@/discovery/types";
+import { AllTestStates, TestState } from "./types";
+
 /**
  * Generates a unique identifier for a test case.
  * @param filepath - The path to the test file.
@@ -26,8 +29,7 @@ export function formatDuration(ms: number | undefined): string {
     return `${(ms / 1000).toFixed(1)}s`;
 }
 
-import { CategorizedTestCases } from "@/discovery/types";
-import { AllTestStates, TestState } from "./index"; // This should now correctly import AllTestStates
+
 
 /**
  * Creates the initial state object for all tests, marking them as pending.

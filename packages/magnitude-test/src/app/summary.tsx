@@ -1,6 +1,6 @@
 import React from 'react'; // Removed useMemo import
 import { Text, Box, Spacer } from 'ink';
-import { AllTestStates } from './index'; // Import type from index.tsx
+import { AllTestStates } from './types'; // Import type from index.tsx
 
 type TestSummaryProps = {
     testStates: AllTestStates;
@@ -45,7 +45,10 @@ export const TestSummary = ({ testStates }: TestSummaryProps) => {
 
             <Spacer/>
 
-            <Text color="gray">{totalInputTokens} itok / {totalOutputTokens} otok</Text>
+            <Text color="gray">tokens: {totalInputTokens} in, {totalOutputTokens} out</Text> 
+            {/* <Text color="gray">⇥ {totalInputTokens}  ∴ {totalOutputTokens}</Text> */}
+            {/* <Text color="gray">⎆ {totalInputTokens}  ⎏ {totalOutputTokens}</Text> */}
+            {/* <Text color="gray">{totalInputTokens} → ← {totalOutputTokens}</Text> */}
         </Box>
     );
 };

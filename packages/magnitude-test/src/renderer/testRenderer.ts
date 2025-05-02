@@ -196,26 +196,26 @@
 //         return lines.join('\n');
 //     }
 
-//     private getActionSymbol(variant: "load" | "click" | "hover" | "type" | "scroll" | "wait" | "back") {
-//         switch (variant) {
-//             case "load":
-//                 return "↻"; // Recycling symbol for loading
-//             case "click":
-//                 return "⊙"; // Circled dot for clicking
-//             case "hover":
-//                 return "◉"; // Circled bullet for hovering
-//             case "type":
-//                 return "⌨"; // Keyboard symbol
-//             case "scroll":
-//                 return "↕"; // Up/down arrows for scrolling
-//             case "wait":
-//                 return "◴"; // Clock face for waiting
-//             case "back":
-//                 return "←"; // Left arrow for going back
-//             default:
-//                 return "?"; // Question mark for unknown action
-//         }
-//     }
+    // private getActionSymbol(variant: "load" | "click" | "hover" | "type" | "scroll" | "wait" | "back") {
+    //     switch (variant) {
+    //         case "load":
+    //             return "↻"; // Recycling symbol for loading
+    //         case "click":
+    //             return "⊙"; // Circled dot for clicking
+    //         case "hover":
+    //             return "◉"; // Circled bullet for hovering
+    //         case "type":
+    //             return "⌨"; // Keyboard symbol
+    //         case "scroll":
+    //             return "↕"; // Up/down arrows for scrolling
+    //         case "wait":
+    //             return "◴"; // Clock face for waiting
+    //         case "back":
+    //             return "←"; // Left arrow for going back
+    //         default:
+    //             return "?"; // Question mark for unknown action
+    //     }
+    // }
 
 //     private getStatusSymbol(status: "pending" | "passed" | "failed"): string {
 //         switch (status) {
