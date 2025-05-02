@@ -155,12 +155,11 @@ export const TestDisplay = ({ test, state }: TestDisplayProps) => {
                     {state.stepsAndChecks.map(item => {
                         if (item.variant === 'step') {
                             if (item.actions.length > 0) {
-                                return (<Box flexDirection='column'>
+                                return (<Box flexDirection='column' key={'step:'+item.description+item.status}>
                                     <Text>{getStepStatusIndicator(item.status)} {item.description}</Text>
                                     <Box flexDirection='column' marginLeft={2}>
                                         {item.actions.map(action => (
-                                            <Box>
-                                                {/* <Text color="grey">{getActionSymbol(action.variant)}</Text> */}
+                                            <Box key={JSON.stringify(action)}>
                                                 <Box width={1} height={1}>
                                                     <Text color="grey">{getActionSymbol(action.variant)}</Text>
                                                 </Box>
@@ -168,20 +167,16 @@ export const TestDisplay = ({ test, state }: TestDisplayProps) => {
                                                 <Box marginLeft={1}>
                                                     <Text color="grey">{describeAction(action)}</Text>
                                                 </Box>
-                                                
-                                                
                                             </Box>
-
-                                            
                                         ))}
                                     </Box>
                                 </Box>);
                             } else {
-                                return <Text>{getStepStatusIndicator(item.status)} {item.description}</Text>
+                                return <Text key={'step:'+item.description+item.status}>{getStepStatusIndicator(item.status)} {item.description}</Text>
                             }
                             
                         } else {
-                            return <Text>{getCheckStatusIndicator(item.status)} {item.description}</Text>
+                            return <Text key={'check:'+item.description+item.status}>{getCheckStatusIndicator(item.status)} {item.description}</Text>
                         }
                     })}
                 </Box>
