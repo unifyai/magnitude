@@ -27,7 +27,7 @@ export function formatDuration(ms: number | undefined): string {
 }
 
 import { CategorizedTestCases } from "@/discovery/types";
-import { AllTestStates } from "./index"; // This should now correctly import AllTestStates
+import { AllTestStates, TestState } from "./index"; // This should now correctly import AllTestStates
 
 /**
  * Creates the initial state object for all tests, marking them as pending.
@@ -35,17 +35,34 @@ import { AllTestStates } from "./index"; // This should now correctly import All
  * @returns An AllTestStates object with all tests set to 'pending'.
  */
 export function initializeTestStates(tests: CategorizedTestCases): AllTestStates {
+    const blankTestState: TestState = {
+        status: 'pending',
+        stepsAndChecks: [],
+        macroUsage: {
+            provider: '',
+            model: '',
+            inputTokens: 0,
+            outputTokens: 0,
+            numCalls: 0,
+        },
+        microUsage: {
+            provider: '',
+            numCalls: 0
+        }
+    }
+
     const initialStates: AllTestStates = {};
     for (const filepath of Object.keys(tests)) {
         const { ungrouped, groups } = tests[filepath];
         ungrouped.forEach(test => {
             const testId = getUniqueTestId(filepath, null, test.title);
-            initialStates[testId] = { status: 'pending' };
+            //initialStates[testId] = { status: 'pending' };
+            initialStates[testId] = blankTestState;
         });
         Object.entries(groups).forEach(([groupName, groupTests]) => {
             groupTests.forEach(test => {
                 const testId = getUniqueTestId(filepath, groupName, test.title);
-                initialStates[testId] = { status: 'pending' };
+                initialStates[testId] = blankTestState;
             });
         });
     }

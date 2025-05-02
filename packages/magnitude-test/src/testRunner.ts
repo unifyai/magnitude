@@ -85,13 +85,8 @@ export class TestRunner {
             browserContextOptions: this.config.browserContextOptions
         });
         const stateTracker = new AgentStateTracker(agent);
-        await agent.start(browser, test.url);
-        
-        // test
-        //stateTracker.getEvents().on('update', (state) => console.log(`State updated for ${test.title}:`, state));
 
-        //stateTracker.getEvents()
-        //const testStatus: 'pending' | 'running' | 'passed' | 'failed' = 'running';
+        let failed = false;
 
         stateTracker.getEvents().on('update', (agentState: AgentState) => {
             // Form combined test state
@@ -102,9 +97,31 @@ export class TestRunner {
             this.updateStateAndRender(testId, testState);
         });
 
-        let failed = false;
+        // try {
+        //     await agent.start(browser, test.url);
+        // } catch (error) {
+        //     failed = true;
+        //     this.updateStateAndRender(testId, {
+        //         status: 'failed',
+        //         failure: {
+        //             variant: 'network',
+        //             message: (error as Error).message
+        //         }
+        //     });
+        // }
+        
+        // test
+        //stateTracker.getEvents().on('update', (state) => console.log(`State updated for ${test.title}:`, state));
+
+        //stateTracker.getEvents()
+        //const testStatus: 'pending' | 'running' | 'passed' | 'failed' = 'running';
+
+        
+
+        
 
         try {
+            await agent.start(browser, test.url);
             await test.fn({ ai: agent });
         } catch (e) {
             // Either an unhandled error in agent or error in test writer custom code
@@ -135,6 +152,8 @@ export class TestRunner {
                 status: 'passed'
             });
         }
+
+        console.log("failed?", failed);
 
         // TODO: Use this state instead of existing stupid state stuff in tsx
 
@@ -184,7 +203,7 @@ export class TestRunner {
                 }
             }
         } catch (executionError) {
-            logger.error('Unhandled error during test execution loop:', executionError);
+            logger.error(executionError, 'Unhandled error during test execution loop:');
             hasErrors = true;
         } finally {
             await browser.close();

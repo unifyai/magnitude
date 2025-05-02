@@ -55,7 +55,6 @@ const TestDisplay = ({ test, state }: TestDisplayProps) => {
         // Depend on specific properties that dictate the timer's behavior.
     }, [state?.status, state?.startedAt]);
 
-
     const getStatusIndicator = () => {
         switch (state?.status) {
             case 'running':
@@ -70,10 +69,22 @@ const TestDisplay = ({ test, state }: TestDisplayProps) => {
         }
     };
 
+    // if (!state) {
+    //     return (
+    //         <Box flexDirection="column" marginLeft={2}>
+    //             <Box>
+    //                 {getStatusIndicator()}
+    //                 <Text> {test.title} </Text>
+    //             </Box>
+    //         </Box>
+    //     );
+    // }
+
     const getTimerText = () => {
         // Only show live elapsed time while running
         if (state?.status !== 'pending') {
-            return `[${formatDuration(elapsedTime)}]`;
+            const tokenInfo = state.macroUsage.inputTokens > 0 ? ` [${state.macroUsage.inputTokens} tok]` : '';
+            return `[${formatDuration(elapsedTime)}]${tokenInfo}`;
         }
         // Return empty string otherwise (no final duration shown)
         return '';
@@ -130,7 +141,7 @@ type TestGroupDisplayProps = {
 
 const TestGroupDisplay = ({ groupName, tests, filepath, testStates }: TestGroupDisplayProps) => (
     <Box flexDirection="column">
-        <Text>  [ {groupName} ]</Text>
+        <Text bold color="blueBright">  [ {groupName} ]</Text>
         <Box marginLeft={2} marginTop={1} flexDirection="column">
             {tests.map((test) => {
                 const testId = getUniqueTestId(filepath, groupName, test.title);
@@ -151,7 +162,7 @@ export const App = ({ model, tests, testStates }: AppProps) => {
             <Box flexDirection="column" borderStyle="round" paddingX={1} width={80} borderColor="grey">
                 {Object.entries(tests).map(([filepath, { ungrouped, groups }]) => (
                     <Box key={filepath} flexDirection="column" marginBottom={1}>
-                        <Text bold>☰{"  "}{filepath}</Text>
+                        <Text bold color="blueBright">☰{"  "}{filepath}</Text>
 
                         {ungrouped.length > 0 && (
                             <Box flexDirection="column" marginTop={1}>

@@ -19,9 +19,10 @@ import * as dotenv from 'dotenv';
 import { execSync } from 'child_process';
 import React from 'react';
 import { App, AllTestStates, TestState } from './app'; // Import state types
-import { getUniqueTestId, initializeTestStates } from './app/util'; // Import ID generator AND initializer
+//import { getUniqueTestId, initializeTestStates } from './app/util'; // Import ID generator AND initializer
 import { render } from 'ink';
 import { TestRunner } from './testRunner'; // Import the new executor
+import { initializeTestStates } from './app/util';
 
 interface CliOptions {
     workers?: number;
@@ -148,7 +149,7 @@ program
             // TODO: have distinct / nicer clean logs for plain output instead of just changing log level
             logLevel = 'info';
         } else {
-            logLevel = 'silent';
+            logLevel = 'warn';
         }
         coreLogger.level = logLevel;
         logger.level =logLevel;

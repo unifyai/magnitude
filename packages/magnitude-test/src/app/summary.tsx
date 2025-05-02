@@ -13,8 +13,8 @@ export const TestSummary = ({ testStates }: TestSummaryProps) => {
     const statusCounts = {
         pending: 0,
         running: 0,
-        completed: 0,
-        error: 0,
+        passed: 0,
+        failed: 0,
         total: 0,
     };
     for (const state of Object.values(testStates)) {
@@ -22,16 +22,16 @@ export const TestSummary = ({ testStates }: TestSummaryProps) => {
         switch (state.status) {
             case 'pending': statusCounts.pending++; break;
             case 'running': statusCounts.running++; break;
-            case 'completed': statusCounts.completed++; break;
-            case 'error': statusCounts.error++; break;
+            case 'passed': statusCounts.passed++; break;
+            case 'failed': statusCounts.failed++; break;
         }
     }
     // Removed useMemo wrapper
 
     return (
         <Box borderStyle="round" paddingX={1} width={80} borderColor="grey">
-            <Text color="green">✓ {statusCounts.completed} passed  </Text>
-            <Text color="red">✗ {statusCounts.error} failed  </Text>
+            <Text color="green">✓ {statusCounts.passed} passed  </Text>
+            <Text color="red">✗ {statusCounts.failed} failed  </Text>
             <Text color="blueBright">◌ {statusCounts.running} running  </Text>
             <Text color="gray">◯ {statusCounts.pending} pending</Text>
         </Box>
