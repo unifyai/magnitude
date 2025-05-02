@@ -155,7 +155,14 @@ export const TestDisplay = ({ test, state }: TestDisplayProps) => {
             'network': 'NetworkError: ',
             'misalignment': 'Misalignment: '
         }[failure.variant];
-        failureContent = <Text color="red">↳ {failurePrefix}{failure.message}</Text>;
+        failureContent = (<Box>
+            <Box>
+                <Text color="red">↳{" "}</Text>
+            </Box>
+            <Box marginLeft={1}>
+                <Text color="red">{failurePrefix}{failure.message}</Text>
+            </Box>
+        </Box>);
     }
 
     return (
