@@ -146,7 +146,7 @@ function RemoveImplicitCheckContext (screenshot: image, check: string, previousA
         {{ _.role("user")}}
 
         The history of previous actions:
-        {%if previousActions %}
+        {%if not previousActions %}
         (there are none)
         {%endif%}
         {%for action in previousActions%}
@@ -177,7 +177,7 @@ function EvaluateCheck (screenshot: image, check: string, previousActions: strin
         {{ _.role("user")}}
 
         The history of previous actions:
-        {%if previousActions %}
+        {%if not previousActions %}
         (there are none)
         {%endif%}
         {%for action in previousActions%}

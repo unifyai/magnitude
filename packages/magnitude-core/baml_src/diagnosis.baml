@@ -65,7 +65,7 @@ function ClassifyCheckFailure (screenshot: image, check: string, previousActions
         {{ _.role("user") }}
 
         The history of previous actions:
-        {%if previousActions %}
+        {%if not previousActions %}
         (there are none)
         {%endif%}
         {%for action in previousActions%}

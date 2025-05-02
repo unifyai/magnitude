@@ -125,14 +125,15 @@ export class Magnus {
         // this.state.stepsAndChecks.push(stepState);
 
         //const recipe = []
-        const stepActionIngredients: ActionIngredient[] = [];
+        //const stepActionIngredients: ActionIngredient[] = [];
+        this.lastStepActions = [];
 
         while (true) {
             const screenshot = await this.screenshot();
             const { actions, finished } = await this.macro.createPartialRecipe(
                 screenshot,
                 { description: description, checks: [], testData: {} },
-                stepActionIngredients
+                this.lastStepActions
             );
 
             // TODO: Should emit events for recipe creation
@@ -213,7 +214,7 @@ export class Magnus {
                     });
                     return;
                 }
-                stepActionIngredients.push(ingredient);
+                this.lastStepActions.push(ingredient);
 
                 const postActionScreenshot = await this.screenshot();
                 
