@@ -20,7 +20,7 @@ function getActionSymbol(variant: "load" | "click" | "hover" | "type" | "scroll"
         case "hover":
             return "◉"; // Circled bullet for hovering
         case "type":
-            return "⌨"; // Keyboard symbol
+            return "⏎"; // Keyboard symbol
         case "scroll":
             return "↕"; // Up/down arrows for scrolling
         case "wait":
@@ -145,11 +145,16 @@ export const TestDisplay = ({ test, state }: TestDisplayProps) => {
                                     <Box flexDirection='column' marginLeft={2}>
                                         {item.actions.map(action => (
                                             <Box>
-                                                <Box width={2}>
+                                                {/* <Text color="grey">{getActionSymbol(action.variant)}</Text> */}
+                                                <Box width={1} height={1}>
                                                     <Text color="grey">{getActionSymbol(action.variant)}</Text>
                                                 </Box>
+
+                                                <Box marginLeft={1}>
+                                                    <Text color="grey">{describeAction(action)}</Text>
+                                                </Box>
                                                 
-                                                <Text color="grey">{describeAction(action)}</Text>
+                                                
                                             </Box>
 
                                             
