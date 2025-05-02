@@ -4,6 +4,7 @@
 // }
 
 class BugFailureClassification {
+    reasoning string
     classification "bug"
     title string
     expectedResult string
@@ -12,6 +13,7 @@ class BugFailureClassification {
 }
 
 class MisalignmentClassification {
+    reasoning string
     classification "misalignment"
 
     fault "test" | "agent" @description(#"

@@ -143,7 +143,10 @@ program
     .action(async (filter, options: CliOptions) => {
         dotenv.config();
         let logLevel: string;
-        if (options.debug) {
+
+        if (process.env.MAGNITUDE_LOG_LEVEL) {
+            logLevel = process.env.MAGNITUDE_LOG_LEVEL;
+        } else if (options.debug) {
             logLevel = 'trace';
         } else if (options.plain) {
             // TODO: have distinct / nicer clean logs for plain output instead of just changing log level

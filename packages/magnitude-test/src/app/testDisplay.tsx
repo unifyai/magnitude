@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'; // Removed useMemo import
-import { Text, Box } from 'ink';
+import { Text, Box, Newline } from 'ink';
 import { TestRunnable } from '@/discovery/types';
 import Spinner from 'ink-spinner';
 import { formatDuration } from './util';
@@ -132,7 +132,22 @@ export const TestDisplay = ({ test, state }: TestDisplayProps) => {
         failureContent = null;
     } else if (failure.variant === 'bug') {
         // TODO: bug render
-        failureContent = <Text color="red">↳ Found bug:</Text>;
+        failureContent = (<Box>
+            <Box>
+                <Text color="red">↳{" "}</Text>
+            </Box>
+            <Box flexDirection='column' marginLeft={1}>
+                <Text>
+                    <Text color="red">Found bug: </Text><Text bold>{failure.title}</Text>
+                    <Newline/>
+                    <Text color="red">Expected: </Text><Text>{failure.expectedResult}</Text>
+                    <Newline/>
+                    <Text color="red">Actual: </Text><Text>{failure.actualResult}</Text>
+                    <Newline/>
+                    <Text color="red">Severity: </Text><Text>{failure.severity.toUpperCase()}</Text>
+                </Text>
+            </Box>
+        </Box>);
     } else {
         let failurePrefix = {
             'unknown': '',
