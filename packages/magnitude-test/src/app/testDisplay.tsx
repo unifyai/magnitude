@@ -4,12 +4,27 @@ import { TestRunnable } from '@/discovery/types';
 import Spinner from 'ink-spinner';
 import { formatDuration } from './util';
 import { TestState } from './types';
-import { describeAction } from 'magnitude-core';
+import { ActionDescriptor } from 'magnitude-core';
 
 type TestDisplayProps = {
     test: TestRunnable;
     state: TestState;
 };
+
+function describeAction(action: ActionDescriptor) {
+    switch (action.variant) {
+        case 'load':
+            return `navigated to URL: ${action.url}`;
+        case 'click':
+            return `clicked ${action.target}`;
+        case 'type':
+            return `typed "${action.content}" into ${action.target}`;
+        case 'scroll':
+            return `scrolled (${action.deltaX}, ${action.deltaY})`;
+        default:
+            throw Error(`Unhandled action variant in describeAction: ${(action as any).variant}`);
+    }
+}
 
 function getActionSymbol(variant: "load" | "click" | "hover" | "type" | "scroll" | "wait" | "back") {
     switch (variant) {
