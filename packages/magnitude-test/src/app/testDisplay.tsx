@@ -83,7 +83,7 @@ export const TestDisplay = ({ test, state }: TestDisplayProps) => {
                 return <Text color="red">✕</Text>;
             case 'pending':
             default:
-                return <Text color="gray">◯</Text>;
+                return <Text color="gray">◌</Text>;
         }
     };
 

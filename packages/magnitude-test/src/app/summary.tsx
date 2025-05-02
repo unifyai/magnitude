@@ -40,8 +40,8 @@ export const TestSummary = ({ testStates }: TestSummaryProps) => {
         <Box borderStyle="round" paddingX={1} width={80} borderColor="grey">
             <Text color="green">✓ {statusCounts.passed} passed  </Text>
             <Text color="red">✗ {statusCounts.failed} failed  </Text>
-            <Text color="blueBright">◌ {statusCounts.running} running  </Text>
-            <Text color="gray">◯ {statusCounts.pending} pending</Text>
+            <Text color="blueBright">▷ {statusCounts.running} running  </Text>
+            <Text color="gray">◌ {statusCounts.pending} pending</Text>
 
             <Spacer/>
 

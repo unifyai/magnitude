@@ -154,8 +154,6 @@ export class TestRunner {
             });
         }
 
-        console.log("failed?", failed);
-
         // TODO: Use this state instead of existing stupid state stuff in tsx
 
         // const startTime = Date.now();
