@@ -1,6 +1,6 @@
 import React from 'react';
 import logger from '@/logger';
-import { AgentStateTracker, ExecutorClient, Magnus, PlannerClient } from 'magnitude-core';
+import { AgentState, AgentStateTracker, ExecutorClient, Magnus, PlannerClient } from 'magnitude-core';
 import { CategorizedTestCases, TestRunnable } from '@/discovery/types';
 import { AllTestStates, TestState, App } from '@/app';
 import { getUniqueTestId } from '@/app/util';
@@ -88,30 +88,75 @@ export class TestRunner {
         await agent.start(browser, test.url);
         
         // test
-        stateTracker.getEvents().on('update', (state) => console.log(`State updated for ${test.title}:`, state));
+        //stateTracker.getEvents().on('update', (state) => console.log(`State updated for ${test.title}:`, state));
+
+        //stateTracker.getEvents()
+        //const testStatus: 'pending' | 'running' | 'passed' | 'failed' = 'running';
+
+        stateTracker.getEvents().on('update', (agentState: AgentState) => {
+            // Form combined test state
+            const testState = {
+                status: 'running' as ('pending' | 'running' | 'passed' | 'failed'),
+                ...agentState
+            };
+            this.updateStateAndRender(testId, testState);
+        });
+
+        let failed = false;
+
+        try {
+            await test.fn({ ai: agent });
+        } catch (e) {
+            // Either an unhandled error in agent or error in test writer custom code
+            // TODO: find a way to separate ideally - unknown for unknown agent code, custom for error in custom code
+            // add catchalls to inner funcs of agent?
+            failed = true;
+            this.updateStateAndRender(testId, {
+                status: 'failed',
+                // override the agent failure with one with the thrown message for custom code error
+                failure: {
+                    variant: 'unknown',
+                    message: (e as Error).message
+                }
+            });
+        }
+
+        if (stateTracker.getState().failure) {
+            // If agent failure, update UI with it
+            failed = true;
+            this.updateStateAndRender(testId, {
+                status: 'failed',
+                failure: stateTracker.getState().failure
+            });
+        }
+
+        if (!failed) {
+            this.updateStateAndRender(testId, {
+                status: 'passed'
+            });
+        }
 
         // TODO: Use this state instead of existing stupid state stuff in tsx
 
-        const startTime = Date.now();
-        let status: 'completed' | 'error' = 'completed';
-        let error: Error | undefined;
+        // const startTime = Date.now();
+        // let status: 'completed' | 'error' = 'completed';
+        // let error: Error | undefined;
 
-        try {
-            this.updateStateAndRender(testId, { status: 'running', startTime });
-            await test.fn({ ai: agent });
-        } catch (e) {
-            status = 'error';
-            error = e instanceof Error ? e : new Error(String(e));
-            logger.error(`Error in test ${testId}:`, error);
-        } finally {
-            this.updateStateAndRender(testId, { status, error });
-        }
+        // try {
+        //     this.updateStateAndRender(testId, { status: 'running', startTime });
+        //     await test.fn({ ai: agent });
+        // } catch (e) {
+        //     status = 'error';
+        //     error = e instanceof Error ? e : new Error(String(e));
+        //     logger.error(`Error in test ${testId}:`, error);
+        // } finally {
+        //     this.updateStateAndRender(testId, { status, error });
+        // }
 
         // Cleanup
         await agent.close();
 
-
-        return { success: status === 'completed' };
+        return { success: !failed };
     }
 
 

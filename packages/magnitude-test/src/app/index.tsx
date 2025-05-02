@@ -7,13 +7,13 @@ import { TitleBar } from './title';
 import Spinner from 'ink-spinner';
 import { getUniqueTestId, formatDuration } from './util';
 import { TestSummary } from './summary'; // Import TestSummary
+import { AgentState } from 'magnitude-core';
 
 export type TestState = {
-    status: 'pending' | 'running' | 'completed' | 'error';
-    startTime?: number;
-    // duration?: number; // Removed as requested
-    error?: Error;
-};
+    status: 'pending' | 'running' | 'passed' | 'failed';
+    //startTime?: number;
+    //error?: Error;
+} & AgentState;
 
 export type AllTestStates = Record<string, TestState>; 
 
@@ -35,8 +35,8 @@ const TestDisplay = ({ test, state }: TestDisplayProps) => {
     useEffect(() => {
         let intervalId: NodeJS.Timeout | undefined;
 
-        if (state?.status === 'running' && state.startTime) {
-            const updateElapsed = () => setElapsedTime(Date.now() - (state.startTime ?? Date.now()));
+        if (state?.status === 'running' && state.startedAt) {
+            const updateElapsed = () => setElapsedTime(Date.now() - (state.startedAt ?? Date.now()));
             intervalId = setInterval(updateElapsed, 100);
         } else {
             // Clear interval if status is not 'running'
@@ -53,16 +53,16 @@ const TestDisplay = ({ test, state }: TestDisplayProps) => {
             }
         };
         // Depend on specific properties that dictate the timer's behavior.
-    }, [state?.status, state?.startTime]);
+    }, [state?.status, state?.startedAt]);
 
 
     const getStatusIndicator = () => {
         switch (state?.status) {
             case 'running':
                 return <Spinner type="dots" />;
-            case 'completed':
+            case 'passed':
                 return <Text color="green">✓</Text>;
-            case 'error':
+            case 'failed':
                 return <Text color="red">✕</Text>;
             case 'pending':
             default:
@@ -79,6 +79,31 @@ const TestDisplay = ({ test, state }: TestDisplayProps) => {
         return '';
     };
 
+    const failure = state.failure;
+
+    let failureContent: JSX.Element | null = null;
+    if (!failure) {
+        failureContent = null;
+    } else if (failure.variant === 'bug') {
+        // TODO: bug render
+        failureContent = <Text color="red">↳ Found bug:</Text>;
+    } else {
+        let failureTitle = {
+            'unknown': 'UnexpectedError',
+            'browser': 'BrowserError',
+            'network': 'NetworkError',
+            'misalignment': 'Misalignment'
+        }[failure.variant];
+        failureContent = <Text color="red">↳ {failureTitle}: {failure.message}</Text>;
+    } 
+    
+    // else if (failure.variant === 'browser') {
+    //     failureContent = <Text color="red">↳ UNKNOWN FAILURE AHHHHH</Text>;
+    // } else if (failure.variant === ) {
+    //     failureContent = <Text color="red">↳ UNKNOWN FAILURE AHHHHH</Text>;
+    // } else if (failure.variant === 'browser') {
+    //     failureContent = <Text color="red"></Text>;
+    // }
 
     return (
         <Box flexDirection="column" marginLeft={2}>
@@ -87,9 +112,9 @@ const TestDisplay = ({ test, state }: TestDisplayProps) => {
                 <Text> {test.title} </Text>
                 <Text color="gray">{getTimerText()}</Text>
             </Box>
-            {state?.status === 'error' && state.error && (
+            {failure && (
                 <Box marginLeft={2}>
-                    <Text color="red">↳ {state.error.message}</Text>
+                    {failureContent}
                 </Box>
             )}
         </Box>

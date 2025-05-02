@@ -22,7 +22,7 @@ export interface CheckDescriptor {
 // Used to pass up to UI and render stuff, for logging, etc.
 export interface AgentState {
     startedAt?: number,
-	doneAt?: number,
+	//doneAt?: number,
     cached?: boolean,
     stepsAndChecks: (StepDescriptor | CheckDescriptor)[],
     //actionCount: number,
@@ -60,6 +60,7 @@ export class AgentStateTracker {
             macroUsage: agent.getMacro().getInfo(),
             microUsage: agent.getMicro().getInfo()
         }
+        this.agent.getEvents().on('start', this.onStart, this);
         this.agent.getEvents().on('action', this.onAction, this);
         this.agent.getEvents().on('stepStart', this.onStepStart, this);
         this.agent.getEvents().on('checkStart', this.onCheckStart, this);
@@ -73,6 +74,19 @@ export class AgentStateTracker {
 
     getEvents() {
         return this.events;
+    }
+
+    getState() {
+        return this.state;
+    }
+
+    // propagateState() {
+    //     this.events.emit('update', this.state);
+    // }
+
+    onStart() {
+        this.state.startedAt = Date.now();
+        this.events.emit('update', this.state);
     }
 
     onAction(action: ActionDescriptor) {
