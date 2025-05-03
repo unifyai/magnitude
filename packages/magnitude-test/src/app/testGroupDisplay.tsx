@@ -12,9 +12,9 @@ type TestGroupDisplayProps = {
 };
 
 export const TestGroupDisplay = ({ groupName, tests, filepath, testStates }: TestGroupDisplayProps) => (
-    <Box flexDirection="column">
-        <Text bold color="blueBright">  [ {groupName} ]</Text>
-        <Box marginLeft={2} marginTop={1} flexDirection="column">
+    <Box flexDirection="column" marginLeft={2}>
+        <Text bold color="blueBright">{groupName}</Text>
+        <Box  flexDirection="column">
             {tests.map((test) => {
                 const testId = getUniqueTestId(filepath, groupName, test.title);
                 return <TestDisplay key={testId} test={test} state={testStates[testId]} />;
