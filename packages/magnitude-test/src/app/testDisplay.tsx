@@ -141,14 +141,14 @@ export const TestDisplay = ({ test, state }: TestDisplayProps) => {
             </Box>
             {state.stepsAndChecks.length > 0 && (
                 <Box flexDirection="column" marginLeft={2}>
-                    {state.stepsAndChecks.map(item => {
+                    {state.stepsAndChecks.map((item, itemIdx) => {
                         if (item.variant === 'step') {
                             if (item.actions.length > 0) {
-                                return (<Box flexDirection='column' key={'step:'+item.description+item.status}>
+                                return (<Box flexDirection='column' key={itemIdx}>
                                     <Text>{getStepStatusIndicator(item.status)} {item.description}</Text>
                                     <Box flexDirection='column' marginLeft={2}>
-                                        {item.actions.map(action => (
-                                            <Box key={JSON.stringify(action)}>
+                                        {item.actions.map((action, actionIdx) => (
+                                            <Box key={actionIdx}>
                                                 <Box width={1} height={1}>
                                                     <Text color="grey">{getActionSymbol(action.variant)}</Text>
                                                 </Box>
@@ -161,11 +161,11 @@ export const TestDisplay = ({ test, state }: TestDisplayProps) => {
                                     </Box>
                                 </Box>);
                             } else {
-                                return <Text key={'step:'+item.description+item.status}>{getStepStatusIndicator(item.status)} {item.description}</Text>
+                                return <Text key={itemIdx}>{getStepStatusIndicator(item.status)} {item.description}</Text>
                             }
                             
                         } else {
-                            return <Text key={'check:'+item.description+item.status}>{getCheckStatusIndicator(item.status)} {item.description}</Text>
+                            return <Text key={itemIdx}>{getCheckStatusIndicator(item.status)} {item.description}</Text>
                         }
                     })}
                 </Box>

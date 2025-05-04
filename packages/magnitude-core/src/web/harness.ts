@@ -30,6 +30,10 @@ export class WebHarness {
         });
     }
 
+    getPage() {
+        return this.page;
+    }
+
     async screenshot(): Promise<{ image: string, dimensions: { width: number, height: number } }> {
         /**
          * Get b64 encoded string of screenshot (PNG) with screen dimensions

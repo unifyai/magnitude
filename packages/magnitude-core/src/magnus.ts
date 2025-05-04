@@ -1,7 +1,7 @@
 import { Screenshot, WebAction } from "@/web/types";
 import { MicroAgent } from "@/ai/micro";
 import { MacroAgent } from "@/ai/macro";
-import { Browser, BrowserContext, BrowserContextOptions } from "playwright";
+import { Browser, BrowserContext, BrowserContextOptions, Page } from "playwright";
 import { WebHarness } from "@/web/harness";
 import { TestCaseDefinition, TestCaseResult, TestRunInfo } from "@/types";
 //import { NavigationError, ActionExecutionError, ActionConversionError, TestCaseError } from "@/errors";
@@ -66,6 +66,14 @@ export class Magnus {
 
     getMicro() {
         return this.micro;
+    }
+
+    getPage(): Page {
+        return this.harness.getPage();
+    }
+
+    getContext(): BrowserContext {
+        return this.context;
     }
 
     private checkAborted() {

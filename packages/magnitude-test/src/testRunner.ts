@@ -3,10 +3,10 @@ import logger from '@/logger';
 // Import specific errors and types from magnitude-core
 import { AgentError, Magnus, AgentStateTracker } from 'magnitude-core'; // Remove OperationCancelledError, Import AgentStateTracker correctly
 import type { AgentState, ExecutorClient, PlannerClient, FailureDescriptor, MagnusOptions } from 'magnitude-core'; // Import MagnusOptions
-import { CategorizedTestCases, TestRunnable } from '@/discovery/types';
+import { CategorizedTestCases, TestFunctionContext, TestRunnable } from '@/discovery/types';
 import { AllTestStates, TestState, App } from '@/app';
 import { getUniqueTestId } from '@/app/util';
-import { Browser, BrowserContext, BrowserContextOptions, chromium, LaunchOptions } from 'playwright';
+import { Browser, BrowserContext, BrowserContextOptions, chromium, LaunchOptions, Page } from 'playwright';
 import { describeModel } from './util';
 import { WorkerPool } from './runner/workerPool';
 
@@ -121,7 +121,17 @@ export class TestRunner {
         try {
             // todo: maybe display errors for network start differently not as generic/unknown
             await agent.start(browser, test.url);
-            await test.fn({ ai: agent });
+
+            const context: TestFunctionContext = {
+                ai: agent,
+                get page(): Page {
+                    return agent.getPage();
+                },
+                get context(): BrowserContext {
+                    return agent.getContext();
+                }
+            }
+            await test.fn(context);
 
         } catch (err: unknown) {
             if (err instanceof AgentError) {
