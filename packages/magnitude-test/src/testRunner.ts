@@ -78,7 +78,7 @@ export class TestRunner {
         }
     }
 
-    private async runTest(browser: Browser, test: TestRunnable, testId: string): Promise<{ success: boolean }> {
+    private async runTest(browser: Browser, test: TestRunnable, testId: string): Promise<boolean> {
         const agent = new Magnus({
             planner: this.config.planner,
             executor: this.config.executor,
@@ -162,7 +162,7 @@ export class TestRunner {
         // Cleanup
         await agent.close();
 
-        return { success: !failed };
+        return !failed;
     }
 
 
@@ -177,19 +177,26 @@ export class TestRunner {
 
                 for (const test of ungrouped) {
                     const testId = getUniqueTestId(filepath, null, test.title);
-                    const result = await this.runTest(browser, test, testId);
-                    if (!result.success) hasErrors = true;
+                    const success = await this.runTest(browser, test, testId);
+                    if (!success) {
+                        hasErrors = true;
+                        return; // finally will still trigger
+                    }
                 }
 
                 for (const groupName of Object.keys(groups)) {
                     for (const test of groups[groupName]) {
                         const testId = getUniqueTestId(filepath, groupName, test.title);
-                        const result = await this.runTest(browser, test, testId);
-                        if (!result.success) hasErrors = true;
+                        const success = await this.runTest(browser, test, testId);
+                        if (!success) {
+                            hasErrors = true;
+                            return; // finally will still trigger
+                        }
                     }
                 }
             }
         } catch (executionError) {
+            // Shouldn't happen
             logger.error(executionError, 'Unhandled error during test execution loop:');
             hasErrors = true;
         } finally {
