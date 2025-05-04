@@ -100,11 +100,11 @@ export const TestSummary = ({ tests, testStates }: TestSummaryProps) => { // Add
                 {/* <Text color="gray">{totalInputTokens} → ← {totalOutputTokens}</Text> */}
             </Box>
 
-            {failures.length > 0 && (<Box flexDirection='column' marginTop={1}>
+            {failures.length > 0 && (<Box flexDirection='column' marginTop={1} paddingX={2}>
                 {failures.map(({ filepath, groupName, testTitle, failure }, index) => {
                     const contextString = `${filepath}${groupName ? ` > ${groupName}` : ''} > ${testTitle}`;
                     return (
-                        <Box key={index} flexDirection="column" marginTop={index > 0 ? 1 : 0}>
+                        <Box key={index} flexDirection="column" marginBottom={1}>
                             <Text dimColor>{contextString}</Text>
                             <FailureDisplay failure={failure} />
                         </Box>

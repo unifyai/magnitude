@@ -22,7 +22,7 @@ export const App = ({ model, tests, testStates }: AppProps) => {
     return (
         <Box flexDirection='column'>
             <TitleBar version={VERSION} model={model}/>
-            <Box flexDirection="column" borderStyle="round" paddingX={1} width={80} borderColor="grey">
+            <Box flexDirection="column" borderStyle="round" paddingLeft={1} paddingRight={3} width={80} borderColor="grey">
                 {Object.entries(tests).map(([filepath, { ungrouped, groups }]) => (
                     <Box key={filepath} flexDirection="column" marginBottom={1}>
                         <Text bold color="blueBright">☰{"  "}{filepath}</Text>
