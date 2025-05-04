@@ -2,12 +2,12 @@ import React from 'react';
 import logger from '@/logger';
 // Import specific errors and types from magnitude-core
 import { AgentError, TestCaseAgent, AgentStateTracker, Magnus } from 'magnitude-core'; // Remove OperationCancelledError, Import AgentStateTracker correctly
-import type { AgentState, ExecutorClient, PlannerClient, FailureDescriptor, TestCaseAgentOptions } from 'magnitude-core'; // Import MagnusOptions
+import type { AgentState, ExecutorClient, PlannerClient, FailureDescriptor, TestCaseAgentOptions, StepDescriptor } from 'magnitude-core'; // Import MagnusOptions
 import { CategorizedTestCases, TestFunctionContext, TestRunnable } from '@/discovery/types';
 import { AllTestStates, TestState, App } from '@/app';
 import { getUniqueTestId } from '@/app/util';
 import { Browser, BrowserContext, BrowserContextOptions, chromium, LaunchOptions, Page } from 'playwright';
-import { describeModel } from './util';
+import { describeModel, sendTelemetry } from './util';
 import { WorkerPool } from './runner/workerPool';
 
 type RerenderFunction = (node: React.ReactElement<any, string | React.JSXElementConstructor<any>>) => void;
@@ -196,6 +196,28 @@ export class TestRunner {
         } catch (closeErr: unknown) {
             logger.warn(`Error during agent.close for ${testId}: ${closeErr}`);
         }
+
+        // Send basic telemetry
+        const state = stateTracker.getState();
+        const numSteps = state.stepsAndChecks.filter(item => item.variant === 'step').length;
+        const numChecks = state.stepsAndChecks.filter(item => item.variant === 'check').length;
+        const actionCount = state.stepsAndChecks
+            .filter((item): item is StepDescriptor => item.variant === 'step')
+            .reduce((sum, step) => sum + step.actions.length, 0);
+
+        await sendTelemetry({
+            startedAt: state.startedAt ?? Date.now(),
+            doneAt: Date.now(),
+            macroUsage: state.macroUsage,
+            microUsage: state.microUsage,
+            cached: state.cached ?? false,
+            testCase: {
+                numChecks: numChecks,
+                numSteps: numSteps,
+            },
+            actionCount: actionCount,
+            result: state.failure ? state.failure.variant : 'passed'
+        })
 
         return !failed;
     }
