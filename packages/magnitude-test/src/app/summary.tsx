@@ -83,7 +83,7 @@ export const TestSummary = ({ tests, testStates }: TestSummaryProps) => { // Add
     const failures = failuresWithContext;
 
     return (
-        <Box flexDirection="column" borderStyle="round" paddingX={1} width={80} borderColor={failures.length > 0 ? "red" : "grey"}>
+        <Box flexDirection="column" borderStyle="round" paddingX={1} borderColor={failures.length > 0 ? "red" : "grey"}>
             <Box>
                 {statusCounts.passed > 0 && <Text color="green">✓ {statusCounts.passed} passed  </Text>}
                 {statusCounts.failed > 0 && <Text color="red">✗ {statusCounts.failed} failed  </Text>}
