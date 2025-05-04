@@ -1,6 +1,6 @@
 import { BrowserContext, BrowserContextOptions, LaunchOptions, Page } from "playwright";
 import { TestCaseBuilder } from "./testCaseBuilder";
-import type { PlannerClient, ExecutorClient, TestCaseAgent } from 'magnitude-core';
+import type { PlannerClient, ExecutorClient, TestCaseAgent, Magnus } from 'magnitude-core';
 
 export interface TestOptions {
     url?: string;
@@ -20,7 +20,7 @@ export type MagnitudeConfig = {
 }
 
 export interface TestFunctionContext {
-    ai: TestCaseAgent;
+    ai: Magnus;
     get page(): Page;
     get context(): BrowserContext;
     //page: Page;

@@ -1,7 +1,7 @@
 import React from 'react';
 import logger from '@/logger';
 // Import specific errors and types from magnitude-core
-import { AgentError, TestCaseAgent, AgentStateTracker } from 'magnitude-core'; // Remove OperationCancelledError, Import AgentStateTracker correctly
+import { AgentError, TestCaseAgent, AgentStateTracker, Magnus } from 'magnitude-core'; // Remove OperationCancelledError, Import AgentStateTracker correctly
 import type { AgentState, ExecutorClient, PlannerClient, FailureDescriptor, TestCaseAgentOptions } from 'magnitude-core'; // Import MagnusOptions
 import { CategorizedTestCases, TestFunctionContext, TestRunnable } from '@/discovery/types';
 import { AllTestStates, TestState, App } from '@/app';
@@ -123,7 +123,7 @@ export class TestRunner {
             await agent.start(browser, test.url);
 
             const context: TestFunctionContext = {
-                ai: agent,
+                ai: new Magnus(agent),
                 get page(): Page {
                     return agent.getPage();
                 },

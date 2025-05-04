@@ -1,5 +1,5 @@
 import { ClickWebAction, NavigateWebAction, ScrollWebAction, TypeWebAction } from "@/web/types";
-import { ClickIntent, TypeIntent } from "@/recipe/types";
+import { ClickIntent, TypeIntent } from "@/intents/types";
 import { ScrollIngredient } from "@/ai/baml_client";
 
 export type ActionVariant = 'load' | 'click' | 'hover' | 'type' | 'scroll' | 'wait' | 'back';

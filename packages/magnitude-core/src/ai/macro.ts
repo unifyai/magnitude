@@ -2,7 +2,7 @@ import { Screenshot } from "@/web/types";
 import { convertToBamlClientOptions, downscaleScreenshot } from "./util";
 import { b } from "@/ai/baml_client";
 import { Image, Collector, ClientRegistry } from "@boundaryml/baml";
-import { ActionIntent, Intent } from "@/recipe/types";
+import { ActionIntent, Intent } from "@/intents/types";
 import { TestStepDefinition } from "@/types";
 import { BamlAsyncClient } from "./baml_client/async_client";
 import logger from "@/logger";

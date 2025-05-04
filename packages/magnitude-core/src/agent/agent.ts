@@ -4,13 +4,13 @@ import { MacroAgent } from "@/ai/macro";
 import { Browser, BrowserContext, BrowserContextOptions, Page } from "playwright";
 import { WebHarness } from "@/web/harness";
 import { StepOptions } from "@/types";
-import { AgentEvents } from "./common/events";
-import logger from './logger';
-import { ActionIntent } from "./recipe/types";
+import { AgentEvents } from "../common/events";
+import logger from '../logger';
+import { ActionIntent } from "../intents/types";
 import { PlannerClient, ExecutorClient } from "@/ai/types";
 import EventEmitter from "eventemitter3";
 import { AgentError } from "./errors";
-import { convertOptionsToTestData, FailureDescriptor } from "./common";
+import { convertOptionsToTestData, FailureDescriptor } from "../common";
 
 export interface TestCaseAgentOptions {
     planner: PlannerClient,

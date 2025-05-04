@@ -1,4 +1,4 @@
-import { FailureDescriptor } from "./common";
+import { FailureDescriptor } from "../common";
 
 export class AgentError extends Error {
     public readonly failure: FailureDescriptor;

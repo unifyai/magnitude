@@ -1,6 +1,6 @@
 import { FailureDescriptor } from "./common";
 //import { TestCaseError } from "./errors";
-import { Intent } from "./recipe/types";
+import { Intent } from "./intents/types";
 
 export interface TestDataEntry {
     key: string;

@@ -1,9 +1,9 @@
 // Just a bunch of information about a test case agent that is running / has run some test case.
 
 import EventEmitter from "eventemitter3"
-import { ActionDescriptor, FailureDescriptor } from "./common"
+import { ActionDescriptor, FailureDescriptor } from "../common"
 import { TestCaseAgent } from "./agent"
-import { TestCaseResult } from "./types"
+import { TestCaseResult } from "../types"
 
 
 export interface StepDescriptor {
