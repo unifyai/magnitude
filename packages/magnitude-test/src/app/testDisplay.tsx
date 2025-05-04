@@ -89,7 +89,7 @@ export const TestDisplay = ({ test, state }: TestDisplayProps) => {
         }
     };
 
-    const getStepStatusIndicator = (status: 'running' | 'passed' | 'failed' | 'pending') => {
+    const getStepStatusIndicator = (status: 'running' | 'passed' | 'failed' | 'pending' | 'cancelled') => {
         switch (status) {
             case 'running':
                 return <Text color="grey">{'>'}</Text>;//<Spinner type="layer" />;
@@ -97,13 +97,15 @@ export const TestDisplay = ({ test, state }: TestDisplayProps) => {
                 return <Text color="blueBright">⚑</Text>;
             case 'failed':
                 return <Text color="red">✕</Text>;
+            case 'cancelled':
+                return <Text color="gray">⊘</Text>;
             case 'pending':
             default:
                 return <Text color="gray">•</Text>;
         }
     };
 
-    const getCheckStatusIndicator = (status: 'running' | 'passed' | 'failed' | 'pending') => {
+    const getCheckStatusIndicator = (status: 'running' | 'passed' | 'failed' | 'pending' | 'cancelled') => {
         switch (status) {
             case 'running':
                 return <Text color="grey">?</Text>; //<Spinner type="layer" />;//<Text>?</Text>;//<Spinner type="toggle10" />;
@@ -111,6 +113,8 @@ export const TestDisplay = ({ test, state }: TestDisplayProps) => {
                 return <Text color="blueBright">✓</Text>;
             case 'failed':
                 return <Text color="red">✕</Text>;
+            case 'cancelled':
+                return <Text color="gray">⊘</Text>;
             case 'pending':
             default:
                 return <Text color="gray">•</Text>;

@@ -10,13 +10,13 @@ export interface StepDescriptor {
     variant: 'step',
     description: string,
     actions: ActionDescriptor[]
-    status: 'pending' | 'running' | 'passed' | 'failed'
+    status: 'pending' | 'running' | 'passed' | 'failed' | 'cancelled'
 }
 
 export interface CheckDescriptor {
     variant: 'check',
     description: string,
-    status: 'pending' | 'running' | 'passed' | 'failed'
+    status: 'pending' | 'running' | 'passed' | 'failed' | 'cancelled'
 }
 
 // Used to pass up to UI and render stuff, for logging, etc.
@@ -148,7 +148,11 @@ export class AgentStateTracker {
         //     throw new Error('Failure reported without preceding step or check');
         // }
         if (this.lastStepOrCheck) {
-            this.lastStepOrCheck.status = 'failed';
+            if (failure.variant === 'cancelled') {
+                this.lastStepOrCheck.status = 'cancelled';
+            } else {
+                this.lastStepOrCheck.status = 'failed';
+            }
         }
         this.state.failure = failure;
         this.events.emit('update', this.state);
