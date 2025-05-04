@@ -5,12 +5,13 @@
  * - Check did not pass
  * - Could not navigate to starting URL
  * - Time or action based timeout
+ * - Operation cancelled by signal
  * - ...
  */
 // export interface FailureDescriptor {
 //     description: string
 // }
-export type FailureDescriptor = BugDetectedFailure | MisalignmentFailure | NetworkFailure | BrowserFailure | UnknownFailure;
+export type FailureDescriptor = BugDetectedFailure | MisalignmentFailure | NetworkFailure | BrowserFailure | UnknownFailure | CancelledFailure; // Add CancelledFailure
 
 export type BugSeverity = 'critical' | 'high' | 'medium' | 'low';
 
@@ -66,3 +67,9 @@ export interface UnknownFailure {
     message: string
 }
 
+export interface CancelledFailure {
+    /**
+     * Operation was cancelled, typically by an AbortSignal from a controlling process (e.g., test runner pool).
+     */
+    variant: 'cancelled'
+}

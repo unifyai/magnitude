@@ -73,7 +73,7 @@ export const TestDisplay = ({ test, state }: TestDisplayProps) => {
         // Depend on specific properties that dictate the timer's behavior.
     }, [state?.status, state?.startedAt]);
 
-    const getTestStatusIndicator = (status: 'running' | 'passed' | 'failed' | 'pending') => {
+    const getTestStatusIndicator = (status: 'running' | 'passed' | 'failed' | 'pending' | 'cancelled') => {
         switch (status) {
             case 'running':
                 return <Spinner type="dots" />;
@@ -81,6 +81,8 @@ export const TestDisplay = ({ test, state }: TestDisplayProps) => {
                 return <Text color="green">✓</Text>;
             case 'failed':
                 return <Text color="red">✕</Text>;
+            case 'cancelled':
+                return <Text color="gray">⊘</Text>;
             case 'pending':
             default:
                 return <Text color="gray">◌</Text>;
@@ -146,6 +148,15 @@ export const TestDisplay = ({ test, state }: TestDisplayProps) => {
                     <Newline/>
                     <Text color="red">Severity: </Text><Text>{failure.severity.toUpperCase()}</Text>
                 </Text>
+            </Box>
+        </Box>);
+    } else if (failure.variant === 'cancelled') {
+        failureContent = (<Box>
+            <Box>
+                <Text color="grey">↳{" "}</Text>
+            </Box>
+            <Box marginLeft={1}>
+                <Text color="grey">Cancelled</Text>
             </Box>
         </Box>);
     } else {

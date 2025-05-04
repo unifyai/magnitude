@@ -1,12 +1,14 @@
 import React from 'react';
 import logger from '@/logger';
-import { AgentError, AgentState, AgentStateTracker, ExecutorClient, Magnus, PlannerClient } from 'magnitude-core';
+// Import specific errors and types from magnitude-core
+import { AgentError, Magnus, AgentStateTracker } from 'magnitude-core'; // Remove OperationCancelledError, Import AgentStateTracker correctly
+import type { AgentState, ExecutorClient, PlannerClient, FailureDescriptor, MagnusOptions } from 'magnitude-core'; // Import MagnusOptions
 import { CategorizedTestCases, TestRunnable } from '@/discovery/types';
 import { AllTestStates, TestState, App } from '@/app';
 import { getUniqueTestId } from '@/app/util';
-import { MagnitudeConfig } from '@/discovery/types';
-import { Browser, BrowserContextOptions, chromium, LaunchOptions } from 'playwright';
+import { Browser, BrowserContext, BrowserContextOptions, chromium, LaunchOptions } from 'playwright';
 import { describeModel } from './util';
+import { WorkerPool } from './runner/workerPool';
 
 type RerenderFunction = (node: React.ReactElement<any, string | React.JSXElementConstructor<any>>) => void;
 
@@ -34,7 +36,6 @@ export class TestRunner {
     private testStates: AllTestStates;
     private rerender: RerenderFunction;
     private unmount: () => void;
-    //private config: Required<MagnitudeConfig>;
 
     constructor(
         config: Required<TestRunnerConfig>,
@@ -78,11 +79,30 @@ export class TestRunner {
         }
     }
 
-    private async runTest(browser: Browser, test: TestRunnable, testId: string): Promise<boolean> {
+    /**
+     * Runs a single test case.
+     * @param context The Playwright BrowserContext to use for this test.
+     * @param test The test runnable definition.
+     * @param testId The unique ID for this test run.
+     * @param browser The Playwright Browser instance.
+     * @param test The test runnable definition.
+     * @param testId The unique ID for this test run.
+     * @param signal The AbortSignal to monitor for cancellation requests.
+     * @returns Promise<boolean> True if the test passed or was cancelled cleanly, false if it failed.
+     */
+    private async runTest(browser: Browser, test: TestRunnable, testId: string, signal: AbortSignal): Promise<boolean> {
+        // --- Cancellation Check ---
+        if (signal.aborted) {
+            this.updateStateAndRender(testId, { status: 'cancelled', failure: { variant: 'cancelled' } });
+            logger.debug(`Test ${testId} cancelled before starting.`);
+            return true; // Cancelled cleanly is not a failure
+        }
+
         const agent = new Magnus({
             planner: this.config.planner,
             executor: this.config.executor,
-            browserContextOptions: this.config.browserContextOptions
+            browserContextOptions: this.config.browserContextOptions,
+            signal
         });
         const stateTracker = new AgentStateTracker(agent);
 
@@ -97,34 +117,37 @@ export class TestRunner {
             this.updateStateAndRender(testId, testState);
         });
 
+
         try {
             // todo: maybe display errors for network start differently not as generic/unknown
             await agent.start(browser, test.url);
             await test.fn({ ai: agent });
-        } catch (err) {
-            // Either an unhandled error in agent or error in test writer custom code
-            // TODO: find a way to separate ideally - unknown for unknown agent code, custom for error in custom code
-            // add catchalls to inner funcs of agent?
-            failed = true;
 
+        } catch (err: unknown) {
             if (err instanceof AgentError) {
-                this.updateStateAndRender(testId, {
-                    status: 'failed',
-                    failure: err.failure
-                })
+                if (err.failure.variant === 'cancelled') {
+                    // Operation was cancelled by the signal via AgentError
+                    logger.debug(`Test ${testId} cancelled during agent operation`);
+                    this.updateStateAndRender(testId, { status: 'cancelled', failure: { variant: 'cancelled' }});
+                    return true;
+                } else {
+                    failed = true;
+                    this.updateStateAndRender(testId, {
+                        status: 'failed',
+                        failure: err.failure
+                    });
+                }
             } else {
-                // generic / unknown error
+                failed = true;
                 this.updateStateAndRender(testId, {
                     status: 'failed',
-                    // override the agent failure with one with the thrown message for custom code error
                     failure: {
                         variant: 'unknown',
-                        message: (err as Error).message
+                        // Safely access message after checking if err is an Error instance
+                        message: err instanceof Error ? err.message : String(err)
                     }
                 });
             }
-
-            
         }
 
         if (stateTracker.getState().failure) {
@@ -142,7 +165,6 @@ export class TestRunner {
             });
         }
 
-        // TODO: Use this state instead of existing stupid state stuff in tsx
 
         // const startTime = Date.now();
         // let status: 'completed' | 'error' = 'completed';
@@ -159,8 +181,11 @@ export class TestRunner {
         //     this.updateStateAndRender(testId, { status, error });
         // }
 
-        // Cleanup
-        await agent.close();
+        try {
+            await agent.close();
+        } catch (closeErr: unknown) {
+            logger.warn(`Error during agent.close for ${testId}: ${closeErr}`);
+        }
 
         return !failed;
     }
@@ -168,42 +193,63 @@ export class TestRunner {
 
     async runTests(): Promise<void> {
         const browser = await chromium.launch({ headless: false, args: ['--disable-gpu'], ...this.config.browserLaunchOptions });
-        
-        let hasErrors = false;
+        const workerPool = new WorkerPool(this.config.workerCount);
 
-        try {
-            for (const filepath of Object.keys(this.tests)) {
-                const { ungrouped, groups } = this.tests[filepath];
+        const allTestItems: { test: TestRunnable; testId: string; index: number }[] = [];
+        let currentIndex = 0;
+        for (const filepath of Object.keys(this.tests)) {
+            const { ungrouped, groups } = this.tests[filepath];
+            ungrouped.forEach(test => {
+                allTestItems.push({ test, testId: getUniqueTestId(filepath, null, test.title), index: currentIndex++ });
+            });
+            Object.keys(groups).forEach(groupName => {
+                groups[groupName].forEach(test => {
+                    allTestItems.push({ test, testId: getUniqueTestId(filepath, groupName, test.title), index: currentIndex++ });
+                });
+            });
+        }
 
-                for (const test of ungrouped) {
-                    const testId = getUniqueTestId(filepath, null, test.title);
-                    const success = await this.runTest(browser, test, testId);
-                    if (!success) {
-                        hasErrors = true;
-                        return; // finally will still trigger
-                    }
+        const taskFunctions = allTestItems.map(({ test, testId }) => {
+            return async (signal: AbortSignal): Promise<boolean> => {
+                try {
+                    const success = await this.runTest(browser, test, testId, signal);
+                    return success;
+                } catch (err: unknown) {
+                    logger.error(`Unhandled error during task execution wrapper for ${testId}:`, err);
+                    this.updateStateAndRender(testId, { status: 'failed', failure: { variant: 'unknown', message: `${err instanceof Error ? err.message : String(err)}` } });
+                    return false;
                 }
+            };
+        });
 
-                for (const groupName of Object.keys(groups)) {
-                    for (const test of groups[groupName]) {
-                        const testId = getUniqueTestId(filepath, groupName, test.title);
-                        const success = await this.runTest(browser, test, testId);
-                        if (!success) {
-                            hasErrors = true;
-                            return; // finally will still trigger
+        let poolResult: { completed: boolean; results: (boolean | undefined)[] } = {
+             completed: false,
+             results: [],
+        };
+        try {
+            poolResult = await workerPool.runTasks<boolean>(taskFunctions, (result) => result === false);
+
+            if (!poolResult.completed) {
+                logger.info(`Test run aborted early due to failure.`);
+                poolResult.results.forEach((result, index) => {
+                    if (result === undefined) {
+                        const { testId } = allTestItems[index];
+                        if (this.testStates[testId]?.status !== 'failed') {
+                             this.updateStateAndRender(testId, { status: 'cancelled' });
+                             logger.debug(`Test ${testId} marked as cancelled post-run due to abort.`);
                         }
                     }
-                }
+                });
             }
-        } catch (executionError) {
-            // Shouldn't happen
-            logger.error(executionError, 'Unhandled error during test execution loop:');
-            hasErrors = true;
+
+        } catch (poolError: unknown) {
+            logger.error(poolError, 'Unhandled error during worker pool execution:');
+            poolResult = { completed: false, results: [] };
         } finally {
             await browser.close();
             process.stdout.write('\x1B[?25h');
             this.unmount();
-            process.exit(hasErrors ? 1 : 0);
+            process.exit(poolResult.completed ? 0 : 1);
         }
     }
 }

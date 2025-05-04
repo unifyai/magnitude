@@ -21,6 +21,7 @@ export const TestSummary = ({ testStates }: TestSummaryProps) => {
         running: 0,
         passed: 0,
         failed: 0,
+        cancelled: 0,
         total: 0,
     };
     for (const state of Object.values(testStates)) {
@@ -30,6 +31,7 @@ export const TestSummary = ({ testStates }: TestSummaryProps) => {
             case 'running': statusCounts.running++; break;
             case 'passed': statusCounts.passed++; break;
             case 'failed': statusCounts.failed++; break;
+            case 'cancelled': statusCounts.cancelled++; break;
         }
         totalInputTokens += state.macroUsage.inputTokens;
         totalOutputTokens += state.macroUsage.outputTokens;
@@ -38,14 +40,16 @@ export const TestSummary = ({ testStates }: TestSummaryProps) => {
 
     return (
         <Box borderStyle="round" paddingX={1} width={80} borderColor="grey">
-            <Text color="green">✓ {statusCounts.passed} passed  </Text>
-            <Text color="red">✗ {statusCounts.failed} failed  </Text>
-            <Text color="blueBright">▷ {statusCounts.running} running  </Text>
-            <Text color="gray">◌ {statusCounts.pending} pending</Text>
+            {statusCounts.passed > 0 && <Text color="green">✓ {statusCounts.passed} passed  </Text>}
+            {statusCounts.failed > 0 && <Text color="red">✗ {statusCounts.failed} failed  </Text>}
+            {statusCounts.running > 0 && <Text color="blueBright">▷ {statusCounts.running} running  </Text>}
+            {statusCounts.pending > 0 && <Text color="gray">◌ {statusCounts.pending} pending  </Text>}
+            {statusCounts.cancelled > 0 && <Text color="gray">⊘ {statusCounts.cancelled} cancelled  </Text>}
 
             <Spacer/>
 
             <Text color="gray">tokens: {totalInputTokens} in, {totalOutputTokens} out</Text> 
+
             {/* <Text color="gray">⇥ {totalInputTokens}  ∴ {totalOutputTokens}</Text> */}
             {/* <Text color="gray">⎆ {totalInputTokens}  ⎏ {totalOutputTokens}</Text> */}
             {/* <Text color="gray">{totalInputTokens} → ← {totalOutputTokens}</Text> */}

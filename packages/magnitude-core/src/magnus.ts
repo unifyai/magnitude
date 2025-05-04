@@ -16,10 +16,11 @@ import { AgentState, StepDescriptor } from "./state";
 import { AgentError } from "./errors";
 import { FailureDescriptor } from "./common";
 
-interface TestCaseAgentConfig {
+export interface MagnusOptions {
     planner: PlannerClient,
     executor: ExecutorClient
-    browserContextOptions: BrowserContextOptions
+    browserContextOptions: BrowserContextOptions,
+    signal?: AbortSignal // Add optional AbortSignal
 }
 
 const DEFAULT_CONFIG = {
@@ -27,7 +28,8 @@ const DEFAULT_CONFIG = {
 }
 
 export class Magnus {
-    private config: TestCaseAgentConfig;
+    private config: MagnusOptions;
+    private abortSignal?: AbortSignal;
     private macro: MacroAgent;
     private micro: MicroAgent;
     private harness!: WebHarness;
@@ -40,11 +42,12 @@ export class Magnus {
 
     // private lastStep: {
     //     screenshot: Screenshot;
-        
+
     // }
-    
-    constructor (config: TestCaseAgentConfig)  {
+
+    constructor (config: MagnusOptions)  {
         this.config = { ...DEFAULT_CONFIG, ...config };
+        this.abortSignal = config.signal;
         this.macro = new MacroAgent({ client: this.config.planner });
         this.micro = new MicroAgent({ client: this.config.executor });
         //this.info = { actionCount: 0 };
@@ -64,8 +67,17 @@ export class Magnus {
     getMicro() {
         return this.micro;
     }
-    
+
+    private checkAborted() {
+        if (this.abortSignal?.aborted) {
+            this.fail({
+                variant: 'cancelled'
+            });
+        }
+    }
+
     async start(browser: Browser, startingUrl: string) {
+        this.checkAborted();
         // this.state = {
         //     startedAt: Date.now(), // should this be later?
         //     cached: false,
@@ -93,11 +105,11 @@ export class Magnus {
         const page = await this.context.newPage();
         this.harness = new WebHarness(page);
 
-        
-
+        this.checkAborted();
         this.events.emit('start');
         logger.info("Agent started");
 
+        this.checkAborted();
         await this.harness.goto(startingUrl);
         //const screenshot = await this.screenshot();
         // Synthetic load action
@@ -108,6 +120,7 @@ export class Magnus {
     }
 
     async screenshot(): Promise<Screenshot> {
+        this.checkAborted();
         const screenshot = await this.harness.screenshot();
         this.lastScreenshot = screenshot;
         return screenshot;
@@ -119,6 +132,7 @@ export class Magnus {
     }
 
     async step(description: string): Promise<void> {
+        this.checkAborted();
         logger.info(`Begin Step: ${description}`);
 
         this.events.emit('stepStart', description);
@@ -127,7 +141,9 @@ export class Magnus {
         this.lastStepActions = [];
 
         while (true) {
+            this.checkAborted();
             const screenshot = await this.screenshot();
+            this.checkAborted();
             const { actions, finished } = await this.macro.createPartialRecipe(
                 screenshot,
                 { description: description, checks: [], testData: {} },
@@ -141,17 +157,19 @@ export class Magnus {
 
             // Execute partial recipe
             for (const ingredient of actions) {
-                const screenshot = await this.harness.screenshot();
+                this.checkAborted();
+                const screenshot = await this.harness.screenshot(); // Already checks signal
                 let action: WebAction;
                 // TODO: Handle conversion parsing/confidence failures
                 try {
                     // does catch make sense here? essentially indicates very low confidence
                     // bad cases either 1. action with low confidence
                     // 2. no action (target not identified at all)
-                    
+
+                    this.checkAborted();
                     action = await this.micro.convertAction(screenshot, ingredient);
                     logger.info({ ingredient, action }, `Converted action`);
-                } catch(error) {
+                } catch(error: unknown) {
                     logger.error(`Error converting action: ${error}`);
                     /**
                      * When an action cannot convert, currently always because a target could not be found by micro model.
@@ -187,6 +205,7 @@ export class Magnus {
                 //console.log('Action:', action);
 
                 try {
+                    this.checkAborted();
                     await this.harness.executeAction(action);
                     //this.info.actionCount!++;
                     //this.config.onActionTaken(ingredient, action);
@@ -210,8 +229,8 @@ export class Magnus {
                 }
                 this.lastStepActions.push(ingredient);
 
-                const postActionScreenshot = await this.screenshot();
-                
+                const postActionScreenshot = await this.screenshot(); // Already checks signal
+
                 const actionDescriptor = { ...ingredient, ...action, screenshot: postActionScreenshot.image };
                 //stepState.actions.push(actionDescriptor);
                 this.events.emit('action', actionDescriptor);
@@ -230,15 +249,17 @@ export class Magnus {
     }
 
     async check(description: string): Promise<void> {
+        this.checkAborted();
         logger.info(`check: ${description}`);
 
         this.events.emit('checkStart', description);
 
 
         if (!this.lastScreenshot) {
-            this.lastScreenshot = await this.screenshot();
+            this.lastScreenshot = await this.screenshot(); // Already checks signal
         }
 
+        this.checkAborted();
         const result = await this.macro.evaluateCheck(
             this.lastScreenshot,
             description,
@@ -280,6 +301,7 @@ export class Magnus {
              */
             // TODO: adjust plan for minor misalignments
             // - should only actually fail if it's (1) a bug or (2) a test case misalignment that cannot be treated by recipe adjustment
+            this.checkAborted();
             const failure = await this.macro.classifyCheckFailure(
                 this.lastScreenshot,
                 description,
@@ -291,6 +313,12 @@ export class Magnus {
     }
 
     async close() {
-        await this.context.close();
+        if (this.context) {
+            try {
+                await this.context.close();
+            } catch (error) {
+                 logger.warn(`Error closing browser context (might be expected if cancelled): ${error}`);
+            }
+        }
     }
 }

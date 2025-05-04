@@ -3,6 +3,7 @@ import { setLogLevel } from '@/ai/baml_client/config';
 
 export { TestCaseAgent };
 export { Magnus } from "@/magnus";
+export type { MagnusOptions } from "@/magnus";
 export * from "@/errors";
 export * from "@/state";
 export * from "@/types";
