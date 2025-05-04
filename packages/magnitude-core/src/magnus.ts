@@ -3,7 +3,7 @@ import { MicroAgent } from "@/ai/micro";
 import { MacroAgent } from "@/ai/macro";
 import { Browser, BrowserContext, BrowserContextOptions, Page } from "playwright";
 import { WebHarness } from "@/web/harness";
-import { TestCaseDefinition, TestCaseResult, TestRunInfo } from "@/types";
+import { StepOptions, TestCaseDefinition, TestCaseResult, TestRunInfo } from "@/types";
 //import { NavigationError, ActionExecutionError, ActionConversionError, TestCaseError } from "@/errors";
 import { CheckIngredient } from "./ai/baml_client";
 import { AgentEvents, TestAgentListener } from "./common/events";
@@ -14,7 +14,7 @@ import { PlannerClient, ExecutorClient } from "@/ai/types";
 import EventEmitter from "eventemitter3";
 import { AgentState, StepDescriptor } from "./state";
 import { AgentError } from "./errors";
-import { FailureDescriptor } from "./common";
+import { convertOptionsToTestData, FailureDescriptor } from "./common";
 
 export interface MagnusOptions {
     planner: PlannerClient,
@@ -139,9 +139,11 @@ export class Magnus {
         throw new AgentError(failure);
     }
 
-    async step(description: string): Promise<void> {
+    async step(description: string, options: StepOptions = {}): Promise<void> {
         this.checkAborted();
         logger.info(`Begin Step: ${description}`);
+
+        const testData = convertOptionsToTestData(options);
 
         this.events.emit('stepStart', description);
         //const recipe = []
@@ -154,7 +156,7 @@ export class Magnus {
             this.checkAborted();
             const { actions, finished } = await this.macro.createPartialRecipe(
                 screenshot,
-                { description: description, checks: [], testData: {} },
+                { description: description, checks: [], testData: testData },
                 this.lastStepActions
             );
 

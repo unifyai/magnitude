@@ -79,3 +79,7 @@ export interface TestRunInfo {
 	},
 	result: string//'passed' | 'bug' | 'misalignment'
 };
+
+export interface StepOptions {
+	data?: string | Record<string, string>
+}
