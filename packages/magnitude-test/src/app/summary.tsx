@@ -1,6 +1,8 @@
-import React from 'react'; // Removed useMemo import
+import React from 'react';
 import { Text, Box, Spacer } from 'ink';
-import { AllTestStates } from './types'; // Import type from index.tsx
+import { AllTestStates } from './types';
+import { FailureDescriptor } from '../../../magnitude-core/src/common/failure'; // Import FailureDescriptor
+import { FailureDisplay } from './failureDisplay'; // Import FailureDisplay
 
 type TestSummaryProps = {
     testStates: AllTestStates;
@@ -10,9 +12,6 @@ type TestSummaryProps = {
 // If we get an error, render a red box describing the failure instead (e.g. bug report or other error)
 export const TestSummary = ({ testStates }: TestSummaryProps) => {
     // Calculate counts directly on each render
-    // TODO: show any failures in red box at bottom
-    // TODO: show total token usage and cost
-
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
 
@@ -36,23 +35,38 @@ export const TestSummary = ({ testStates }: TestSummaryProps) => {
         totalInputTokens += state.macroUsage.inputTokens;
         totalOutputTokens += state.macroUsage.outputTokens;
     }
-    // Removed useMemo wrapper
+
+    // Collect all failures
+    const failures: FailureDescriptor[] = Object.values(testStates)
+        .map(state => state.failure)// as FailureDescriptor | undefined | null) // Cast for type safety
+        .filter((failure) => failure && failure.variant !== 'cancelled') as FailureDescriptor[];
+        //.filter((failure): failure is FailureDescriptor => failure !== undefined && failure !== null);
 
     return (
-        <Box borderStyle="round" paddingX={1} width={80} borderColor="grey">
-            {statusCounts.passed > 0 && <Text color="green">✓ {statusCounts.passed} passed  </Text>}
-            {statusCounts.failed > 0 && <Text color="red">✗ {statusCounts.failed} failed  </Text>}
-            {statusCounts.running > 0 && <Text color="blueBright">▷ {statusCounts.running} running  </Text>}
-            {statusCounts.pending > 0 && <Text color="gray">◌ {statusCounts.pending} pending  </Text>}
-            {statusCounts.cancelled > 0 && <Text color="gray">⊘ {statusCounts.cancelled} cancelled  </Text>}
+        <Box flexDirection="column" borderStyle="round" paddingX={1} width={80} borderColor={failures.length > 0 ? "red" : "grey"}>
+            <Box>
+                {statusCounts.passed > 0 && <Text color="green">✓ {statusCounts.passed} passed  </Text>}
+                {statusCounts.failed > 0 && <Text color="red">✗ {statusCounts.failed} failed  </Text>}
+                {statusCounts.running > 0 && <Text color="blueBright">▷ {statusCounts.running} running  </Text>}
+                {statusCounts.pending > 0 && <Text color="gray">◌ {statusCounts.pending} pending  </Text>}
+                {statusCounts.cancelled > 0 && <Text color="gray">⊘ {statusCounts.cancelled} cancelled  </Text>}
 
-            <Spacer/>
+                <Spacer/>
 
-            <Text color="gray">tokens: {totalInputTokens} in, {totalOutputTokens} out</Text> 
+                <Text color="gray">tokens: {totalInputTokens} in, {totalOutputTokens} out</Text> 
 
-            {/* <Text color="gray">⇥ {totalInputTokens}  ∴ {totalOutputTokens}</Text> */}
-            {/* <Text color="gray">⎆ {totalInputTokens}  ⎏ {totalOutputTokens}</Text> */}
-            {/* <Text color="gray">{totalInputTokens} → ← {totalOutputTokens}</Text> */}
+                {/* <Text color="gray">⇥ {totalInputTokens}  ∴ {totalOutputTokens}</Text> */}
+                {/* <Text color="gray">⎆ {totalInputTokens}  ⎏ {totalOutputTokens}</Text> */}
+                {/* <Text color="gray">{totalInputTokens} → ← {totalOutputTokens}</Text> */}
+            </Box>
+
+            {failures.length > 0 && (<Box flexDirection='column' marginTop={1}>
+                {failures.map((failure, index) => (
+                    <Box key={index}>
+                        <FailureDisplay failure={failure} />
+                    </Box>
+                ))}
+            </Box>)}
         </Box>
     );
 };

@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'; // Removed useMemo import
-import { Text, Box, Newline } from 'ink';
+import { useState, useEffect } from 'react';
+import { Text, Box } from 'ink';
 import { TestRunnable } from '@/discovery/types';
 import Spinner from 'ink-spinner';
 import { formatDuration } from './util';
 import { TestState } from './types';
-import { ActionDescriptor } from 'magnitude-core';
+import { FailureDescriptor, ActionDescriptor } from 'magnitude-core';
+import { FailureDisplay } from './failureDisplay';
 
 type TestDisplayProps = {
     test: TestRunnable;
@@ -131,55 +132,6 @@ export const TestDisplay = ({ test, state }: TestDisplayProps) => {
         return '';
     };
 
-    const failure = state.failure;
-
-    let failureContent: JSX.Element | null = null;
-    if (!failure) {
-        failureContent = null;
-    } else if (failure.variant === 'bug') {
-        // TODO: bug render
-        failureContent = (<Box>
-            <Box>
-                <Text color="red">↳{" "}</Text>
-            </Box>
-            <Box flexDirection='column' marginLeft={1}>
-                <Text>
-                    <Text color="red">Found bug: </Text><Text bold>{failure.title}</Text>
-                    <Newline/>
-                    <Text color="red">Expected: </Text><Text>{failure.expectedResult}</Text>
-                    <Newline/>
-                    <Text color="red">Actual: </Text><Text>{failure.actualResult}</Text>
-                    <Newline/>
-                    <Text color="red">Severity: </Text><Text>{failure.severity.toUpperCase()}</Text>
-                </Text>
-            </Box>
-        </Box>);
-    } else if (failure.variant === 'cancelled') {
-        failureContent = (<Box>
-            <Box>
-                <Text color="grey">↳{" "}</Text>
-            </Box>
-            <Box marginLeft={1}>
-                <Text color="grey">Cancelled</Text>
-            </Box>
-        </Box>);
-    } else {
-        let failurePrefix = {
-            'unknown': '',
-            'browser': 'BrowserError: ',
-            'network': 'NetworkError: ',
-            'misalignment': 'Misalignment: '
-        }[failure.variant];
-        failureContent = (<Box>
-            <Box>
-                <Text color="red">↳{" "}</Text>
-            </Box>
-            <Box marginLeft={1}>
-                <Text color="red">{failurePrefix}{failure.message}</Text>
-            </Box>
-        </Box>);
-    }
-
     return (
         <Box flexDirection="column" marginLeft={2}>
             <Box>
@@ -218,12 +170,11 @@ export const TestDisplay = ({ test, state }: TestDisplayProps) => {
                     })}
                 </Box>
             )}
-            {failure && (
+            {state.failure && (
                 <Box marginLeft={2}>
-                    {failureContent}
+                    <FailureDisplay failure={state.failure} />
                 </Box>
             )}
         </Box>
     );
 };
-
