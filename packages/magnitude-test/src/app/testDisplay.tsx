@@ -125,8 +125,9 @@ export const TestDisplay = ({ test, state }: TestDisplayProps) => {
     const getTimerText = () => {
         // Only show live elapsed time while running
         if (state?.status !== 'pending') {
-            const tokenInfo = state.macroUsage.inputTokens > 0 ? ` [${state.macroUsage.inputTokens} tok]` : '';
-            return `[${formatDuration(elapsedTime)}]${tokenInfo}`;
+            // const tokenInfo = state.macroUsage.inputTokens > 0 ? ` [${state.macroUsage.inputTokens}|${state.macroUsage.outputTokens} in|out]` : '';
+            // return `[${formatDuration(elapsedTime)}]${tokenInfo}`;
+            return `[${formatDuration(elapsedTime)}]`;
         }
         // Return empty string otherwise (no final duration shown)
         return '';
