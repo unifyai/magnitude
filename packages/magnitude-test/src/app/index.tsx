@@ -52,7 +52,7 @@ export const App = ({ model, tests, testStates }: AppProps) => {
                     </Box>
                 ))}
             </Box>
-            <TestSummary testStates={testStates} />
+            <TestSummary tests={tests} testStates={testStates} />
         </Box>
     );
 };
