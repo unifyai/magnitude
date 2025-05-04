@@ -1,3 +1,14 @@
+import { FailureDescriptor } from "./common";
+
+export class AgentError extends Error {
+    public readonly failure: FailureDescriptor;
+
+    constructor(failure: FailureDescriptor) {
+        super(`${failure.variant}: ${JSON.stringify(failure.variant, null, 4)}`)
+        this.failure = failure;
+    }
+}
+
 // // Agent will only throw these types of errors
 
 // import { ActionIngredient } from "./recipe/types";

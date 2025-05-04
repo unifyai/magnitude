@@ -13,6 +13,8 @@ import { traceAsync } from '@/ai/baml_client/tracing';
 import { PlannerClient, ExecutorClient } from "@/ai/types";
 import EventEmitter from "eventemitter3";
 import { AgentState, StepDescriptor } from "./state";
+import { AgentError } from "./errors";
+import { FailureDescriptor } from "./common";
 
 interface TestCaseAgentConfig {
     planner: PlannerClient,
@@ -111,19 +113,15 @@ export class Magnus {
         return screenshot;
     }
 
-    async step(description: string) {
+    private fail(failure: FailureDescriptor): never {
+        this.events.emit('fail', failure);
+        throw new AgentError(failure);
+    }
+
+    async step(description: string): Promise<void> {
         logger.info(`Begin Step: ${description}`);
 
         this.events.emit('stepStart', description);
-
-        // const stepState: StepDescriptor = {
-        //     variant: 'step',
-        //     description: description,
-        //     actions: [],
-        //     status: 'running'
-        // };
-        // this.state.stepsAndChecks.push(stepState);
-
         //const recipe = []
         //const stepActionIngredients: ActionIngredient[] = [];
         this.lastStepActions = [];
@@ -179,13 +177,10 @@ export class Magnus {
                     // }
                     // This requires more thought
                     // TODO: MAG-103/MAG-104
-                    return {
-                        passed: false,
-                        failure: {
-                            'variant': 'misalignment',
-                            'message': `Could not align ${ingredient.variant} action: ${(error as Error).message}`
-                        }
-                    };
+                    this.fail({
+                        'variant': 'misalignment',
+                        'message': `Could not align ${ingredient.variant} action: ${(error as Error).message}`
+                    });
                     //throw new ActionConversionError(ingredient, error as Error);
                 }
 
@@ -208,11 +203,10 @@ export class Magnus {
                     //         message: `Failed to execute ${action.variant} action`
                     //     }
                     // };
-                    this.events.emit('fail', {
+                    this.fail({
                         variant: 'browser',
                         message: `Failed to execute ${action.variant} action`
                     });
-                    return;
                 }
                 this.lastStepActions.push(ingredient);
 
@@ -227,18 +221,15 @@ export class Magnus {
 
             // If macro expects these actions should complete the step, break
             if (finished) {
-                logger.info(`Done with step`);
-
-                this.events.emit('stepSuccess');
-                //stepState.status = 'passed';
-                //this.events.emit('step');
-                //for (const listener of this.listeners) if (listener.onStepCompleted) listener.onStepCompleted();//(step);
                 break;
             }
         }
+
+        logger.info(`Done with step`);
+        this.events.emit('stepSuccess');
     }
 
-    async check(description: string) {
+    async check(description: string): Promise<void> {
         logger.info(`check: ${description}`);
 
         this.events.emit('checkStart', description);
@@ -294,15 +285,8 @@ export class Magnus {
                 description,
                 this.lastStepActions ?? []
             );
-            //this.analytics.macroCalls += 1;
 
-            // return {
-            //     passed: false,
-            //     failure: failure
-            // }
-
-            this.events.emit('fail', failure);
-            return;
+            this.fail(failure);
         }
     }
 

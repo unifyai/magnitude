@@ -1,6 +1,6 @@
 import React from 'react';
 import logger from '@/logger';
-import { AgentState, AgentStateTracker, ExecutorClient, Magnus, PlannerClient } from 'magnitude-core';
+import { AgentError, AgentState, AgentStateTracker, ExecutorClient, Magnus, PlannerClient } from 'magnitude-core';
 import { CategorizedTestCases, TestRunnable } from '@/discovery/types';
 import { AllTestStates, TestState, App } from '@/app';
 import { getUniqueTestId } from '@/app/util';
@@ -97,46 +97,34 @@ export class TestRunner {
             this.updateStateAndRender(testId, testState);
         });
 
-        // try {
-        //     await agent.start(browser, test.url);
-        // } catch (error) {
-        //     failed = true;
-        //     this.updateStateAndRender(testId, {
-        //         status: 'failed',
-        //         failure: {
-        //             variant: 'network',
-        //             message: (error as Error).message
-        //         }
-        //     });
-        // }
-        
-        // test
-        //stateTracker.getEvents().on('update', (state) => console.log(`State updated for ${test.title}:`, state));
-
-        //stateTracker.getEvents()
-        //const testStatus: 'pending' | 'running' | 'passed' | 'failed' = 'running';
-
-        
-
-        
-
         try {
             // todo: maybe display errors for network start differently not as generic/unknown
             await agent.start(browser, test.url);
             await test.fn({ ai: agent });
-        } catch (e) {
+        } catch (err) {
             // Either an unhandled error in agent or error in test writer custom code
             // TODO: find a way to separate ideally - unknown for unknown agent code, custom for error in custom code
             // add catchalls to inner funcs of agent?
             failed = true;
-            this.updateStateAndRender(testId, {
-                status: 'failed',
-                // override the agent failure with one with the thrown message for custom code error
-                failure: {
-                    variant: 'unknown',
-                    message: (e as Error).message
-                }
-            });
+
+            if (err instanceof AgentError) {
+                this.updateStateAndRender(testId, {
+                    status: 'failed',
+                    failure: err.failure
+                })
+            } else {
+                // generic / unknown error
+                this.updateStateAndRender(testId, {
+                    status: 'failed',
+                    // override the agent failure with one with the thrown message for custom code error
+                    failure: {
+                        variant: 'unknown',
+                        message: (err as Error).message
+                    }
+                });
+            }
+
+            
         }
 
         if (stateTracker.getState().failure) {
