@@ -1,40 +1,32 @@
 /**
- * "Ingredients" are natural language descriptors that align 1:1 with executable web actions.
- * Micro converts ingredients into web actions.
+ * "Intents" are natural language descriptors that align 1:1 with executable web actions.
+ * Micro converts intents into web actions.
  */
 
-export type ActionIngredient = ClickIngredient | TypeIngredient | ScrollIngredient;
-export type Ingredient = ActionIngredient | CheckIngredient;
+export type ActionIntent = ClickIntent | TypeIntent | ScrollIntent;
+export type Intent = ActionIntent | CheckIntent;
 //export type Recipe = Ingredient[];
 
-export interface ClickIngredient {
+export interface ClickIntent {
     variant: 'click';
     target: string;
 }
 
-export interface TypeIngredient {
+export interface TypeIntent {
     variant: 'type';
     target: string;
     content: string;
 }
 
-export interface ScrollIngredient {
+export interface ScrollIntent {
     variant: 'scroll';
     target: string;
     deltaX: number;
     deltaY: number;
 }
 
-export interface CheckIngredient {
+export interface CheckIntent {
     variant: 'check';
     //description: string;
     checks: string[];
 }
-
-
-//export type IngredientVariant = 'click' | 'type' | 'check';
-
-// const foo: Ingredient = {
-//     variant: 'click',
-//     target: 'asfas'
-// };

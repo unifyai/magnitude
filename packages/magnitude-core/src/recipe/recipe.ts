@@ -1,14 +1,14 @@
-import { Ingredient } from "./types";
+import { Intent } from "./types";
 
 
 export class Recipe {
-    private ingredients: Ingredient[];
+    private ingredients: Intent[];
     
     constructor () {
         this.ingredients = [];
     }
 
-    add(item: Ingredient) {
+    add(item: Intent) {
         this.ingredients.push(item);
     }
 

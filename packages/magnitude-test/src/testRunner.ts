@@ -1,8 +1,8 @@
 import React from 'react';
 import logger from '@/logger';
 // Import specific errors and types from magnitude-core
-import { AgentError, Magnus, AgentStateTracker } from 'magnitude-core'; // Remove OperationCancelledError, Import AgentStateTracker correctly
-import type { AgentState, ExecutorClient, PlannerClient, FailureDescriptor, MagnusOptions } from 'magnitude-core'; // Import MagnusOptions
+import { AgentError, TestCaseAgent, AgentStateTracker } from 'magnitude-core'; // Remove OperationCancelledError, Import AgentStateTracker correctly
+import type { AgentState, ExecutorClient, PlannerClient, FailureDescriptor, TestCaseAgentOptions } from 'magnitude-core'; // Import MagnusOptions
 import { CategorizedTestCases, TestFunctionContext, TestRunnable } from '@/discovery/types';
 import { AllTestStates, TestState, App } from '@/app';
 import { getUniqueTestId } from '@/app/util';
@@ -98,7 +98,7 @@ export class TestRunner {
             return true; // Cancelled cleanly is not a failure
         }
 
-        const agent = new Magnus({
+        const agent = new TestCaseAgent({
             planner: this.config.planner,
             executor: this.config.executor,
             browserContextOptions: this.config.browserContextOptions,

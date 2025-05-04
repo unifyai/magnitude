@@ -12,7 +12,7 @@ import { MagnitudeConfig } from '@/discovery/types';
 import { magnitudeBlue, brightMagnitudeBlue } from '@/renderer/colors';
 import { discoverTestFiles, findConfig, findProjectRoot, isProjectRoot, readConfig } from '@/discovery/util';
 //import { BaseTestRunner, BaseTestRunnerConfig } from './runner/baseRunner';
-import { logger as coreLogger, Magnus } from 'magnitude-core';
+import { logger as coreLogger } from 'magnitude-core';
 import logger from '@/logger';
 import { describeModel, tryDeriveEnvironmentPlannerClient } from './util';
 import * as dotenv from 'dotenv';

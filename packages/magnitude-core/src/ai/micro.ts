@@ -1,6 +1,6 @@
 import { ClickWebAction, PixelCoordinate, Screenshot, ScrollWebAction, TypeWebAction, WebAction } from '@/web/types';
 import { downscaleScreenshot } from './util';
-import { ActionIngredient, CheckIngredient, ClickIngredient, Ingredient, ScrollIngredient, TypeIngredient } from '@/recipe/types';
+import { ActionIntent, CheckIntent, ClickIntent, Intent, ScrollIntent, TypeIntent } from '@/recipe/types';
 import logger from "@/logger";
 import { Logger } from 'pino';
 import { vl as MoondreamClient } from 'moondream';
@@ -106,7 +106,7 @@ export class MicroAgent {
         }
     }
 
-    async evaluateCheck(screenshot: Screenshot, check: CheckIngredient): Promise<boolean> {
+    async evaluateCheck(screenshot: Screenshot, check: CheckIntent): Promise<boolean> {
         // TODO: Make more robust, add logp analysis for confidence
         const downscaledScreenshot = await this.transformScreenshot(screenshot);
 
@@ -123,28 +123,28 @@ export class MicroAgent {
         return results.every(passed => passed);
     }
 
-    async convertAction(screenshot: Screenshot, ingredient: ActionIngredient): Promise<WebAction> {
-        if ((ingredient as Ingredient).variant === 'check') {
+    async convertAction(screenshot: Screenshot, intent: ActionIntent): Promise<WebAction> {
+        if ((intent as Intent).variant === 'check') {
             throw Error('Checks cannot be converted to web actions! Use validateCheck()');
         }
-        else if (ingredient.variant === 'click') {
-            return await this.convertClick(screenshot, ingredient as ClickIngredient);
+        else if (intent.variant === 'click') {
+            return await this.convertClick(screenshot, intent as ClickIntent);
         }
-        else if (ingredient.variant === 'type') {
-            return await this.convertType(screenshot, ingredient as TypeIngredient);
+        else if (intent.variant === 'type') {
+            return await this.convertType(screenshot, intent as TypeIntent);
         }
-        else if (ingredient.variant === 'scroll') {
-            return await this.convertScroll(screenshot, ingredient as ScrollIngredient);
+        else if (intent.variant === 'scroll') {
+            return await this.convertScroll(screenshot, intent as ScrollIntent);
         }
 
-        throw Error(`Unhandled ingredient variant: ${(ingredient as any).variant}`);
+        throw Error(`Unhandled ingredient variant: ${(intent as any).variant}`);
     }
 
-    async convertClick(screenshot: Screenshot, click: ClickIngredient): Promise<ClickWebAction> {
+    async convertClick(screenshot: Screenshot, intent: ClickIntent): Promise<ClickWebAction> {
         // todo: nondet-detection
 
         // Convert semantic target to coordinates
-        const coords = await this.locateTarget(screenshot, click.target);
+        const coords = await this.locateTarget(screenshot, intent.target);
         
         return {
             variant: 'click',
@@ -153,29 +153,29 @@ export class MicroAgent {
         }
     }
 
-    async convertType(screenshot: Screenshot, ing: TypeIngredient): Promise<TypeWebAction> {
+    async convertType(screenshot: Screenshot, intent: TypeIntent): Promise<TypeWebAction> {
         // todo: nondet-detection
 
         // Convert semantic target to coordinates
-        const coords = await this.locateTarget(screenshot, ing.target);
+        const coords = await this.locateTarget(screenshot, intent.target);
         
         return {
             variant: 'type',
             x: coords.x,
             y: coords.y,
-            content: ing.content
+            content: intent.content
         };
     }
 
-    async convertScroll(screenshot: Screenshot, ing: ScrollIngredient): Promise<ScrollWebAction> {
-        const coords = await this.locateTarget(screenshot, ing.target);
+    async convertScroll(screenshot: Screenshot, intent: ScrollIntent): Promise<ScrollWebAction> {
+        const coords = await this.locateTarget(screenshot, intent.target);
         
         return {
             variant: 'scroll',
             x: coords.x,
             y: coords.y,
-            deltaX: ing.deltaX,
-            deltaY: ing.deltaY
+            deltaX: intent.deltaX,
+            deltaY: intent.deltaY
         };
     }
 }

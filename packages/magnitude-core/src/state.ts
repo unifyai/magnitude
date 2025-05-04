@@ -2,7 +2,7 @@
 
 import EventEmitter from "eventemitter3"
 import { ActionDescriptor, FailureDescriptor } from "./common"
-import { Magnus } from "./magnus"
+import { TestCaseAgent } from "./agent"
 import { TestCaseResult } from "./types"
 
 
@@ -44,7 +44,7 @@ export interface AgentState {
 export class AgentStateTracker {
     // Handles a lot of state tracking but not result/failure/done because the agent itself
     // doesn't know when done, that's known when the test fn finishes.
-    private agent: Magnus;
+    private agent: TestCaseAgent;
     private state: AgentState;
     // ref to last step, handy for attaching actions to it
     // private lastStep: StepDescriptor | null = null;
@@ -53,7 +53,7 @@ export class AgentStateTracker {
     private lastStepOrCheck: StepDescriptor | CheckDescriptor | null = null;
     private events: EventEmitter<{ 'update': (state: AgentState) => void }>;
 
-    constructor(agent: Magnus) {
+    constructor(agent: TestCaseAgent) {
         this.agent = agent;
         this.state = {
             stepsAndChecks: [],

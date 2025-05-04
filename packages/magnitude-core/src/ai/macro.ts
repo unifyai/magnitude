@@ -2,8 +2,8 @@ import { Screenshot } from "@/web/types";
 import { convertToBamlClientOptions, downscaleScreenshot } from "./util";
 import { b } from "@/ai/baml_client";
 import { Image, Collector, ClientRegistry } from "@boundaryml/baml";
-import { ActionIngredient, Ingredient } from "@/recipe/types";
-import { TestCaseDefinition, TestStepDefinition } from "@/types";
+import { ActionIntent, Intent } from "@/recipe/types";
+import { TestStepDefinition } from "@/types";
 import { BamlAsyncClient } from "./baml_client/async_client";
 import logger from "@/logger";
 import { Logger } from 'pino';
@@ -69,7 +69,7 @@ export class MacroAgent {
         return screenshot;
     }
 
-    async createPartialRecipe(screenshot: Screenshot, testStep: TestStepDefinition, existingRecipe: ActionIngredient[]): Promise<{ actions: ActionIngredient[], finished: boolean }> {
+    async createPartialRecipe(screenshot: Screenshot, testStep: TestStepDefinition, existingRecipe: ActionIntent[]): Promise<{ actions: ActionIntent[], finished: boolean }> {
         const downscaledScreenshot = await this.transformScreenshot(screenshot);
 
         const stringifiedExistingRecipe = [];
@@ -88,7 +88,7 @@ export class MacroAgent {
         return response;
     }
 
-    async removeImplicitCheckContext(screenshot: Screenshot, check: string, existingRecipe: ActionIngredient[]): Promise<string[]> {
+    async removeImplicitCheckContext(screenshot: Screenshot, check: string, existingRecipe: ActionIntent[]): Promise<string[]> {
         const downscaledScreenshot = await this.transformScreenshot(screenshot);
 
         const stringifiedExistingRecipe = [];
@@ -109,7 +109,7 @@ export class MacroAgent {
         return response.checks;
     }
 
-    async evaluateCheck(screenshot: Screenshot, check: string, existingRecipe: ActionIngredient[]): Promise<boolean> {
+    async evaluateCheck(screenshot: Screenshot, check: string, existingRecipe: ActionIntent[]): Promise<boolean> {
         const downscaledScreenshot = await this.transformScreenshot(screenshot);
 
         const stringifiedExistingRecipe = [];
@@ -127,7 +127,7 @@ export class MacroAgent {
         return response.passes;
     }
 
-    async classifyCheckFailure(screenshot: Screenshot, check: string, existingRecipe: ActionIngredient[]): Promise<BugDetectedFailure | MisalignmentFailure> {
+    async classifyCheckFailure(screenshot: Screenshot, check: string, existingRecipe: ActionIntent[]): Promise<BugDetectedFailure | MisalignmentFailure> {
         const downscaledScreenshot = await this.transformScreenshot(screenshot);
 
         const stringifiedExistingRecipe = [];

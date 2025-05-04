@@ -1,4 +1,4 @@
-import { ActionIngredient } from "@/recipe/types";
+import { ActionIntent } from "@/recipe/types";
 import { WebAction } from "@/web/types";
 import { ActionDescriptor } from "./actions";
 import { StepOptions, TestData } from "@/types";
