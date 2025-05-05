@@ -24,14 +24,14 @@ Defines a new test case.
 </ParamField>
 
 <ParamField path="options" type="object">
-  Optional configuration specific to this test case. See properties below.
+  Optional configuration specific to this test case.
 </ParamField>
 
-**Options Properties:**
-
-<ResponseField name="url" type="string">
-  Overrides the base URL defined in the global configuration or test group for this specific test case.
-</ResponseField>
+<Expandable title="options properties">
+  <ResponseField name="url" type="string">
+    Overrides the base URL defined in the global configuration or test group for this specific test case.
+  </ResponseField>
+</Expandable>
 
 <ParamField path="testFn" type="({ ai, page, context }) => Promise<void>" required>
   An asynchronous function containing the test logic. It receives a context object with the properties described below.
@@ -49,4 +49,41 @@ Defines a new test case.
   </ResponseField>
 </Expandable>
 
-Tests can be organized using [Test Groups](./test-groups).
+## `test.group(id, options?, groupFn)`
+
+Defines a group of test cases, allowing shared options (like `url`) to be applied to all tests within the group.
+
+<RequestExample>
+```typescript Group Example
+import { test } from 'magnitude-test';
+
+test.group('User Authentication Flow', { url: '/login' }, () => {
+  test('should display login form', async ({ ai }) => {
+    await ai.check("Login form is visible");
+  });
+
+  test('should allow login with valid credentials', async ({ ai }) => {
+    await ai.step("Log in with valid credentials");
+    await ai.check("User is redirected to dashboard");
+  });
+});
+```
+</RequestExample>
+
+<ParamField path="id" type="string" required>
+  A descriptive identifier for the test group.
+</ParamField>
+
+<ParamField path="options" type="object">
+  Optional configuration applied to all tests within this group. See properties below.
+</ParamField>
+
+<Expandable title="options properties">
+  <ResponseField name="url" type="string">
+    Sets a base URL for all tests within the group. Can be overridden by individual test options.
+  </ResponseField>
+</Expandable>
+
+<ParamField path="groupFn" type="() => void" required>
+  A synchronous function that contains the `test()` declarations belonging to this group.
+</ParamField>
