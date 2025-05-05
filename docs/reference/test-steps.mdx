@@ -20,11 +20,13 @@ Returns: `TestStep`, which has chainable methods:
 ## Usage
 
 ```typescript
-test('can log in and out')
-    .step('Log in to the app')
-        .data({ email: "foo@bar.com" })
-        .secureData({ password: process.env.SUPER_SECRET_PASSWORD })
-        .check('Can see dashboard')
-    .step('Log out')
-        .check("User is logged out");
+test('can log in and out', async ({ ai }) => {
+    await ai.step('Log in to the app', {
+        data: { email: "foo@bar.com" },
+        secureData: { password: process.env.SUPER_SECRET_PASSWORD }
+    });
+    await ai.check('Can see dashboard');
+    await ai.step('Log out');
+    await ai.check("User is logged out");
+});
 ```

@@ -10,9 +10,10 @@ Each Magnitude test case navigates to a URL in a browser, executes **Test Steps*
 
 For example:
 ```typescript
-test('can add and remove todos')
-    .step('Add a todo')
-    .step('Remove the todo')
+test('can add and remove todos', async ({ ai }) => {
+    await ai.step('Add a todo');
+    await ai.step('Remove the todo');
+});
 ```
 
 <Info>A test case is designed to represent a single user flow in your web app.</Info>
@@ -23,17 +24,19 @@ test('can add and remove todos')
 Each test can additionally be configured with a different starting URL (defaults to the [configured project](/customization/configuration) `url` in `magnitude.config.ts`):
 
 ```typescript
-test('can add and remove todos', { url: "https://mytodoapp.com" })
-    .step('Add a todo')
-    .step('Remove the todo')
+test('can add and remove todos', { url: "https://mytodoapp.com" }, async ({ ai }) => {
+    await ai.step('Add a todo');
+    await ai.step('Remove the todo');
+});
 ```
 
 ## Test Steps
 
 When you define a step, you provide a description for what Magnitude should do during that step, for example:
 ```typescript
-test('example')
-    .step('Log in') // step description
+test('example', async ({ ai }) => {
+    await ai.step('Log in'); // step description
+});
 ```
 Each step should make sense on its own and describe a portion of the user flow.
 
@@ -52,11 +55,12 @@ Examples of valid checks:
 
 <Info>Checks are validated after the step they are attached to is executed.</Info>
 
-To actually use a check in a test case, chain it to a `step` like this:
+To actually use a check in a test case, include it after the relevant step:
 ```typescript
-test('example')
-    .step('Log in')
-        .check('Dashboard is visible')
+test('example', async ({ ai }) => {
+    await ai.step('Log in');
+    await ai.check('Dashboard is visible');
+});
 ```
 
 ### Test Data
@@ -64,19 +68,19 @@ test('example')
 You can provide additional **test data** relevant to specific step like this:
 
 ```typescript
-test('example')
-    .step('Log in')
-        .data({ email: "foo@bar.com", password: "foo" })
-        .check('Dashboard is visible')
+test('example', async ({ ai }) => {
+    await ai.step('Log in', { data: { email: "foo@bar.com", password: "foo" } });
+    await ai.check('Dashboard is visible');
+});
 ```
 
 <Info>The key/value pairs are completely up to you, but it should be clear enough what they should be used for.</Info>
 
 You can also provide completely freeform data by passing in a string instead of a key/value object:
 ```typescript
-test('example')
-    .step('Add 3 todos')
-        .data('Use "Take out trash" for the first todo and make up the other 2')
+test('example', async ({ ai }) => {
+    await ai.step('Add 3 todos', { data: 'Use "Take out trash" for the first todo and make up the other 2' });
+});
 ```
 
 ### Example of migrating a Playwright test case to Magnitude
@@ -105,11 +109,10 @@ test('should allow me to add todo items', async ({ page }) => {
 
 The same test case in Magnitude:
 ```typescript
-test('should allow me to add todo items')
-    .step('Create todo')
-        .data(TODO_ITEMS[0])
-        .check('First todo appears in list')
-    .step('Create another todo')
-        .data(TODO_ITEMS[1])
-        .check('List has two todos')
+test('should allow me to add todo items', async ({ ai }) => {
+    await ai.step('Create todo', { data: TODO_ITEMS[0] });
+    await ai.check('First todo appears in list');
+    await ai.step('Create another todo', { data: TODO_ITEMS[1] });
+    await ai.check('List has two todos');
+});
 ```

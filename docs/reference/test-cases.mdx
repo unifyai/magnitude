@@ -25,6 +25,7 @@ Returns: `TestCase`, which has chainable methods:
 ## Usage
 
 ```typescript
-test('can add todo')
-    .step('Add a todo item')
+test('can add todo', async ({ ai }) => {
+    await ai.step('Add a todo item');
+});
 ```

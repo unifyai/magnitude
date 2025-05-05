@@ -20,11 +20,13 @@ TestOptions {
 ## Usage
 ```typescript
 test.group("Authentication Tests", { url: "localhost:3000/login" }, () => {
-    test('can log in')
-        .step('Log in to the app')
-            .data({ email: "foo@bar.com" })
-            .secureData({ password: process.env.SUPER_SECRET_PASSWORD })
-            .check('Can see dashboard')
+    test('can log in', async ({ ai }) => {
+        await ai.step('Log in to the app', {
+            data: { email: "foo@bar.com" },
+            secureData: { password: process.env.SUPER_SECRET_PASSWORD }
+        });
+        await ai.check('Can see dashboard');
+    });
 
     // more tests...
 });
