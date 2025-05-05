@@ -28,12 +28,14 @@ End-to-end testing framework powered by visual AI agents that see your interface
 
 ↕️ Magnitude test case in action! ↕️
 ```ts
-test('can add and complete todos', { url: 'https://magnitodo.com' })
-    .step('create 3 todos')
-        .data('Take out the trash, Buy groceries, Build more test cases with Magnitude')
-        .check('should see all 3 todos')
-    .step('mark each todo complete')
-        .check('says 0 items left')
+test('can add and complete todos', { url: 'https://magnitodo.com' }, async ({ ai }) => {
+    await ai.step('create 3 todos', {
+        data: 'Take out the trash, Buy groceries, Build more test cases with Magnitude'
+    });
+    await ai.check('should see all 3 todos');
+    await ai.step('mark each todo complete');
+    await ai.check('says 0 items left');
+});
 ```
 
 ## Setup
@@ -100,6 +102,8 @@ test('can log in and create company')
     .step('Create a new company')
         .data('Make up the first 2 values and use defaults for the rest')
         .check('Company added successfully');
+
+
 ```
 
 Steps, checks, and data are all natural language. Think of it like you're describing how to test a particular flow to a co-worker - what steps they need to take, what they should check for, and what test data to use.
