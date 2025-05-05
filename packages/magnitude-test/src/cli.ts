@@ -9,7 +9,6 @@ import TestRegistry from '@/discovery/testRegistry';
 import { TestCompiler } from '@/compiler';
 import { MagnitudeConfig } from '@/discovery/types';
 //import chalk from 'chalk';
-import { magnitudeBlue, brightMagnitudeBlue } from '@/renderer/colors';
 import { discoverTestFiles, findConfig, findProjectRoot, isProjectRoot, readConfig } from '@/discovery/util';
 //import { BaseTestRunner, BaseTestRunnerConfig } from './runner/baseRunner';
 import { logger as coreLogger } from 'magnitude-core';
@@ -21,8 +20,9 @@ import React from 'react';
 import { App, AllTestStates, TestState } from './app'; // Import state types
 //import { getUniqueTestId, initializeTestStates } from './app/util'; // Import ID generator AND initializer
 import { render } from 'ink';
-import { TestRunner } from './testRunner'; // Import the new executor
+import { TestRunner } from './runner/testRunner'; // Import the new executor
 import { initializeTestStates } from './app/util';
+import chalk from 'chalk';
 
 interface CliOptions {
     workers?: number;
@@ -85,7 +85,7 @@ async function initializeProject(): Promise<void> {
         process.exit(1);
     }
 
-    console.log(magnitudeBlue(`Initializing Magnitude tests in ${cwd}`));
+    console.log(chalk.blueBright(`Initializing Magnitude tests in ${cwd}`));
 
     // Create directory structure
     const testsDir = path.join(cwd, 'tests', 'magnitude');
@@ -108,7 +108,7 @@ async function initializeProject(): Promise<void> {
         const examplePath = path.join(testsDir, 'example.mag.ts');
         await fs.promises.writeFile(examplePath, exampleTestTemplate);
 
-        console.log(`${brightMagnitudeBlue('✓')} Created Magnitude test directory structure:
+        console.log(`${chalk.blueBright('✓')} Created Magnitude test directory structure:
     - ${path.relative(cwd, configPath)}
     - ${path.relative(cwd, examplePath)}
   `);
@@ -119,18 +119,18 @@ async function initializeProject(): Promise<void> {
     }
 
     // Run Playwright installation for Chromium
-    console.log(magnitudeBlue('Installing Playwright Chromium...'));
+    console.log(chalk.blueBright('Installing Playwright Chromium...'));
     try {
         execSync('npx playwright install chromium', { stdio: 'inherit' });
-        console.log(`${brightMagnitudeBlue('✓')} Playwright Chromium installed successfully`);
+        console.log(`${chalk.blueBright('✓')} Playwright Chromium installed successfully`);
     } catch (error) {
         console.error('Error installing Playwright Chromium:', error);
         // Don't exit with error code since the initialization succeeded
-        console.log(magnitudeBlue('You may need to manually run: npx playwright install chromium'));
+        console.log(chalk.blueBright('You may need to manually run: npx playwright install chromium'));
     }
 
-    console.log(`You can now run tests with: ${brightMagnitudeBlue('npx magnitude')}`);
-    console.log('Docs:', brightMagnitudeBlue('https://docs.magnitude.run'));
+    console.log(`You can now run tests with: ${chalk.blueBright('npx magnitude')}`);
+    console.log('Docs:', chalk.blueBright('https://docs.magnitude.run'));
 }
 
 const program = new Command();

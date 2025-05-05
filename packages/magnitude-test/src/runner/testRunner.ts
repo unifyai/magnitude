@@ -1,14 +1,13 @@
 import React from 'react';
 import logger from '@/logger';
-// Import specific errors and types from magnitude-core
-import { AgentError, TestCaseAgent, AgentStateTracker, Magnus } from 'magnitude-core'; // Remove OperationCancelledError, Import AgentStateTracker correctly
-import type { AgentState, ExecutorClient, PlannerClient, FailureDescriptor, TestCaseAgentOptions, StepDescriptor } from 'magnitude-core'; // Import MagnusOptions
+import { AgentError, TestCaseAgent, AgentStateTracker, Magnus } from 'magnitude-core';
+import type { AgentState, ExecutorClient, PlannerClient, FailureDescriptor, TestCaseAgentOptions, StepDescriptor } from 'magnitude-core';
 import { CategorizedTestCases, TestFunctionContext, TestRunnable } from '@/discovery/types';
 import { AllTestStates, TestState, App } from '@/app';
 import { getUniqueTestId } from '@/app/util';
 import { Browser, BrowserContext, BrowserContextOptions, chromium, LaunchOptions, Page } from 'playwright';
-import { describeModel, sendTelemetry } from './util';
-import { WorkerPool } from './runner/workerPool';
+import { describeModel, sendTelemetry } from '../util';
+import { WorkerPool } from './workerPool';
 
 type RerenderFunction = (node: React.ReactElement<any, string | React.JSXElementConstructor<any>>) => void;
 
@@ -43,14 +42,12 @@ export class TestRunner {
         testStates: AllTestStates,
         rerender: RerenderFunction,
         unmount: () => void,
-        //config: Required<MagnitudeConfig>
     ) {
         this.config = config;
         this.tests = tests;
         this.testStates = testStates;
         this.rerender = rerender;
         this.unmount = unmount;
-        //this.config = config;
     }
 
     private updateStateAndRender(testId: string, newState: Partial<TestState>) {
@@ -174,22 +171,6 @@ export class TestRunner {
                 status: 'passed'
             });
         }
-
-
-        // const startTime = Date.now();
-        // let status: 'completed' | 'error' = 'completed';
-        // let error: Error | undefined;
-
-        // try {
-        //     this.updateStateAndRender(testId, { status: 'running', startTime });
-        //     await test.fn({ ai: agent });
-        // } catch (e) {
-        //     status = 'error';
-        //     error = e instanceof Error ? e : new Error(String(e));
-        //     logger.error(`Error in test ${testId}:`, error);
-        // } finally {
-        //     this.updateStateAndRender(testId, { status, error });
-        // }
 
         try {
             await agent.close();

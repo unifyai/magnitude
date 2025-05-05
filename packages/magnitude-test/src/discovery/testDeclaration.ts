@@ -1,7 +1,6 @@
-import { TestCaseBuilder } from './testCaseBuilder';
-import { TestDeclaration, MagnitudeConfig, TestOptions, TestFunction, TestGroupFunction, TestRunnable } from './types';
+import { TestDeclaration, TestOptions, TestFunction, TestGroupFunction, TestRunnable } from './types';
 import { TestRegistry } from './testRegistry';
-
+import { addProtocolIfMissing } from '@/util';
 
 
 function testDecl(
@@ -38,7 +37,7 @@ function testDecl(
     const runnable: TestRunnable = {
         fn: testFn,
         title: title,
-        url: combinedOptions.url
+        url: addProtocolIfMissing(combinedOptions.url)
     }
     registry.register(runnable);
 

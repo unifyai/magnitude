@@ -1,5 +1,4 @@
 import { BrowserContext, BrowserContextOptions, LaunchOptions, Page } from "playwright";
-import { TestCaseBuilder } from "./testCaseBuilder";
 import type { PlannerClient, ExecutorClient, TestCaseAgent, Magnus } from 'magnitude-core';
 
 export interface TestOptions {

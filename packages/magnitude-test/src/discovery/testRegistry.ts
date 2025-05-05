@@ -1,5 +1,4 @@
 import { TestOptions, TestGroup, MagnitudeConfig, CategorizedTestCases, TestFunction, TestRunnable, CategorizedTestRunnable } from "./types";
-import { TestCaseBuilder } from "./testCaseBuilder";
 import { TestCompiler } from "@/compiler";
 import { pathToFileURL } from "url";
 

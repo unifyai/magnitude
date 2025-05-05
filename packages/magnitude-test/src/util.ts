@@ -113,18 +113,17 @@ export function isLoopbackUrl(url: string): boolean {
     return isLoopbackHost(url);
 }
 
-export function sanitizeTestCase(testCase: TestCaseDefinition) {
-    // Sanitize test case definition inplace
-
-    // Add protocol if missing to URL
-    if (!testCase.url.includes('://')) {
-        if (isLoopbackUrl(testCase.url)) {
+export function addProtocolIfMissing(url: string): string {
+    if (!url.includes('://')) {
+        if (isLoopbackUrl(url)) {
             // If local, assume HTTP
-            testCase.url = `http://${testCase.url}`;
+            return `http://${url}`;
         } else {
             // Otherwise assume HTTPS
-            testCase.url = `https://${testCase.url}`;
+            return `https://${url}`;
         }
+    } else {
+        return url;
     }
 }
 
