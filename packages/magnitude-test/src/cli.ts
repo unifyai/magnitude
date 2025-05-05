@@ -46,6 +46,9 @@ function getRelativePath(projectRoot: string, absolutePath: string): string {
 
 const configTemplate = `import { type MagnitudeConfig } from 'magnitude-test';
 
+// Learn more about configuring Magnitude:
+// https://docs.magnitude.run/customizing/configuration
+
 export default {
     url: "http://localhost:5173"
 } satisfies MagnitudeConfig;
@@ -62,12 +65,12 @@ const sampleTodos = [
     "Build more test cases with Magnitude"
 ];
 
-test('can add and complete todos', { url: 'https://magnitodo.com' })
-    .step('create 3 todos')
-        .data(sampleTodos.join(", "))
-        .check('should see all 3 todos')
-    .step('mark each todo complete')
-        .check('says 0 items left')
+test('can add and complete todos', { url: 'https://magnitodo.com' }, async ({ ai }) => {
+    await ai.step('create 3 todos', { data: sampleTodos.join(', ') });
+    await ai.check('should see all 3 todos');
+    await ai.step('mark each todo complete');
+    await ai.check('says 0 items left');
+});
 `;
 
 async function initializeProject(): Promise<void> {
