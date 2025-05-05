@@ -1,27 +1,162 @@
 ---
 title: 'Playwright'
-description: 'Use Magnitude alongside Playwright tests'
-icon: pen-tool
+description: 'How to combine low-level browser operations with AI steps'
+icon: 'pen-tool'
 ---
 
-Using Magnitude alongside existing E2E tests is simple.
+Magnitude runs tests using Playwright. While `ai.step()` and `ai.check()` cover most test automation needs with natural language, direct access to Playwright's `page` and `context` objects is available within test functions (`async ({ ai, page, context }) => { ... }`).
 
-You can add Magnitude test files matching the pattern `*.mag.ts` either in your existing test folders, or in a new one.
+This allows for **hybrid testing**, combining AI steps with specific Playwright actions. Direct access enables checking page details (URLs, titles), managing browser storage (cookies, local storage), executing custom JavaScript (`page.evaluate`), controlling network requests (`page.route`), performing detailed assertions using Playwright's `expect` library, and interacting with iframes or file dialogs.
 
-The Magnitude CLI will automatically discover these Magnitude tests.
+Use `page` and `context` strategically when these specific capabilities are needed, or as a fallback if the AI struggles with a complex interaction. Refer to the [Playwright Access reference](../reference/playwright-access) for basic API details.
 
-For example, if you've got both playwright and Magnitude tests, you could set up scripts to run either suite, or both:
+<Note>
+Magnitude aims to expand the capabilities of the `ai` agent over time to cover more scenarios natively. However, direct access to the full Playwright API ensures you always have the tools needed for any testing requirement in the meantime.
+</Note>
 
-```json
-{
-    "scripts": [
-        "test:playwright": "npx playwright test",
-        "test:magnitude": "npx magnitude",
-        "test:all": "npx playwright test && npx magnitude"
-    ]
-}
+## Use Cases & Examples
+
+Here are examples combining Magnitude AI steps with direct Playwright access:
+
+### Checking URL or Title
+
+```typescript
+import { test } from 'magnitude-test';
+import { expect } from '@playwright/test';
+
+test('Verify Page URL and Title', async ({ ai, page }) => {
+  await ai.step("Navigate to the user dashboard");
+
+  // Explicit URL check
+  await expect(page).toHaveURL(/.*\/dashboard/);
+
+  // Explicit Title check
+  await expect(page).toHaveTitle('User Dashboard - MyApp');
+
+  await ai.check("The welcome banner is visible");
+});
 ```
 
-If mixing Playwright and Magnitude tests, we recommend covering your core flows and flows that are prone to change frequently with Magnitude, and testing smaller or more stable flows that don't break as often with Playwright.
+### Interacting with Cookies
 
-<Info>You can also go all-in and replace your whole E2E test suite with Magnitude, we don't mind :)</Info>
+```typescript
+import { test } from 'magnitude-test';
+import { expect } from '@playwright/test';
+
+test('Set and Verify Auth Cookie', async ({ ai, page, context }) => {
+  // Set a mock auth cookie before navigation
+  await context.addCookies([{
+    name: 'authToken',
+    value: 'mock-test-token-123',
+    domain: 'localhost', // Adjust domain as needed
+    path: '/'
+  }]);
+
+  await ai.step("Navigate to the main application page");
+  await ai.check("The user avatar is displayed in the header"); // Verify effect of cookie
+
+  // Retrieve cookies to verify
+  const cookies = await context.cookies();
+  const authTokenCookie = cookies.find(c => c.name === 'authToken');
+  expect(authTokenCookie?.value).toBe('mock-test-token-123');
+});
+```
+
+### Using `page.evaluate()` for Custom Logic/Storage
+
+```typescript
+import { test } from 'magnitude-test';
+import { expect } from '@playwright/test';
+
+test('Check Local Storage and Element Property', async ({ ai, page }) => {
+  await ai.step("Perform login action");
+  await ai.check("Dashboard is loaded");
+
+  // Check local storage value
+  const userId = await page.evaluate(() => localStorage.getItem('userId'));
+  expect(userId).toMatch(/^\d+$/);
+
+  // Get a specific property via evaluate
+  const dataAttribute = await page.evaluate(() => {
+    return document.querySelector('#user-profile')?.getAttribute('data-user-role');
+  });
+  expect(dataAttribute).toBe('admin');
+});
+```
+
+### Network Interception (`page.route`)
+
+```typescript
+import { test } from 'magnitude-test';
+
+test('Mock API Response', async ({ ai, page }) => {
+  // Mock the user settings API
+  await page.route('**/api/user/settings', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ theme: 'dark', notifications: false }),
+    });
+  });
+
+  await ai.step("Navigate to the settings page");
+  await ai.check("The theme selector shows 'dark'");
+  await ai.check("The notifications toggle is off");
+});
+```
+
+### Detailed Assertions with `expect`
+
+```typescript
+import { test } from 'magnitude-test';
+import { expect } from '@playwright/test';
+
+test('Verify Element Attributes and Count', async ({ ai, page }) => {
+  await ai.step("Load the product gallery");
+
+  // Check specific attribute
+  const mainImage = page.locator('.product-gallery img.main');
+  await expect(mainImage).toHaveAttribute('alt', 'Main Product Image');
+
+  // Check element count
+  const thumbnails = page.locator('.product-gallery img.thumbnail');
+  await expect(thumbnails).toHaveCount(5);
+
+  // Check CSS property
+  const addToCartButton = page.locator('button.add-to-cart');
+  await expect(addToCartButton).toHaveCSS('background-color', 'rgb(0, 128, 0)');
+});
+```
+
+### Hybrid Testing Example: Auth Cookie & Title Check
+
+This example injects an authentication cookie, uses AI steps for navigation and interaction, then verifies the page title using Playwright before checking UI state with AI.
+
+```typescript
+import { test } from 'magnitude-test';
+import { expect } from '@playwright/test';
+
+test('Verify Dashboard Access via Cookie', async ({ ai, page, context }) => {
+  // 1. Inject auth cookie using Playwright context
+  await context.addCookies([{
+    name: 'session_id',
+    value: 'test-user-session-abc123',
+    domain: 'localhost', // Adjust to your app's domain
+    path: '/'
+  }]);
+
+  // 2. Navigate and interact using AI steps
+  await ai.step("Navigate to the dashboard page");
+
+  // 3. Verify page title using Playwright page object
+  await expect(page).toHaveTitle('My App - Dashboard');
+
+  // 4. Verify UI state using AI check
+  await ai.check("The user's name 'Test User' is displayed");
+  await ai.check("The logout button is visible");
+});
+```
+
+
+
+By combining Magnitude with direct Playwright access, you can create tests that are both robust and capable of handling complex verification needs.

@@ -1,0 +1,229 @@
+---
+title: Test Cases
+description: "Learn how to define test cases, steps, checks, and provide data using Magnitude's testing API."
+---
+
+Magnitude tests are written in TypeScript using a familiar testing structure. You define test cases using the `test` function, and within each test, you interact with the application using the `ai` object provided in the test context.
+
+## Defining Test Cases
+
+Test cases are the fundamental units of testing in Magnitude. You define them using the globally available `test` function.
+
+```typescript
+import { test } from 'magnitude-test';
+
+test('Test case title', async ({ ai, page, context }) => {
+  // Test logic goes here...
+  await ai.step("Perform some action");
+  await ai.check("Verify the result");
+});
+```
+
+### `test(title, options?, testFn)`
+
+<ParamField path="title" type="string" required>
+  A descriptive title for your test case. This title is used in reports and logs.
+</ParamField>
+
+<ParamField path="options" type="object">
+  Optional configuration specific to this test case.
+  <ResponseField name="url" type="string">
+    Overrides the base URL defined in the global configuration for this specific test case.
+  </ResponseField>
+</ParamField>
+
+<ParamField path="testFn" type="({ ai, page, context }) => Promise<void>" required>
+  An asynchronous function containing the logic for your test case. It receives a context object with the following properties:
+  <ResponseField name="ai" type="Magnus" required>
+    The primary interface for interacting with Magnitude's AI capabilities. Use this to define steps and checks.
+  </ResponseField>
+  <ResponseField name="page" type="Page" required>
+    The Playwright `Page` object for the current browser tab. You can use this for direct Playwright interactions if needed.
+  </ResponseField>
+  <ResponseField name="context" type="BrowserContext" required>
+    The Playwright `BrowserContext` object.
+  </ResponseField>
+</ParamField>
+
+For organizing tests, see [Test Groups](/reference/test-groups).
+
+## Defining Steps with `ai.step`
+
+The core of most tests involves defining steps using natural language descriptions. Magnitude interprets these descriptions and executes the corresponding browser actions.
+
+```typescript
+test('User Login', async ({ ai }) => {
+  await ai.step("Navigate to the login page");
+  await ai.step("Enter the username 'testuser' into the username field");
+  await ai.step("Click the 'Login' button");
+});
+```
+
+### `ai.step(description, options?)`
+
+<ParamField path="description" type="string" required>
+  A natural language description of the action(s) to perform in this step. Be descriptive and clear. You can reference data provided in the `options` using curly braces (e.g., `"Enter {username} in the field"`).
+</ParamField>
+
+<ParamField path="options" type="object">
+  Optional parameters for the step, primarily used for providing data.
+  <ResponseField name="data" type="string | Record<string, string>">
+    Provides data to be used within the step's `description`.
+    - **`string`**: A single string value. Useful for simple inputs.
+    - **`Record<string, string>`**: A key-value object where keys correspond to placeholders in the `description` (e.g., `{key}`). Values will be substituted during execution.
+  </ResponseField>
+</ParamField>
+
+### Providing Data to Steps
+
+You can parameterize your steps by providing data through the `options.data` argument.
+
+**Using a Data Object:**
+
+This is the most common way to provide multiple pieces of data. Keys in the `data` object are referenced in the `description` using `{key}` syntax.
+
+```typescript
+test('Fill Form', async ({ ai }) => {
+  await ai.step("Fill out the registration form", {
+    data: {
+      firstName: "John",
+      lastName: "Doe",
+      email: "john.doe@example.com"
+    }
+  });
+  // The AI will attempt to find fields corresponding to
+  // firstName, lastName, and email and fill them with the provided values.
+  // You can also be more specific:
+  await ai.step("Enter {email} into the email input", {
+    data: { email: "jane.doe@example.com" }
+  });
+});
+```
+
+**Using a String:**
+
+For steps requiring only a single piece of data, you can pass a string directly.
+
+```typescript
+test('Search', async ({ ai }) => {
+  // Assuming the AI understands the context of where to type the search query
+  await ai.step("Search for the product", { data: "Magnitude AI" });
+});
+```
+
+<Note>
+Magnitude treats data provided via the `data` option as non-sensitive. For sensitive information like passwords or API keys, use environment variables or secure vaults and pass the values directly into the `data` object (e.g., `data: { password: process.env.USER_PASSWORD }`). Avoid hardcoding sensitive data.
+</Note>
+
+## Defining Checks with `ai.check`
+
+After performing actions, you'll often want to verify the application's state. Use `ai.check` with a natural language description of the expected outcome.
+
+```typescript
+test('Add to Cart', async ({ ai }) => {
+  await ai.step("Navigate to the product page for 'Super Widget'");
+  await ai.step("Click the 'Add to Cart' button");
+  await ai.check("The shopping cart icon shows 1 item");
+  await ai.check("A success message 'Super Widget added to cart' is visible");
+});
+```
+
+### `ai.check(description)`
+
+<ParamField path="description" type="string" required>
+  A natural language statement describing the condition to verify. The AI will evaluate this statement against the current state of the web page (DOM, visibility, text content, etc.).
+</ParamField>
+
+## Low-Level Actions (Optional)
+
+While `ai.step` is the primary way to define actions, Magnitude also provides lower-level methods for direct control when needed. This can be useful if the AI interpretation of a natural language step is ambiguous or if you need precise control over a specific interaction.
+
+<Accordion title="Using Low-Level Actions">
+
+These methods bypass the AI's natural language interpretation for the specific action.
+
+### `ai.click(target)`
+
+Directly performs a click action.
+
+<ParamField path="target" type="string" required>
+  A natural language description of the element to click (e.g., `"the login button"`, `"the checkbox labeled 'Agree'"`). The AI will identify the element based on the description and click it.
+</ParamField>
+
+```typescript
+await ai.click("the 'Submit' button");
+```
+
+### `ai.type(target, content)`
+
+Directly performs a typing action into a specific element.
+
+<ParamField path="target" type="string" required>
+  A natural language description of the input element to type into (e.g., `"the username field"`, `"the search box"`).
+</ParamField>
+<ParamField path="content" type="string" required>
+  The text content to type into the target element.
+</ParamField>
+
+```typescript
+await ai.type("the password input", "s3cr3tP@ssw0rd");
+```
+
+### `ai.exec(action)`
+
+Executes a predefined `ActionIntent` object. This is the most low-level approach, typically used internally or for advanced scenarios.
+
+<ParamField path="action" type="ActionIntent" required>
+  An `ActionIntent` object describing the exact action. See `ActionIntent` type definition for details (includes variants like `ClickIntent`, `TypeIntent`, `ScrollIntent`).
+</ParamField>
+
+```typescript
+// Example: Typing 'hello' into an element identified as 'input#message'
+await ai.exec({
+  variant: 'type',
+  target: 'input#message', // This might be a selector or description
+  content: 'hello'
+});
+```
+
+</Accordion>
+
+## Complete Example
+
+Here's an example combining steps, data, and checks:
+
+```typescript
+import { test } from 'magnitude-test';
+
+test('Login and Verify Dashboard', async ({ ai }) => {
+  const userEmail = "test@example.com";
+  const userPassword = process.env.TEST_USER_PASSWORD || "defaultPassword"; // Get password securely
+
+  await ai.step("Navigate to the login page");
+
+  await ai.step("Enter user credentials", {
+    data: {
+      email: userEmail,
+      password: userPassword
+    }
+  });
+  // Could also be more specific:
+  // await ai.step("Enter {email} into the email field", { data: { email: userEmail } });
+  // await ai.step("Enter {password} into the password field", { data: { password: userPassword } });
+
+  await ai.step("Click the login button");
+
+  await ai.check("The user is redirected to the dashboard page");
+  await ai.check(`The welcome message contains the username '${userEmail}'`);
+  await ai.check("The 'Logout' button is visible");
+});
+```
+
+## Best Practices
+
+*   **Be Clear and Specific:** Write step and check descriptions that are unambiguous. Instead of "Click the button", try "Click the 'Save Changes' button".
+*   **Break Down Complex Actions:** Decompose complex user flows into smaller, logical steps.
+*   **Focus on User Intent:** Describe *what* the user wants to achieve, not *how* (unless using low-level actions).
+*   **Use Data for Parameterization:** Make tests reusable by passing variable data via `options.data`.
+*   **Secure Sensitive Data:** Use environment variables or other secure methods for credentials, not the `data` option directly in code.
+*   **Verify Key Outcomes:** Use `ai.check` to assert critical application states after important steps.
