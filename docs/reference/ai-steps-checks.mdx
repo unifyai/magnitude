@@ -1,0 +1,58 @@
+---
+title: AI Steps and Checks
+description: "Reference for the high-level AI methods `ai.step()` and `ai.check()` used within Magnitude tests."
+---
+
+The `ai` object provided in the test function context allows you to interact with the application using natural language. The primary methods for this are `ai.step()` for performing actions and `ai.check()` for verifying outcomes.
+
+## `ai.step(description, options?)`
+
+Executes one or more browser actions based on a natural language description. Magnitude's AI interprets the description and determines the necessary interactions (clicks, types, scrolls, etc.).
+
+<RequestExample>
+```typescript Step Examples
+// Simple step
+await ai.step("Click the main login button");
+
+// Step with data
+await ai.step("Enter {username} into the user field", {
+  data: { username: "test@example.com" }
+});
+```
+</RequestExample>
+
+<ParamField path="description" type="string" required>
+  A natural language description of the action(s) to perform. Can include placeholders like `{key}` which will be substituted by values from `options.data`.
+</ParamField>
+
+<ParamField path="options" type="object">
+  Optional parameters for the step.
+</ParamField>
+
+<Expandable title="options properties">
+  <ResponseField name="data" type="string | Record<string, string>">
+    Provides data for the step.
+    - **`string`**: A single string value.
+    - **`Record<string, string>`**: Key-value pairs where keys match placeholders in the `description`.
+  </ResponseField>
+</Expandable>
+
+<Note>
+For sensitive data (passwords, API keys), use environment variables or secure vaults and pass the values into the `data` object (e.g., `data: { password: process.env.SECRET }`). Do not hardcode sensitive information.
+</Note>
+
+## `ai.check(description)`
+
+Verifies that a certain condition holds true on the web page based on a natural language description. The AI evaluates the description against the current page state (DOM, visibility, text content).
+
+<RequestExample>
+```typescript Check Examples
+await ai.check("The user profile dropdown is visible");
+await ai.check("The shopping cart contains 3 items");
+await ai.check("The success message 'Settings saved!' is displayed");
+```
+</RequestExample>
+
+<ParamField path="description" type="string" required>
+  A natural language statement describing the expected condition or state to verify.
+</ParamField>

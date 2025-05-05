@@ -84,10 +84,10 @@
                         "group": "Reference",
                         "pages": [
                             "reference/llm-configuration",
-                            "reference/test-cases",
-                            "reference/test-steps",
-                            "reference/test-groups",
-                            "reference/cli"
+                            "reference/test-declaration",
+                            "reference/ai-steps-checks",
+                            "reference/ai-low-level",
+                            "reference/playwright-access"
                         ]
                     }
                 ]

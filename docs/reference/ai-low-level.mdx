@@ -1,0 +1,79 @@
+---
+title: Low-Level AI Actions
+description: "Reference for the low-level AI methods `ai.click()`, `ai.type()`, and `ai.exec()` for direct browser interaction control."
+---
+
+While `ai.step()` is the primary method for defining actions using natural language, the `ai` object also provides lower-level methods for more direct control over specific browser interactions. These methods bypass the AI's interpretation for the specific action described.
+
+They can be useful when:
+- The AI's interpretation of a natural language step is ambiguous.
+- You need precise control over a specific interaction.
+- You are integrating with existing automation logic that generates specific action intents.
+
+## `ai.click(target)`
+
+Directly performs a click action on an element identified by the `target` description.
+
+<RequestExample>
+```typescript Click Example
+await ai.click("the 'Save Settings' button");
+await ai.click("the checkbox labeled 'I agree'");
+```
+</RequestExample>
+
+<ParamField path="target" type="string" required>
+  A natural language description of the element to click. The AI identifies the element based on this description and performs a click.
+</ParamField>
+
+## `ai.type(target, content)`
+
+Directly performs a typing action into a specified input element.
+
+<RequestExample>
+```typescript Type Example
+await ai.type("the search input field", "Magnitude Testing");
+await ai.type("the password box", process.env.USER_PASSWORD); // Use secure methods for sensitive data
+```
+</RequestExample>
+
+<ParamField path="target" type="string" required>
+  A natural language description of the input element to type into.
+</ParamField>
+<ParamField path="content" type="string" required>
+  The text content to type into the target element.
+</ParamField>
+
+## `ai.exec(action)`
+
+Executes a predefined `ActionIntent` object. This is the lowest-level method, typically used for advanced scenarios or internal integrations.
+
+<RequestExample>
+```typescript Exec Example
+import { ClickIntent } from 'magnitude-core'; // Adjust import path as needed
+
+const specificClick: ClickIntent = {
+  variant: 'click',
+  target: '#submit-button-id' // Can be a selector or description
+};
+
+await ai.exec(specificClick);
+```
+</RequestExample>
+
+<ParamField path="action" type="ActionIntent" required>
+  An `ActionIntent` object describing the exact action. See properties below for variants.
+</ParamField>
+
+<Expandable title="ActionIntent variants">
+The `ActionIntent` type is a union of specific intent types defined in `magnitude-core`. Common variants include:
+  <ResponseField name="ClickIntent" type="object">
+    Contains `variant: 'click'` and a `target: string`.
+  </ResponseField>
+  <ResponseField name="TypeIntent" type="object">
+    Contains `variant: 'type'`, a `target: string`, and `content: string`.
+  </ResponseField>
+  <ResponseField name="ScrollIntent" type="object">
+    Contains `variant: 'scroll'`, a `target: string`, `deltaX: number`, and `deltaY: number`.
+  </ResponseField>
+  Refer to the `magnitude-core` type definitions for the exact structure of each variant.
+</Expandable>

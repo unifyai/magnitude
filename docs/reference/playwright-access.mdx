@@ -1,0 +1,53 @@
+---
+title: Playwright Access
+description: "Reference for accessing Playwright's `Page` and `BrowserContext` objects within Magnitude tests."
+---
+
+Magnitude tests execute using Playwright under the hood. For advanced use cases or when you need direct control over the browser beyond what the `ai` object provides, Magnitude exposes the underlying Playwright `Page` and `BrowserContext` objects within the test function context.
+
+<RequestExample>
+```typescript Playwright Usage Example
+import { test } from 'magnitude-test';
+import { expect } from '@playwright/test'; // Import Playwright assertions if needed
+
+test('Direct Playwright Interaction', async ({ ai, page, context }) => {
+  // Use Magnitude AI for high-level steps
+  await ai.step("Navigate to the product page");
+
+  // Use Playwright 'page' object for specific checks or actions
+  const pageTitle = await page.title();
+  expect(pageTitle).toContain('Product Details');
+
+  const specificElement = page.locator('#special-offer-banner');
+  await expect(specificElement).toBeVisible();
+
+  // 'context' can be used for browser-level operations (cookies, permissions, etc.)
+  const cookies = await context.cookies();
+  console.log('Current cookies:', cookies);
+});
+```
+</RequestExample>
+
+## Test Function Context
+
+The `testFn` passed to the `test` function receives a context object:
+
+```typescript
+({ ai, page, context }) => Promise<void>
+```
+
+<ResponseField name="ai" type="Magnus" required>
+  The interface for Magnitude's AI capabilities. See [AI Steps and Checks](./ai-steps-checks) and [Low-Level AI Actions](./ai-low-level).
+</ResponseField>
+<ResponseField name="page" type="Page" required>
+  The standard Playwright [`Page`](https://playwright.dev/docs/api/class-page) object corresponding to the current browser tab. You can call any methods available on the Playwright `Page` API directly on this object.
+</ResponseField>
+<ResponseField name="context" type="BrowserContext" required>
+  The standard Playwright [`BrowserContext`](https://playwright.dev/docs/api/class-browsercontext) object for the current browser session. Use this for context-level operations like managing cookies, permissions, or opening new pages.
+</ResponseField>
+
+<Note>
+While direct Playwright access offers maximum flexibility, prefer using the `ai.step()` and `ai.check()` methods for most interactions. This keeps tests more readable, maintainable, and leverages Magnitude's AI capabilities for resilience. Use `page` and `context` when specific Playwright functionality is required that isn't covered by the `ai` object.
+</Note>
+
+Refer to the official [Playwright Documentation](https://playwright.dev/docs/api/class-page) for the full API available on the `page` and `context` objects.
