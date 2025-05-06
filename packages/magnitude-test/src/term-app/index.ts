@@ -176,7 +176,7 @@ function drawFailure(x: number, y: number, failure: FailureDescriptor, bottomBou
 
 function applyStatusStyle(status: TestState['status'], char: string) {
      switch (status) {
-        case 'running': term.blue(char); break; // Placeholder for spinner
+        case 'running': term.brightBlue(char); break; // Placeholder for spinner
         case 'passed': term.green(char); break;
         case 'failed': term.red(char); break;
         case 'cancelled': term.gray(char); break;
@@ -224,7 +224,7 @@ function drawTest(x: number, y: number, test: TestRunnable, state: TestState, fi
     term.moveTo(testIndent, currentY).styleReset();
     // Handle spinner directly
     if (state.status === 'running') {
-        term.blue(spinnerChars[spinnerFrame]); // Draw current spinner frame
+        term.brightBlue(spinnerChars[spinnerFrame]); // Draw current spinner frame
     } else {
         const statusChar = getTestStatusIndicatorChar(state.status);
         applyStatusStyle(state.status, statusChar); // Apply style for non-running states
@@ -437,7 +437,7 @@ function drawSummary(startY: number): number {
         term.moveTo(1 + PADDING, currentY).styleReset(); // Indent inside box
         if (statusCounts.passed > 0) { term.green(`✓ ${statusCounts.passed} passed  `); }
         if (statusCounts.failed > 0) { term.red(`✗ ${statusCounts.failed} failed  `); }
-        if (statusCounts.running > 0) { term.blue(`▷ ${statusCounts.running} running  `); }
+        if (statusCounts.running > 0) { term.brightBlue(`▷ ${statusCounts.running} running  `); }
         if (statusCounts.pending > 0) { term.gray(`◌ ${statusCounts.pending} pending  `); }
         if (statusCounts.cancelled > 0) { term.gray(`⊘ ${statusCounts.cancelled} cancelled  `); }
 
