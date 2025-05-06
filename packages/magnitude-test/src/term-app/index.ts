@@ -1,4 +1,3 @@
-import termkit from 'terminal-kit';
 import logUpdate from 'log-update';
 import { CategorizedTestCases, TestRunnable } from '@/discovery/types';
 import { AllTestStates, TestState } from './types';
@@ -6,8 +5,16 @@ import { VERSION } from '@/version';
 import { formatDuration, getUniqueTestId, wrapText } from './util';
 import { FailureDescriptor, ActionDescriptor } from 'magnitude-core';
 
-const term = termkit.terminal; // Keep for width, input handling etc.
-const str = termkit.stringWidth; // For calculating string width correctly (handles ANSI)
+// const term = termkit.terminal; // Keep for width, input handling etc. // REMOVED terminal-kit
+// const str = termkit.stringWidth; // For calculating string width correctly (handles ANSI) // REMOVED terminal-kit
+// TEMPORARY: Simple string length, will not correctly handle ANSI for layout.
+const str = (s: string): number => {
+    // Basic ANSI escape code removal for length calculation
+    // This is a simplified version and might not cover all ANSI sequences.
+    const ansiRegex = /\x1b\[[0-9;]*[mGKH]/g;
+    return s.replace(ansiRegex, '').length;
+};
+
 
 // --- ANSI Escape Codes ---
 const ANSI_RESET = '\x1b[0m';
@@ -32,7 +39,7 @@ const MAX_APP_WIDTH = 100;
 const PADDING = 2;
 
 // --- State ---
-let currentWidth = Math.min(term.width, MAX_APP_WIDTH);
+let currentWidth = Math.min(process.stdout.columns || MAX_APP_WIDTH, MAX_APP_WIDTH);
 let redrawScheduled = false;
 let timerInterval: NodeJS.Timeout | null = null;
 let currentTestStates: AllTestStates = {};
@@ -43,6 +50,7 @@ let isFinished = false;
 let spinnerFrame = 0;
 const spinnerChars = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 let lastOutputLineCount = 0; // Track lines for stability
+let isFirstDraw = true; // Flag to handle the first redraw specially
 
 // --- Utility Functions ---
 
@@ -510,7 +518,7 @@ function redraw() {
 
     // --- Calculate Layout ---
     const titleHeight = 3;
-    const availableHeight = term.height;
+    const availableHeight = process.stdout.rows || 24; // Fallback to 24 rows
     const totalContentHeight = availableHeight - titleHeight;
     const requiredSummaryHeight = calculateSummaryHeight(currentTestStates) + 2; // +2 for box borders
     // Ensure summary doesn't take excessive space, minimum 3 lines for box
@@ -521,25 +529,27 @@ function redraw() {
     let summaryHeight = 0;
     let spacingHeight = 0;
 
-    // Try to fit both with spacing
-    const neededForBoth = testListMinHeight + maxAllowedSummaryHeight + 1; // +1 for spacing line
-    if (totalContentHeight >= neededForBoth) {
-        summaryHeight = maxAllowedSummaryHeight;
-        testListHeight = totalContentHeight - summaryHeight - 1;
-        spacingHeight = 1;
-    } else {
-        // Not enough for both + spacing, prioritize test list if possible
-        if (totalContentHeight >= testListMinHeight + 3) { // Enough for min test list + min summary
-            testListHeight = Math.max(testListMinHeight, totalContentHeight - 3); // Give test list priority
-            summaryHeight = totalContentHeight - testListHeight; // Remaining for summary (at least 3)
-        } else if (totalContentHeight >= testListMinHeight) { // Only enough for test list
-            testListHeight = totalContentHeight;
-            summaryHeight = 0;
-        } else { // Not even enough for test list, give all to summary (if it fits)
-            testListHeight = 0;
-            summaryHeight = Math.max(0, totalContentHeight); // Can be 0 if totalContentHeight is < 0
-        }
-    }
+// Calculate the actual height needed for tests
+const requiredTestListHeight = calculateTestListHeight(currentTests, currentTestStates) + 2; // +2 for box borders
+// Ensure test list has at least minimum height but only as tall as needed
+const optimalTestListHeight = Math.max(testListMinHeight, requiredTestListHeight);
+
+// Reserve space for summary (if possible)
+if (totalContentHeight >= optimalTestListHeight + 3 + 1) {  // +3 for min summary height, +1 for spacing
+    testListHeight = optimalTestListHeight;
+    summaryHeight = maxAllowedSummaryHeight;
+    spacingHeight = 1;
+} else if (totalContentHeight >= optimalTestListHeight) {
+    // Just enough for tests
+    testListHeight = optimalTestListHeight;
+    summaryHeight = 0;
+    spacingHeight = 0;
+} else {
+    // Not enough even for the tests, use what we have
+    testListHeight = Math.max(testListMinHeight, totalContentHeight);
+    summaryHeight = 0;
+    spacingHeight = 0;
+}
      // Ensure heights are at least the minimum required to draw the box, or 0
      testListHeight = testListHeight >= testListMinHeight ? testListHeight : 0;
      summaryHeight = summaryHeight >= 3 ? summaryHeight : 0;
@@ -549,6 +559,7 @@ function redraw() {
 
     // --- Generate Output Strings ---
     const outputLines: string[] = [];
+    outputLines.push(''); // Add a sacrificial blank line at the very top
     outputLines.push(...generateTitleBarString());
 
     if (testListHeight > 0) {
@@ -570,13 +581,109 @@ function redraw() {
     // (Helps reduce flicker if state updates don't change visual output)
     // Note: This requires storing the last frame content, which might be memory intensive.
     // Optional: Implement simple line count check first.
-    if (outputLines.length !== lastOutputLineCount) {
+    if (!isFirstDraw && outputLines.length !== lastOutputLineCount) {
         // If line count changes, clear before updating to avoid artifacts
+        // Skip clear on the very first draw
         logUpdate.clear();
     }
 
     logUpdate(frameContent);
     lastOutputLineCount = outputLines.length; // Store line count for next redraw
+
+    if (isFirstDraw) {
+        isFirstDraw = false;
+    }
+}
+
+// Helper to calculate the height needed for the test list based on current tests and states
+function calculateTestListHeight(tests: CategorizedTestCases, testStates: AllTestStates): number {
+    let height = 0;
+    
+    for (const [filepath, { ungrouped, groups }] of Object.entries(tests)) {
+        height++; // File header line
+        
+        // Calculate height for ungrouped tests
+        if (ungrouped.length > 0) {
+            for (const test of ungrouped) {
+                const testId = getUniqueTestId(filepath, null, test.title);
+                const state = testStates[testId];
+                if (state) {
+                    // Calculate the content width for estimating line wrapping
+                    const contentWidth = Math.max(1, currentWidth - (PADDING * 2) - 4);
+                    
+                    // Test title (at least 1 line)
+                    height += wrapText(test.title, contentWidth - 2).length;
+                    
+                    // Steps and checks
+                    state.stepsAndChecks.forEach(item => {
+                        // Description lines
+                        height += wrapText(item.description, contentWidth - 4).length;
+                        
+                        // Action lines for steps
+                        if (item.variant === 'step' && item.actions.length > 0) {
+                            item.actions.forEach(action => {
+                                height += wrapText(describeAction(action), contentWidth - 6).length;
+                            });
+                        }
+                    });
+                    
+                    // Failure lines
+                    if (state.failure && state.failure.variant !== 'cancelled') {
+                        // Add approximate lines for failure (simplified estimate)
+                        height += 2; // Minimum lines for a failure
+                        if (state.failure.variant === 'bug') {
+                            height += 3; // Extra lines for bug details
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Calculate height for grouped tests
+        if (Object.entries(groups).length > 0) {
+            for (const [groupName, groupTests] of Object.entries(groups)) {
+                height++; // Group header line
+                
+                for (const test of groupTests) {
+                    const testId = getUniqueTestId(filepath, groupName, test.title);
+                    const state = testStates[testId];
+                    if (state) {
+                        // Same calculation as above but with deeper indentation
+                        const contentWidth = Math.max(1, currentWidth - (PADDING * 2) - 6);
+                        
+                        // Test title (at least 1 line)
+                        height += wrapText(test.title, contentWidth - 2).length;
+                        
+                        // Steps and checks
+                        state.stepsAndChecks.forEach(item => {
+                            // Description lines
+                            height += wrapText(item.description, contentWidth - 4).length;
+                            
+                            // Action lines for steps
+                            if (item.variant === 'step' && item.actions.length > 0) {
+                                item.actions.forEach(action => {
+                                    height += wrapText(describeAction(action), contentWidth - 6).length;
+                                });
+                            }
+                        });
+                        
+                        // Failure lines
+                        if (state.failure && state.failure.variant !== 'cancelled') {
+                            // Add approximate lines for failure (simplified estimate)
+                            height += 2; // Minimum lines for a failure
+                            if (state.failure.variant === 'bug') {
+                                height += 3; // Extra lines for bug details
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        height++; // Blank line between files
+    }
+    
+    return Math.max(3, height); // Ensure at least a minimum height for the box
 }
 
 // Helper to calculate summary height (remains mostly the same, used for layout)
@@ -627,13 +734,15 @@ function scheduleRedraw() {
 
 // --- Event Handlers ---
 
-function onResize(width: number, height: number) {
-    currentWidth = Math.min(width, MAX_APP_WIDTH);
-    logUpdate.clear(); // Clear before redraw on resize to avoid artifacts
-    scheduleRedraw();
-}
+// function onResize(width: number, height: number) { // REMOVED terminal-kit
+// currentWidth = Math.min(width, MAX_APP_WIDTH);
+// logUpdate.clear(); // Clear before redraw on resize to avoid artifacts
+// scheduleRedraw();
+// }
 
 function handleExitKeyPress() {
+    // This will no longer be triggered by CTRL_C via terminal-kit
+    // CTRL_C will now likely cause an immediate process exit unless handled differently.
      if (isFinished) {
          cleanupUI(1);
      } else {
@@ -649,10 +758,27 @@ export function initializeUI(model: string, initialTests: CategorizedTestCases, 
     currentTestStates = initialStates;
     isFinished = false;
     lastOutputLineCount = 0;
+    isFirstDraw = true; // Reset for new UI initialization
 
-    term.grabInput(true);
-    term.on('key', (name: string) => { if (name === 'CTRL_C') handleExitKeyPress(); });
-    term.on('resize', onResize);
+    // Ensure the cursor is on a new line before starting the UI
+    // This can help prevent the first line of the UI from being "eaten" or cut off
+    process.stdout.write('\n');
+
+    // Explicitly clear logUpdate before the first draw to ensure a clean slate
+    logUpdate.clear();
+
+    // Clear screen and move cursor to home using ANSI escape codes
+    process.stdout.write('\x1b[2J\x1b[H');
+
+
+    // term.grabInput(true); // REMOVED terminal-kit
+    // term.on('key', (name: string) => { if (name === 'CTRL_C') handleExitKeyPress(); }); // REMOVED terminal-kit
+    // term.on('resize', onResize); // REMOVED terminal-kit
+    // Basic CTRL+C handling
+    process.on('SIGINT', () => {
+        handleExitKeyPress();
+    });
+
 
     scheduleRedraw(); // Initial draw
 
@@ -699,11 +825,11 @@ export function cleanupUI(exitCode = 0) {
     redraw();
     logUpdate.done(); // Persist final frame
 
-    term.grabInput(false);
+    // term.grabInput(false); // REMOVED terminal-kit
     // Add a newline *after* logUpdate is done to ensure prompt is clear
     process.stderr.write('\n');
-    term.processExit(exitCode);
+    process.exit(exitCode); // REMOVED terminal-kit
 }
 
 // Initial width calculation
-currentWidth = Math.min(term.width, MAX_APP_WIDTH);
+currentWidth = Math.min(process.stdout.columns || MAX_APP_WIDTH, MAX_APP_WIDTH);
