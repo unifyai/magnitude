@@ -511,20 +511,29 @@ export function redraw() {
     const optimalTestListHeight = Math.max(testListMinHeight, requiredTestListHeight);
 
     // Reserve space for summary (if possible)
-    if (totalContentHeight >= optimalTestListHeight + 3 + 1) {  // +3 for min summary height, +1 for spacing
+    // Note: spacingHeight is unconditionally set to 0 later in the code.
+    if (totalContentHeight >= optimalTestListHeight + 3) { // Enough for optimal test list and min summary (3 lines)
         testListHeight = optimalTestListHeight;
-        summaryHeight = maxAllowedSummaryHeight;
-        spacingHeight = 1;
-    } else if (totalContentHeight >= optimalTestListHeight) {
-        // Just enough for tests
-        testListHeight = optimalTestListHeight;
-        summaryHeight = 0;
-        spacingHeight = 0;
+        const remainingForSummary = totalContentHeight - testListHeight;
+        // summaryHeight will be at least 3 here, capped by maxAllowedSummaryHeight.
+        summaryHeight = Math.min(maxAllowedSummaryHeight, remainingForSummary);
+    } else if (totalContentHeight >= testListMinHeight + 3) { // Enough for min test list (3 lines) and min summary (3 lines)
+        // Not enough for optimalTestListHeight + 3.
+        // Test list might be "too big" for its optimal size if summary is also to be shown.
+        // Prioritize summary getting space. Let summary take up to its max,
+        // provided test list gets at least its minTestListHeight.
+        summaryHeight = Math.min(maxAllowedSummaryHeight, totalContentHeight - testListMinHeight);
+        // summaryHeight is at least 3 because (totalContentHeight - testListMinHeight) >= 3 from the condition.
+        testListHeight = totalContentHeight - summaryHeight; // testListHeight will be >= testListMinHeight.
     } else {
-        // Not enough even for the tests, use what we have
-        testListHeight = Math.max(testListMinHeight, totalContentHeight);
+        // Not enough for min test list + min summary. Prioritize test list.
+        // Test list takes all available height, or its min if totalContentHeight is very small.
+        testListHeight = Math.min(optimalTestListHeight, totalContentHeight); // Try to be optimal within total
+        testListHeight = Math.max(testListMinHeight, testListHeight);       // But at least min
+        if (totalContentHeight < testListMinHeight) { // If total is less than even min for test list
+            testListHeight = totalContentHeight; // Test list takes whatever is there (could be < min, clamped later)
+        }
         summaryHeight = 0;
-        spacingHeight = 0;
     }
     // Ensure heights are at least the minimum required to draw the box, or 0
     testListHeight = testListHeight >= testListMinHeight ? testListHeight : 0;
