@@ -51,6 +51,8 @@ let spinnerFrame = 0;
 const spinnerChars = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 let lastOutputLineCount = 0; // Track lines for stability
 let isFirstDraw = true; // Flag to handle the first redraw specially
+let resizeTimeout: NodeJS.Timeout | null = null; // For debouncing resize events
+let isResizing = false; // Flag to track resize state
 
 // --- Utility Functions ---
 
@@ -219,7 +221,7 @@ function generateTitleBarString(): string[] {
     // Returns array of strings with ANSI codes
     const boxLines = createBoxAnsi(currentWidth, 3, ANSI_BRIGHT_BLUE);
     const titleText = `${ANSI_BRIGHT_BLUE}${ANSI_BOLD}Magnitude v${VERSION}${ANSI_RESET}`;
-    const modelText = `${ANSI_GRAY}Model: ${currentModel}${ANSI_RESET}`;
+    const modelText = `${ANSI_GRAY}${currentModel}${ANSI_RESET}`;
     const contentWidth = currentWidth - 2; // Width inside vertical bars
 
     // Construct the middle line directly
@@ -577,16 +579,18 @@ if (totalContentHeight >= optimalTestListHeight + 3 + 1) {  // +3 for min summar
     // --- Update Terminal using log-update ---
     const frameContent = outputLines.join('\n');
 
-    // Prevent logUpdate from printing if the frame is identical to the last one
-    // (Helps reduce flicker if state updates don't change visual output)
-    // Note: This requires storing the last frame content, which might be memory intensive.
-    // Optional: Implement simple line count check first.
-    if (!isFirstDraw && outputLines.length !== lastOutputLineCount) {
-        // If line count changes, clear before updating to avoid artifacts
-        // Skip clear on the very first draw
+    // Only clear the screen in specific cases to avoid scrollback buffer issues
+    // Don't clear during resize operations or if line count hasn't changed
+    const shouldClear = !isFirstDraw && 
+                        !isResizing && 
+                        outputLines.length !== lastOutputLineCount;
+                        
+    // Clear only when necessary to avoid unnecessary screen clearing
+    if (shouldClear) {
         logUpdate.clear();
     }
 
+    // Always update with the latest content
     logUpdate(frameContent);
     lastOutputLineCount = outputLines.length; // Store line count for next redraw
 
@@ -734,14 +738,27 @@ function scheduleRedraw() {
 
 // --- Event Handlers ---
 
-// Handle resize events using Node.js built-in functionality
+// Handle resize events using Node.js built-in functionality with debounce
 function onResize() {
-    const newWidth = Math.min(process.stdout.columns || MAX_APP_WIDTH, MAX_APP_WIDTH);
-    if (newWidth !== currentWidth) {
-        currentWidth = newWidth;
-        logUpdate.clear(); // Clear before redraw on resize to avoid artifacts
-        scheduleRedraw();
+    // Set resize flag to avoid unnecessary screen clearing
+    isResizing = true;
+    
+    // Clear any existing timeout
+    if (resizeTimeout) {
+        clearTimeout(resizeTimeout);
     }
+    
+    // Debounce resize events - only update width and redraw after resize is "settled"
+    resizeTimeout = setTimeout(() => {
+        const newWidth = Math.min(process.stdout.columns || MAX_APP_WIDTH, MAX_APP_WIDTH);
+        if (newWidth !== currentWidth) {
+            currentWidth = newWidth;
+            // Don't clear the screen directly, let the redraw handle it
+            scheduleRedraw();
+        }
+        isResizing = false;
+        resizeTimeout = null;
+    }, 100); // Small debounce time to ensure smoothness
 }
 
 function handleExitKeyPress() {
