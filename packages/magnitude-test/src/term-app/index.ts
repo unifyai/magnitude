@@ -1,607 +1,626 @@
 import termkit from 'terminal-kit';
+import logUpdate from 'log-update';
 import { CategorizedTestCases, TestRunnable } from '@/discovery/types';
-import { AllTestStates, TestState } from './types'; // Updated import path
+import { AllTestStates, TestState } from './types';
 import { VERSION } from '@/version';
-import { formatDuration, getUniqueTestId, drawBox, wrapText } from './util'; // Import drawBox and wrapText
+import { formatDuration, getUniqueTestId, wrapText } from './util';
 import { FailureDescriptor, ActionDescriptor } from 'magnitude-core';
 
-const term = termkit.terminal;
+const term = termkit.terminal; // Keep for width, input handling etc.
+const str = termkit.stringWidth; // For calculating string width correctly (handles ANSI)
+
+// --- ANSI Escape Codes ---
+const ANSI_RESET = '\x1b[0m';
+const ANSI_BRIGHT_RED = '\x1b[91m';
+const ANSI_BRIGHT_GREEN = '\x1b[92m';
+const ANSI_BRIGHT_BLUE = '\x1b[94m';
+const ANSI_GRAY = '\x1b[90m';
+const ANSI_RED = '\x1b[31m';
+// const ANSI_GREEN = '\x1b[32m'; // Not used currently
+// const ANSI_BLUE = '\x1b[34m'; // Not used currently
+const ANSI_BOLD = '\x1b[1m';
+const ANSI_DIM = '\x1b[2m';
+
+// --- Box Drawing Characters ---
+const BOX_CHARS_ROUNDED = {
+    topLeft: '╭', topRight: '╮', bottomLeft: '╰', bottomRight: '╯',
+    horizontal: '─', vertical: '│'
+};
 
 // --- Configuration ---
-const MAX_APP_WIDTH = 100; // max rendered width
-const PADDING = 2; // Horizontal padding inside boxes
+const MAX_APP_WIDTH = 100;
+const PADDING = 2;
 
 // --- State ---
 let currentWidth = Math.min(term.width, MAX_APP_WIDTH);
-let redrawScheduled = false; // Restore flag
+let redrawScheduled = false;
 let timerInterval: NodeJS.Timeout | null = null;
-let currentTestStates: AllTestStates = {}; // Store the latest states
-let currentTests: CategorizedTestCases = {}; // Store the test structure
+let currentTestStates: AllTestStates = {};
+let currentTests: CategorizedTestCases = {};
 let currentModel = '';
-let elapsedTimes: { [testId: string]: number } = {}; // Store elapsed times for running tests
-let isFinished = false; // Flag to indicate if tests are done
-let spinnerFrame = 0; // Current frame for the spinner animation
+let elapsedTimes: { [testId: string]: number } = {};
+let isFinished = false;
+let spinnerFrame = 0;
 const spinnerChars = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+let lastOutputLineCount = 0; // Track lines for stability
 
-// --- Utility Functions (from Ink components) ---
+// --- Utility Functions ---
+
+// Helper to create a box as an array of strings using ANSI codes and specified characters
+function createBoxAnsi(width: number, height: number, colorCode: string, boxChars = BOX_CHARS_ROUNDED): string[] {
+    if (height < 2 || width < 2) return [];
+    const lines: string[] = [];
+    const horizontal = boxChars.horizontal.repeat(width - 2);
+    const topBorder = `${boxChars.topLeft}${horizontal}${boxChars.topRight}`;
+    const bottomBorder = `${boxChars.bottomLeft}${horizontal}${boxChars.bottomRight}`;
+
+    lines.push(`${colorCode}${topBorder}${ANSI_RESET}`);
+
+    for (let i = 1; i < height - 1; i++) {
+        lines.push(`${colorCode}${boxChars.vertical}${' '.repeat(width - 2)}${boxChars.vertical}${ANSI_RESET}`);
+    }
+
+    lines.push(`${colorCode}${bottomBorder}${ANSI_RESET}`);
+    return lines;
+}
+
+// Simplified insertion: Overwrites a specific line within the box content area
+// Assumes startY is the 0-based index *within* the box lines array (1 for first content line)
+// Assumes startX is the 0-based index *within* the content area (between the vertical bars)
+function insertLineIntoBoxAnsi(lines: string[], contentLine: string, lineIndex: number, startX: number, boxWidth: number) {
+     if (lineIndex <= 0 || lineIndex >= lines.length - 1) return; // Only insert into content lines
+
+     const targetLine = lines[lineIndex];
+     const boxColorMatch = targetLine.match(/^\x1b\[[0-9;]*m/); // Get the box's color code
+     const boxColor = boxColorMatch ? boxColorMatch[0] : '';
+
+     const contentAreaWidth = boxWidth - 2;
+     const availableSpace = contentAreaWidth - startX;
+
+     if (availableSpace > 0) {
+         // Basic ANSI-aware truncation (same as before, might need refinement)
+         let truncatedContent = '';
+         let currentVisibleLength = 0;
+         const ansiRegex = /\x1b\[[0-9;]*m/g;
+         let lastIndex = 0;
+         let match;
+         while ((match = ansiRegex.exec(contentLine)) !== null) {
+             const textPart = contentLine.substring(lastIndex, match.index);
+             const partLen = str(textPart);
+             if (currentVisibleLength + partLen <= availableSpace) {
+                 truncatedContent += textPart + match[0];
+                 currentVisibleLength += partLen;
+             } else {
+                 const remainingSpace = availableSpace - currentVisibleLength;
+                 truncatedContent += textPart.slice(0, remainingSpace) + match[0];
+                 currentVisibleLength = availableSpace;
+                 break;
+             }
+             lastIndex = ansiRegex.lastIndex;
+         }
+         if (currentVisibleLength < availableSpace) {
+              const textPart = contentLine.substring(lastIndex);
+              const partLen = str(textPart);
+              if (currentVisibleLength + partLen <= availableSpace) {
+                  truncatedContent += textPart;
+                  currentVisibleLength += partLen;
+              } else {
+                  const remainingSpace = availableSpace - currentVisibleLength;
+                  truncatedContent += textPart.slice(0, remainingSpace);
+                  currentVisibleLength = availableSpace;
+              }
+         }
+         // Ensure content ends with reset if it had styles
+         if (truncatedContent.includes('\x1b[') && !truncatedContent.endsWith(ANSI_RESET)) {
+             truncatedContent += ANSI_RESET;
+         }
+
+
+         const paddingLeft = ' '.repeat(startX);
+         const paddingRight = ' '.repeat(availableSpace - currentVisibleLength);
+
+         // Reconstruct the line with box color preserved
+         lines[lineIndex] = `${boxColor}${BOX_CHARS_ROUNDED.vertical}${paddingLeft}${truncatedContent}${paddingRight}${BOX_CHARS_ROUNDED.vertical}${ANSI_RESET}`;
+     }
+}
+
 
 function describeAction(action: ActionDescriptor): string {
+    // Returns plain string
     switch (action.variant) {
-        case 'load':
-            return `navigated to URL: ${action.url}`;
-        case 'click':
-            return `clicked ${action.target}`;
-        case 'type':
-            return `typed "${action.content}" into ${action.target}`;
-        case 'scroll':
-            return `scrolled (${action.deltaX}, ${action.deltaY})`;
-        default:
-            // Handle potential unknown variants gracefully
-            return `unknown action: ${(action as any).variant}`;
+        case 'load': return `navigated to URL: ${action.url}`;
+        case 'click': return `clicked ${action.target}`;
+        case 'type': return `typed "${action.content}" into ${action.target}`;
+        case 'scroll': return `scrolled (${action.deltaX}, ${action.deltaY})`;
+        default: return `unknown action: ${(action as any).variant}`;
     }
 }
 
 function getActionSymbol(variant: "load" | "click" | "hover" | "type" | "scroll" | "wait" | "back"): string {
+    // Returns plain char
     switch (variant) {
-        case "load": return "↻";
-        case "click": return "⊙";
-        case "hover": return "◉";
-        case "type": return "⏎";
-        case "scroll": return "↕";
-        case "wait": return "◴";
-        case "back": return "←";
-        default: return "?";
+        case "load": return "↻"; case "click": return "⊙"; case "hover": return "◉";
+        case "type": return "⏎"; case "scroll": return "↕"; case "wait": return "◴";
+        case "back": return "←"; default: return "?";
     }
 }
 
-// Returns just the character, styling applied separately
-// Spinner is handled directly in drawTest now
 function getTestStatusIndicatorChar(status: TestState['status']): string {
+    // Returns plain char
     switch (status) {
-        // case 'running': return ' '; // Spinner handled in drawTest
-        case 'passed': return '✓';
-        case 'failed': return '✕';
-        case 'cancelled': return '⊘';
-        case 'pending':
-        default: return '◌';
+        case 'passed': return '✓'; case 'failed': return '✕';
+        case 'cancelled': return '⊘'; case 'pending': default: return '◌';
     }
 }
 
-// Returns just the character
 function getStepStatusIndicatorChar(status: TestState['status']): string {
+    // Returns plain char
     switch (status) {
-        case 'running': return '>';
-        case 'passed': return '⚑';
-        case 'failed': return '✕';
-        case 'cancelled': return '⊘';
-        case 'pending':
-        default: return '•';
+        case 'running': return '>'; case 'passed': return '⚑';
+        case 'failed': return '✕'; case 'cancelled': return '⊘';
+        case 'pending': default: return '•';
     }
 }
 
-// Returns just the character
 function getCheckStatusIndicatorChar(status: TestState['status']): string {
+    // Returns plain char
     switch (status) {
-        case 'running': return '?';
-        case 'passed': return '✓';
-        case 'failed': return '✕';
-        case 'cancelled': return '⊘';
-        case 'pending':
-        default: return '•';
+        case 'running': return '?'; case 'passed': return '✓';
+        case 'failed': return '✕'; case 'cancelled': return '⊘';
+        case 'pending': default: return '•';
     }
 }
 
-// --- Drawing Functions (using `term` directly) ---
+// --- String Generation Functions (Using ANSI Codes) ---
 
-function drawTitleBar() {
-    // Use drawBox for the title bar frame (height 3)
-    drawBox(term, 1, 1, currentWidth, 3, term.brightBlue);
-
-    // Draw title text inside the box (at y=2)
-    term.moveTo(1 + PADDING, 2).styleReset(); // Move inside left border (padding)
-    term.bold.brightBlue(`Magnitude v${VERSION}`);
-
-    // Draw model text inside the box (at y=2), aligned right
-    const modelText = `Model: ${currentModel}`;
-    const modelX = currentWidth - modelText.length - PADDING; // Position inside right border (padding)
-    term.moveTo(modelX, 2).styleReset();
-    term.dim.gray(modelText);
+function styleAnsi(status: TestState['status'], text: string, type: 'test' | 'step' | 'check'): string {
+    // Returns string with ANSI codes
+    let colorCode = ANSI_GRAY; // Default gray
+    switch (type) {
+        case 'test':
+            switch (status) {
+                case 'running': colorCode = ANSI_BRIGHT_BLUE; break;
+                case 'passed': colorCode = ANSI_BRIGHT_GREEN; break;
+                case 'failed': colorCode = ANSI_BRIGHT_RED; break;
+                case 'cancelled': colorCode = ANSI_GRAY; break;
+            }
+            break;
+        case 'step':
+             switch (status) {
+                case 'running': colorCode = ANSI_GRAY; break;
+                case 'passed': colorCode = ANSI_BRIGHT_BLUE; break;
+                case 'failed': colorCode = ANSI_BRIGHT_RED; break;
+                case 'cancelled': colorCode = ANSI_GRAY; break;
+            }
+            break;
+        case 'check':
+             switch (status) {
+                case 'running': colorCode = ANSI_GRAY; break;
+                case 'passed': colorCode = ANSI_BRIGHT_BLUE; break;
+                case 'failed': colorCode = ANSI_BRIGHT_RED; break;
+                case 'cancelled': colorCode = ANSI_GRAY; break;
+            }
+            break;
+    }
+    // Important: Ensure reset code is appended
+    return `${colorCode}${text}${ANSI_RESET}`;
 }
 
-// Modified drawFailure to accept availableWidth and use wrapText
-function drawFailure(x: number, y: number, failure: FailureDescriptor, bottomBoundary: number, availableWidth: number): number {
-    let currentY = y;
-    if (currentY >= bottomBoundary) return currentY;
-    const prefix = '↳ ';
-    const indentX = x + prefix.length;
-    const contentWidth = Math.max(1, availableWidth - prefix.length); // Width for wrapped text, ensure positive
 
-    term.moveTo(x, currentY).styleReset().red(prefix); // Draw prefix first
+function generateTitleBarString(): string[] {
+    // Returns array of strings with ANSI codes
+    const boxLines = createBoxAnsi(currentWidth, 3, ANSI_BRIGHT_BLUE);
+    const titleText = `${ANSI_BRIGHT_BLUE}${ANSI_BOLD}Magnitude v${VERSION}${ANSI_RESET}`;
+    const modelText = `${ANSI_GRAY}Model: ${currentModel}${ANSI_RESET}`;
+    const contentWidth = currentWidth - 2; // Width inside vertical bars
+
+    // Construct the middle line directly
+    const titleWidth = str(titleText);
+    const modelWidth = str(modelText);
+    const spaceBetween = contentWidth - titleWidth - modelWidth - (PADDING * 2);
+    const middleLineContent = ' '.repeat(PADDING) + titleText + ' '.repeat(Math.max(1, spaceBetween)) + modelText + ' '.repeat(PADDING);
+
+    // Replace the default middle line (index 1)
+    boxLines[1] = `${ANSI_BRIGHT_BLUE}${BOX_CHARS_ROUNDED.vertical}${middleLineContent.padEnd(contentWidth)}${BOX_CHARS_ROUNDED.vertical}${ANSI_RESET}`;
+
+    return boxLines;
+}
+
+function generateFailureString(failure: FailureDescriptor, indent: number, availableWidth: number): string[] {
+    // Returns array of strings with ANSI codes
+    const output: string[] = [];
+    const prefix = '↳ ';
+    const prefixAnsi = `${ANSI_RED}${prefix}${ANSI_RESET}`;
+    const contentWidth = Math.max(1, availableWidth - str(prefix));
+
+    const addLine = (text: string, styleCode = ANSI_RED, bold = false) => {
+        const fullStyleCode = `${styleCode}${bold ? ANSI_BOLD : ''}`;
+        wrapText(text, contentWidth).forEach((line, index) => {
+            const linePrefix = index === 0 ? prefixAnsi : ' '.repeat(str(prefix));
+            // Ensure reset at the end of the styled line part
+            output.push(' '.repeat(indent) + linePrefix + `${fullStyleCode}${line}${ANSI_RESET}`);
+        });
+    };
+
+    const addSimpleLine = (text: string, styleCode = ANSI_RED) => {
+         output.push(' '.repeat(indent) + prefixAnsi + `${styleCode}${text}${ANSI_RESET}`);
+     };
 
     if (failure.variant === 'bug') {
-        const titleLines = wrapText(`Found bug: ${failure.title}`, contentWidth);
-        titleLines.forEach((line, index) => {
-            if (currentY >= bottomBoundary) return;
-            term.moveTo(indentX, currentY).styleReset().red(index === 0 ? '' : '  ').bold(line); // Indent subsequent lines
-            currentY++;
-        });
-        if (currentY >= bottomBoundary) return currentY;
-
-        const expectedLines = wrapText(`Expected: ${failure.expectedResult}`, contentWidth);
-        expectedLines.forEach((line, index) => {
-            if (currentY >= bottomBoundary) return;
-            term.moveTo(indentX, currentY).styleReset().red(line);
-            currentY++;
-        });
-         if (currentY >= bottomBoundary) return currentY;
-
-        const actualLines = wrapText(`Actual:   ${failure.actualResult}`, contentWidth);
-         actualLines.forEach((line, index) => {
-            if (currentY >= bottomBoundary) return;
-            term.moveTo(indentX, currentY).styleReset().red(line);
-            currentY++;
-        });
-         if (currentY >= bottomBoundary) return currentY;
-
-        term.moveTo(indentX, currentY).styleReset().red('Severity: ')(failure.severity.toUpperCase());
-        currentY++;
-
+        addLine(`Found bug: ${failure.title}`, ANSI_RED, true); // Bold Red
+        addLine(`Expected: ${failure.expectedResult}`);
+        addLine(`Actual:   ${failure.actualResult}`);
+        addSimpleLine(`Severity: ${failure.severity.toUpperCase()}`);
     } else if (failure.variant === 'cancelled') {
-        // This case is handled separately now before the generic else
-        term.moveTo(indentX, currentY).styleReset().gray('Cancelled');
-        currentY++;
+        addSimpleLine('Cancelled', ANSI_GRAY);
     } else {
-        // Handle other failure types that have a 'message'
         const prefixMap: Partial<Record<FailureDescriptor['variant'], string>> = {
-            'unknown': '',
-            'browser': 'BrowserError: ',
-            'network': 'NetworkError: ',
-            'misalignment': 'Misalignment: '
-            // Note: 'cancelled' and 'bug' are handled above
+            'unknown': '', 'browser': 'BrowserError: ', 'network': 'NetworkError: ', 'misalignment': 'Misalignment: '
         };
-        // Ensure failure has a message property before accessing it
-        if ('message' in failure) {
-            const failurePrefix = prefixMap[failure.variant] || `${failure.variant}: `;
-            const messageLines = wrapText(failurePrefix + failure.message, contentWidth);
-            messageLines.forEach((line, index) => {
-                 if (currentY >= bottomBoundary) return;
-                 term.moveTo(indentX, currentY).styleReset().red(line);
-                 currentY++;
-            });
+        const typedFailure = failure as Extract<FailureDescriptor, { message?: string }>;
+        if ('message' in typedFailure && typedFailure.message) {
+            const failurePrefix = prefixMap[typedFailure.variant] || `${typedFailure.variant}: `;
+            addLine(failurePrefix + typedFailure.message);
+        } else {
+             addSimpleLine(typedFailure.variant || 'unknown error');
         }
-        // Removed the problematic 'else' block that caused the 'never' type error
     }
-    return Math.min(currentY, bottomBoundary);
-}
-
-function applyStatusStyle(status: TestState['status'], char: string) {
-     switch (status) {
-        case 'running': term.brightBlue(char); break; // Placeholder for spinner
-        case 'passed': term.green(char); break;
-        case 'failed': term.red(char); break;
-        case 'cancelled': term.gray(char); break;
-        case 'pending':
-        default: term.gray(char); break;
-    }
-}
-
-function applyStepStatusStyle(status: TestState['status'], char: string) {
-     switch (status) {
-        case 'running': term.grey(char); break;
-        case 'passed': term.brightBlue(char); break;
-        case 'failed': term.red(char); break;
-        case 'cancelled': term.gray(char); break;
-        case 'pending':
-        default: term.gray(char); break;
-    }
-}
-
-function applyCheckStatusStyle(status: TestState['status'], char: string) {
-     switch (status) {
-        case 'running': term.grey(char); break;
-        case 'passed': term.brightBlue(char); break;
-        case 'failed': term.red(char); break;
-        case 'cancelled': term.gray(char); break;
-        case 'pending':
-        default: term.gray(char); break;
-    }
+    return output;
 }
 
 
-// Modified drawTest to accept bottomBoundary and availableWidth, use wrapText
-function drawTest(x: number, y: number, test: TestRunnable, state: TestState, filepath: string, groupName: string | null, bottomBoundary: number, availableWidth: number): number {
-    let currentY = y;
-    if (currentY >= bottomBoundary) return currentY; // Check start position
-
-    const testIndent = x;
-    const stepIndent = testIndent + 2;
-    const actionIndent = stepIndent + 2;
+function generateTestString(test: TestRunnable, state: TestState, filepath: string, groupName: string | null, indent: number, availableWidth: number): string[] {
+    // Returns array of strings with ANSI codes
+    const output: string[] = [];
     const testId = getUniqueTestId(filepath, groupName, test.title);
-    // Calculate content width based on the starting X position and the overall available width
-    const contentWidth = Math.max(1, availableWidth - (x - (1 + PADDING))); // Ensure positive width
+    const contentWidth = Math.max(1, availableWidth - indent);
+    const stepIndent = indent + 2;
+    const actionIndent = stepIndent + 2;
+    const stepContentWidth = Math.max(1, availableWidth - stepIndent - 2);
+    const actionContentWidth = Math.max(1, availableWidth - actionIndent - 2);
 
-    // --- Draw Test Title Line ---
-    term.moveTo(testIndent, currentY).styleReset();
-    // Handle spinner directly
-    if (state.status === 'running') {
-        term.brightBlue(spinnerChars[spinnerFrame]); // Draw current spinner frame
-    } else {
-        const statusChar = getTestStatusIndicatorChar(state.status);
-        applyStatusStyle(state.status, statusChar); // Apply style for non-running states
-    }
+    // --- Test Title Line ---
+    const statusCharPlain = state.status === 'running' ? spinnerChars[spinnerFrame] : getTestStatusIndicatorChar(state.status);
+    const statusStyled = styleAnsi(state.status, statusCharPlain, 'test');
 
-    // Calculate space for timer to potentially wrap title correctly
-    const timerText = state.status !== 'pending' ? ` [${formatDuration(elapsedTimes[testId] ?? 0)}]` : '';
-    const titleAvailableWidth = contentWidth - 2 - timerText.length; // -2 for status char and space
-    const titleLines = wrapText(test.title, titleAvailableWidth > 10 ? titleAvailableWidth : contentWidth - 2); // Use full width if timer makes it too small
+    const timerText = state.status !== 'pending' ? `${ANSI_GRAY} [${formatDuration(elapsedTimes[testId] ?? 0)}]${ANSI_RESET}` : '';
+    const titleAvailableWidth = contentWidth - 2 - str(timerText); // Use str for width
+    const wrappedTitle = wrapText(test.title, titleAvailableWidth > 10 ? titleAvailableWidth : contentWidth - 2);
 
-    titleLines.forEach((line, index) => {
-        if (currentY >= bottomBoundary) return;
-        term.moveTo(testIndent + 2, currentY).styleReset()(line); // Draw title part
-        if (index === 0 && timerText) {
-            term.gray(timerText); // Draw timer only on the first line
-        }
-        currentY++;
+    wrappedTitle.forEach((line, index) => {
+        const linePrefix = index === 0 ? `${statusStyled} ` : '  ';
+        const lineSuffix = index === 0 ? timerText : '';
+        output.push(' '.repeat(indent) + linePrefix + line + lineSuffix); // Title is plain
     });
-    if (currentY >= bottomBoundary) return currentY; // Check after increment
 
-    // --- Draw Steps and Checks ---
-    const stepContentWidth = Math.max(1, availableWidth - (stepIndent - (1 + PADDING)));
-    const actionContentWidth = Math.max(1, availableWidth - (actionIndent + 2 - (1 + PADDING))); // action text starts 2 chars after symbol
-
+    // --- Steps and Checks ---
     if (state.stepsAndChecks.length > 0) {
         state.stepsAndChecks.forEach((item) => {
-            if (currentY >= bottomBoundary) return; // Check against box boundary
+            const itemIndent = stepIndent;
+            const itemContentWidth = stepContentWidth;
+            let itemCharPlain = '';
+            let itemDesc = '';
+            let itemStyleType: 'step' | 'check' = 'step';
 
-            term.moveTo(stepIndent, currentY).styleReset();
             if (item.variant === 'step') {
-                const stepChar = getStepStatusIndicatorChar(item.status);
-                applyStepStatusStyle(item.status, stepChar);
-                const descLines = wrapText(item.description, stepContentWidth - 2); // -2 for status char and space
-                descLines.forEach((line, index) => {
-                     if (currentY >= bottomBoundary) return;
-                     term.moveTo(stepIndent + 2, currentY).styleReset()(line);
-                     currentY++;
-                });
-                 if (currentY >= bottomBoundary) return; // Check after increment
-
-                if (item.actions.length > 0) {
-                    item.actions.forEach(action => {
-                        if (currentY >= bottomBoundary) return; // Check against box boundary
-                        // Draw action symbol at actionIndent
-                        term.moveTo(actionIndent, currentY).styleReset();
-                        term.gray(getActionSymbol(action.variant));
-                        // Draw action description indented further
-                        const actionDescLines = wrapText(describeAction(action), actionContentWidth);
-                        actionDescLines.forEach((line, index) => {
-                            if (currentY >= bottomBoundary) return;
-                            term.moveTo(actionIndent + 2, currentY).styleReset().gray(line);
-                            currentY++;
-                        });
-                         if (currentY >= bottomBoundary) return; // Check after increment
-                    });
-                }
+                itemCharPlain = getStepStatusIndicatorChar(item.status);
+                itemDesc = item.description;
+                itemStyleType = 'step';
             } else { // Check
-                const checkChar = getCheckStatusIndicatorChar(item.status);
-                applyCheckStatusStyle(item.status, checkChar);
-                const descLines = wrapText(item.description, stepContentWidth - 2); // -2 for status char and space
-                 descLines.forEach((line, index) => {
-                     if (currentY >= bottomBoundary) return;
-                     term.moveTo(stepIndent + 2, currentY).styleReset()(line);
-                     currentY++;
-                 });
-                 if (currentY >= bottomBoundary) return; // Check after increment
+                itemCharPlain = getCheckStatusIndicatorChar(item.status);
+                itemDesc = item.description;
+                itemStyleType = 'check';
+            }
+
+            const styledChar = styleAnsi(item.status, itemCharPlain, itemStyleType);
+            const wrappedDesc = wrapText(itemDesc, itemContentWidth);
+
+            wrappedDesc.forEach((line, index) => {
+                const linePrefix = index === 0 ? `${styledChar} ` : '  ';
+                output.push(' '.repeat(itemIndent) + linePrefix + line); // Desc is plain
+            });
+
+            // Draw actions only for steps
+            if (item.variant === 'step' && item.actions.length > 0) {
+                item.actions.forEach(action => {
+                    const actionSymbol = `${ANSI_GRAY}${getActionSymbol(action.variant)}${ANSI_RESET}`;
+                    const actionDesc = describeAction(action); // Plain desc
+                    const wrappedActionDesc = wrapText(actionDesc, actionContentWidth);
+                    wrappedActionDesc.forEach((line, index) => {
+                         const linePrefix = index === 0 ? `${actionSymbol} ` : '  ';
+                         output.push(' '.repeat(actionIndent) + linePrefix + `${ANSI_GRAY}${line}${ANSI_RESET}`); // Gray action text
+                    });
+                });
             }
         });
     }
 
-    // --- Draw Failure ---
+    // --- Failure ---
     if (state.failure && state.failure.variant !== 'cancelled') {
-         if (currentY < bottomBoundary) { // Check against box boundary
-            currentY = drawFailure(stepIndent, currentY, state.failure, bottomBoundary, stepContentWidth);
-         }
+        const failureLines = generateFailureString(state.failure, stepIndent, availableWidth - stepIndent);
+        output.push(...failureLines);
     }
 
-    // Return the next Y position, capped at the boundary
-    return Math.min(currentY, bottomBoundary);
+    return output;
 }
 
-// Modified drawTestList to accept box boundaries and pass width
-function drawTestList(boxY: number, boxHeight: number, availableWidth: number): number {
-    let currentY = boxY; // Start drawing at the top of the box content area
-    const fileIndent = 1 + PADDING; // Indent inside the box border (left padding)
+function generateTestListString(boxHeight: number): string[] {
+    // Returns array of strings with ANSI codes
+    const boxLines = createBoxAnsi(currentWidth, boxHeight, ANSI_GRAY); // Gray box
+    const contentWidth = currentWidth - (PADDING * 2); // Content width inside padding
+    const fileIndent = 0; // Relative to content area start (after padding)
     const groupIndent = fileIndent + 2;
-    const testIndent = groupIndent;
-    const bottomBoundary = boxY + boxHeight; // Calculate bottom boundary based on passed height
+    const testBaseIndent = groupIndent;
+
+    let currentContentLine = 0; // Tracks lines *within* the box content area (0-based)
+    const maxContentLines = boxHeight - 2;
 
     for (const [filepath, { ungrouped, groups }] of Object.entries(currentTests)) {
-        if (currentY >= bottomBoundary) break; // Stop if we hit the bottom
+        if (currentContentLine >= maxContentLines) break;
 
-        term.moveTo(fileIndent, currentY).styleReset(); // Use fileIndent for filepath
-        term.bold.brightBlue(`☰ ${filepath}`);
-        currentY++;
-        if (currentY >= bottomBoundary) break; // Check after increment
+        const fileHeader = `${ANSI_BRIGHT_BLUE}${ANSI_BOLD}☰ ${filepath}${ANSI_RESET}`;
+        insertLineIntoBoxAnsi(boxLines, fileHeader, currentContentLine + 1, PADDING + fileIndent, currentWidth);
+        currentContentLine++;
 
         // Draw ungrouped tests
         if (ungrouped.length > 0) {
-             if (currentY >= bottomBoundary) break;
-            ungrouped.forEach(test => {
-                if (currentY >= bottomBoundary) return;
+            for (const test of ungrouped) {
+                if (currentContentLine >= maxContentLines) break;
                 const testId = getUniqueTestId(filepath, null, test.title);
                 const state = currentTestStates[testId];
                 if (state) {
-                    // Pass bottomBoundary and availableWidth to drawTest
-                    currentY = drawTest(testIndent, currentY, test, state, filepath, null, bottomBoundary, availableWidth);
+                    const testLines = generateTestString(test, state, filepath, null, testBaseIndent, contentWidth - testBaseIndent);
+                    testLines.forEach(line => {
+                         if (currentContentLine < maxContentLines) {
+                            insertLineIntoBoxAnsi(boxLines, line, currentContentLine + 1, PADDING, currentWidth);
+                            currentContentLine++;
+                         }
+                    });
                 }
-                 if (currentY >= bottomBoundary) return; // Check within loop
-            });
+            }
         }
+         if (currentContentLine >= maxContentLines) break;
+
 
         // Draw grouped tests
         if (Object.entries(groups).length > 0) {
-             if (currentY >= bottomBoundary) break;
-            Object.entries(groups).forEach(([groupName, groupTests]) => {
-                if (currentY >= bottomBoundary) return;
-                term.moveTo(groupIndent, currentY).styleReset(); // Use groupIndent
-                term.bold.brightBlue(`↳ ${groupName}`); // Add indicator
-                currentY++;
-                 if (currentY >= bottomBoundary) return; // Check after increment
-                groupTests.forEach(test => {
-                    if (currentY >= bottomBoundary) return;
+            for (const [groupName, groupTests] of Object.entries(groups)) {
+                 if (currentContentLine >= maxContentLines) break;
+                const groupHeader = `${ANSI_BRIGHT_BLUE}${ANSI_BOLD}↳ ${groupName}${ANSI_RESET}`;
+                insertLineIntoBoxAnsi(boxLines, groupHeader, currentContentLine + 1, PADDING + groupIndent, currentWidth);
+                currentContentLine++;
+
+                for (const test of groupTests) {
+                    if (currentContentLine >= maxContentLines) break;
                     const testId = getUniqueTestId(filepath, groupName, test.title);
                     const state = currentTestStates[testId];
                     if (state) {
-                         // Pass bottomBoundary and availableWidth to drawTest
-                        currentY = drawTest(testIndent + 2, currentY, test, state, filepath, groupName, bottomBoundary, availableWidth);
-                         if (currentY >= bottomBoundary) return; // Check within loop
+                        const testLines = generateTestString(test, state, filepath, groupName, testBaseIndent + 2, contentWidth - (testBaseIndent + 2));
+                        testLines.forEach(line => {
+                            if (currentContentLine < maxContentLines) {
+                                insertLineIntoBoxAnsi(boxLines, line, currentContentLine + 1, PADDING, currentWidth);
+                                currentContentLine++;
+                            }
+                        });
                     }
-                });
-            });
+                }
+                 if (currentContentLine >= maxContentLines) break;
+            }
         }
-         if (currentY < bottomBoundary) {
-            currentY++; // Add a blank line between files if space allows
-         }
+
+        // Add blank line between files if space allows
+        if (currentContentLine < maxContentLines) {
+            insertLineIntoBoxAnsi(boxLines, '', currentContentLine + 1, PADDING, currentWidth);
+            currentContentLine++;
+        }
     }
 
-    // Return the next Y position *after* the content drawn, capped at the boundary
-    return Math.min(currentY, bottomBoundary);
+    return boxLines;
 }
 
-
-function drawSummary(startY: number): number {
-    let currentY = startY;
-    if (currentY >= term.height) return currentY; // Check if space available (use term.height)
-
-    // Calculate counts
+function generateSummaryString(boxHeight: number): string[] {
+    // Returns array of strings with ANSI codes
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
-    const statusCounts = {
-        pending: 0, running: 0, passed: 0, failed: 0, cancelled: 0, total: 0,
-    };
+    const statusCounts = { pending: 0, running: 0, passed: 0, failed: 0, cancelled: 0, total: 0 };
     const failuresWithContext: { filepath: string; groupName: string | null; testTitle: string; failure: FailureDescriptor }[] = [];
     const testContextMap = new Map<string, { filepath: string; groupName: string | null; testTitle: string }>();
 
-    // Build context map first
-     Object.entries(currentTests).forEach(([filepath, { ungrouped, groups }]) => {
-        ungrouped.forEach(test => {
-            const testId = getUniqueTestId(filepath, null, test.title);
-            testContextMap.set(testId, { filepath, groupName: null, testTitle: test.title });
-        });
-        Object.entries(groups).forEach(([groupName, groupTests]) => {
-            groupTests.forEach(test => {
-                const testId = getUniqueTestId(filepath, groupName, test.title);
-                testContextMap.set(testId, { filepath, groupName, testTitle: test.title });
-            });
-        });
+    Object.entries(currentTests).forEach(([filepath, { ungrouped, groups }]) => {
+        ungrouped.forEach(test => testContextMap.set(getUniqueTestId(filepath, null, test.title), { filepath, groupName: null, testTitle: test.title }));
+        Object.entries(groups).forEach(([groupName, groupTests]) => groupTests.forEach(test => testContextMap.set(getUniqueTestId(filepath, groupName, test.title), { filepath, groupName, testTitle: test.title })));
     });
 
-    // Calculate counts and collect failures
-    for (const [testId, state] of Object.entries(currentTestStates)) {
+    Object.entries(currentTestStates).forEach(([testId, state]) => {
         statusCounts.total++;
         statusCounts[state.status]++;
         totalInputTokens += state.macroUsage.inputTokens;
         totalOutputTokens += state.macroUsage.outputTokens;
-
         if (state.failure && state.failure.variant !== 'cancelled') {
             const context = testContextMap.get(testId);
             failuresWithContext.push({
-                filepath: context?.filepath ?? 'Unknown File',
-                groupName: context?.groupName ?? null,
-                testTitle: context?.testTitle ?? 'Unknown Test',
-                failure: state.failure
+                filepath: context?.filepath ?? 'Unknown File', groupName: context?.groupName ?? null,
+                testTitle: context?.testTitle ?? 'Unknown Test', failure: state.failure
             });
         }
-    }
+    });
 
     const hasFailures = failuresWithContext.length > 0;
-    // Pass currentTestStates to calculateSummaryHeight, not the locally calculated counts/failures
-    const summaryHeight = calculateSummaryHeight(currentTestStates); // Calculate needed height
+    const boxColor = hasFailures ? ANSI_RED : ANSI_GRAY;
+    const boxLines = createBoxAnsi(currentWidth, boxHeight, boxColor);
+    const contentWidth = currentWidth - (PADDING * 2); // Width inside padding
+    let currentContentLine = 0; // 0-based index for content lines
+    const maxContentLines = boxHeight - 2;
 
-    // Draw Summary Box
-    const boxY = startY; // Start box where summary starts
-    const boxHeight = summaryHeight + 2; // Add 2 for top/bottom border
-    // Ensure box doesn't exceed terminal height
-    const effectiveBoxHeight = Math.min(boxHeight, term.height - boxY + 1);
-    if (effectiveBoxHeight < 2) return startY; // Not enough space to draw box
+    // --- Status Counts Line ---
+    if (currentContentLine < maxContentLines) {
+        let statusLine = '';
+        if (statusCounts.passed > 0) statusLine += `${ANSI_BRIGHT_GREEN}✓ ${statusCounts.passed} passed${ANSI_RESET}  `;
+        if (statusCounts.failed > 0) statusLine += `${ANSI_BRIGHT_RED}✗ ${statusCounts.failed} failed${ANSI_RESET}  `;
+        if (statusCounts.running > 0) statusLine += `${ANSI_BRIGHT_BLUE}▷ ${statusCounts.running} running${ANSI_RESET}  `;
+        if (statusCounts.pending > 0) statusLine += `${ANSI_GRAY}◌ ${statusCounts.pending} pending${ANSI_RESET}  `;
+        if (statusCounts.cancelled > 0) statusLine += `${ANSI_GRAY}⊘ ${statusCounts.cancelled} cancelled${ANSI_RESET}  `;
 
-    const boxStyle = hasFailures ? term.red : term.gray;
-    drawBox(term, 1, boxY, currentWidth, effectiveBoxHeight, boxStyle);
+        const tokenText = `${ANSI_GRAY}tokens: ${totalInputTokens} in, ${totalOutputTokens} out${ANSI_RESET}`;
+        const spaceNeeded = str(statusLine) + str(tokenText);
+        const spacer = ' '.repeat(Math.max(0, contentWidth - spaceNeeded));
+        const combinedLine = statusLine + spacer + tokenText;
 
-    // Adjust currentY to draw *inside* the box
-    currentY = boxY + 1; // Start drawing content one line below box top
-    const bottomBoundary = boxY + effectiveBoxHeight - 1; // Bottom line inside the box
-    const contentWidth = currentWidth - (PADDING * 2); // Available width inside box padding
-
-    // Draw Status Counts Line (inside box) - Start at the top line inside the box now
-    if (currentY < bottomBoundary) {
-        term.moveTo(1 + PADDING, currentY).styleReset(); // Indent inside box
-        if (statusCounts.passed > 0) { term.green(`✓ ${statusCounts.passed} passed  `); }
-        if (statusCounts.failed > 0) { term.red(`✗ ${statusCounts.failed} failed  `); }
-        if (statusCounts.running > 0) { term.brightBlue(`▷ ${statusCounts.running} running  `); }
-        if (statusCounts.pending > 0) { term.gray(`◌ ${statusCounts.pending} pending  `); }
-        if (statusCounts.cancelled > 0) { term.gray(`⊘ ${statusCounts.cancelled} cancelled  `); }
-
-        // Draw Token Counts (Right-aligned inside box on the same line as status)
-        const tokenText = `tokens: ${totalInputTokens} in, ${totalOutputTokens} out`;
-        const tokenX = currentWidth - tokenText.length - PADDING; // Calculate X for right alignment inside box border
-        term.moveTo(tokenX, currentY).styleReset().gray(tokenText);
-        // Don't increment currentY here, status and tokens are on the same line
-        currentY++; // Now move to the next line for potential failures
+        insertLineIntoBoxAnsi(boxLines, combinedLine, currentContentLine + 1, 0, currentWidth); // Insert at start of content area
+        currentContentLine++;
     }
 
+    // --- Failures ---
+    if (hasFailures && currentContentLine < maxContentLines) {
+        const failureHeader = `${ANSI_DIM}Failures:${ANSI_RESET}`; // Dim
+        insertLineIntoBoxAnsi(boxLines, failureHeader, currentContentLine + 1, 0, currentWidth);
+        currentContentLine++;
 
-    // Draw Failures (if any, inside box)
-    if (hasFailures) {
-        if (currentY < bottomBoundary) { // Check against box bottom
-            term.moveTo(1 + PADDING, currentY).styleReset().dim('Failures:'); // Indent inside box
-            currentY++;
-        }
-        failuresWithContext.forEach(({ filepath, groupName, testTitle, failure }) => {
-            if (currentY >= bottomBoundary) return; // Check against box bottom
-            const contextString = `${filepath}${groupName ? ` > ${groupName}` : ''} > ${testTitle}`;
-            // TODO: Wrap contextString if needed
-            term.moveTo(1 + PADDING + 1, currentY).styleReset().dim(contextString); // Indent further
-            currentY++;
-            if (currentY < bottomBoundary) {
-                // Pass available width for failure details
-                currentY = drawFailure(1 + PADDING + 2, currentY, failure, bottomBoundary, contentWidth - 2); // Indent failure details further
+        for (const { filepath, groupName, testTitle, failure } of failuresWithContext) {
+            if (currentContentLine >= maxContentLines) break;
+            const contextString = `${ANSI_DIM}${filepath}${groupName ? ` > ${groupName}` : ''} > ${testTitle}${ANSI_RESET}`; // Dim
+            insertLineIntoBoxAnsi(boxLines, contextString, currentContentLine + 1, 1, currentWidth); // Indent context
+            currentContentLine++;
+
+            if (currentContentLine < maxContentLines) {
+                const failureLines = generateFailureString(failure, 2, contentWidth - 2); // Indent failure details further
+                failureLines.forEach(line => {
+                     if (currentContentLine < maxContentLines) {
+                        insertLineIntoBoxAnsi(boxLines, line, currentContentLine + 1, 0, currentWidth);
+                        currentContentLine++;
+                     }
+                });
             }
-             if (currentY < bottomBoundary) {
-                 currentY++; // Add space after failure
-             }
-        });
+
+            if (currentContentLine < maxContentLines) {
+                insertLineIntoBoxAnsi(boxLines, '', currentContentLine + 1, 0, currentWidth); // Space line
+                currentContentLine++;
+            }
+        }
     }
 
-    // No need to draw bottom separator line, drawBox handles it
-
-    return boxY + effectiveBoxHeight; // Return Y position *after* the summary box
+    return boxLines;
 }
 
-// Helper to calculate summary height needed based ONLY on the current test states
-function calculateSummaryHeight(testStates: AllTestStates): number { // Removed unused 'tests' parameter
-    let height = 0;
-    // height++; // No longer have "Summary:" title
-    height++; // For status counts line
 
-    // Recalculate failures locally for height calculation
+// --- Main Render Loop (Refactored for log-update) ---
+
+function redraw() {
+    redrawScheduled = false;
+
+    // --- Calculate Layout ---
+    const titleHeight = 3;
+    const availableHeight = term.height;
+    const totalContentHeight = availableHeight - titleHeight;
+    const requiredSummaryHeight = calculateSummaryHeight(currentTestStates) + 2; // +2 for box borders
+    // Ensure summary doesn't take excessive space, minimum 3 lines for box
+    const maxAllowedSummaryHeight = Math.max(3, Math.min(requiredSummaryHeight, Math.floor(totalContentHeight * 0.7)));
+    const testListMinHeight = 3; // Minimum 3 lines for test list box
+
+    let testListHeight = 0;
+    let summaryHeight = 0;
+    let spacingHeight = 0;
+
+    // Try to fit both with spacing
+    const neededForBoth = testListMinHeight + maxAllowedSummaryHeight + 1; // +1 for spacing line
+    if (totalContentHeight >= neededForBoth) {
+        summaryHeight = maxAllowedSummaryHeight;
+        testListHeight = totalContentHeight - summaryHeight - 1;
+        spacingHeight = 1;
+    } else {
+        // Not enough for both + spacing, prioritize test list if possible
+        if (totalContentHeight >= testListMinHeight + 3) { // Enough for min test list + min summary
+            testListHeight = Math.max(testListMinHeight, totalContentHeight - 3); // Give test list priority
+            summaryHeight = totalContentHeight - testListHeight; // Remaining for summary (at least 3)
+        } else if (totalContentHeight >= testListMinHeight) { // Only enough for test list
+            testListHeight = totalContentHeight;
+            summaryHeight = 0;
+        } else { // Not even enough for test list, give all to summary (if it fits)
+            testListHeight = 0;
+            summaryHeight = Math.max(0, totalContentHeight); // Can be 0 if totalContentHeight is < 0
+        }
+    }
+     // Ensure heights are at least the minimum required to draw the box, or 0
+     testListHeight = testListHeight >= testListMinHeight ? testListHeight : 0;
+     summaryHeight = summaryHeight >= 3 ? summaryHeight : 0;
+     // Recalculate spacing based on final heights
+     spacingHeight = (testListHeight > 0 && summaryHeight > 0) ? 1 : 0;
+
+
+    // --- Generate Output Strings ---
+    const outputLines: string[] = [];
+    outputLines.push(...generateTitleBarString());
+
+    if (testListHeight > 0) {
+        outputLines.push(...generateTestListString(testListHeight));
+    }
+
+    if (spacingHeight > 0) {
+         outputLines.push(''); // Spacing only if both are present
+    }
+
+    if (summaryHeight > 0) {
+        outputLines.push(...generateSummaryString(summaryHeight));
+    }
+
+    // --- Update Terminal using log-update ---
+    const frameContent = outputLines.join('\n');
+
+    // Prevent logUpdate from printing if the frame is identical to the last one
+    // (Helps reduce flicker if state updates don't change visual output)
+    // Note: This requires storing the last frame content, which might be memory intensive.
+    // Optional: Implement simple line count check first.
+    if (outputLines.length !== lastOutputLineCount) {
+        // If line count changes, clear before updating to avoid artifacts
+        logUpdate.clear();
+    }
+
+    logUpdate(frameContent);
+    lastOutputLineCount = outputLines.length; // Store line count for next redraw
+}
+
+// Helper to calculate summary height (remains mostly the same, used for layout)
+function calculateSummaryHeight(testStates: AllTestStates): number {
+    let height = 0;
+    height++; // Status counts line
+
     const failuresWithContext: { failure: FailureDescriptor }[] = [];
-     Object.entries(testStates).forEach(([testId, state]) => {
-         if (state.failure && state.failure.variant !== 'cancelled') {
-             // We only need the failure descriptor itself for height calculation
-             failuresWithContext.push({ failure: state.failure });
-         }
-     });
+    Object.entries(testStates).forEach(([_, state]) => {
+        if (state.failure && state.failure.variant !== 'cancelled') {
+            failuresWithContext.push({ failure: state.failure });
+        }
+    });
 
     if (failuresWithContext.length > 0) {
-        height++; // For "Failures:" title
-        // Use failuresWithContext here, and type the destructured element
-        failuresWithContext.forEach(({ failure }: { failure: FailureDescriptor }) => {
-            height++; // For context line
-            // Estimate wrapped height (basic) - real wrapping might differ
-            const contentWidth = Math.max(1, currentWidth - (PADDING * 2) - 4); // Approximate width for failure message, ensure positive
+        height++; // "Failures:" title
+        failuresWithContext.forEach(({ failure }) => {
+            height++; // Context line
+            const contentWidth = Math.max(1, currentWidth - (PADDING * 2) - 4); // Approx width for failure text
+            // Estimate height based on plain text wrapping
             if (failure.variant === 'bug') {
-                 height += wrapText(`Found bug: ${failure.title}`, contentWidth).length -1;
-                 height += wrapText(`Expected: ${failure.expectedResult}`, contentWidth).length -1;
-                 height += wrapText(`Actual:   ${failure.actualResult}`, contentWidth).length -1;
-                height += 4; // Bug details take 4 lines base + wrapped lines
-            } else if ('message' in failure) { // Check if message exists before wrapping
-                 const prefixMap: Partial<Record<FailureDescriptor['variant'], string>> = { /*...*/ };
-                 const failurePrefix = prefixMap[failure.variant] || `${failure.variant}: `;
-                 height += wrapText(failurePrefix + failure.message, contentWidth).length -1;
-                height += 1; // Other failures take 1 line base + wrapped lines
+                height += wrapText(`Found bug: ${failure.title}`, contentWidth).length;
+                height += wrapText(`Expected: ${failure.expectedResult}`, contentWidth).length;
+                height += wrapText(`Actual:   ${failure.actualResult}`, contentWidth).length;
+                height += 1; // Severity line
+            } else if ('message' in failure) {
+                const typedFailure = failure as Extract<FailureDescriptor, { message?: string }>;
+                const prefixMap: Partial<Record<FailureDescriptor['variant'], string>> = { /*...*/ }; // Keep this for potential future use
+                const failurePrefix = prefixMap[typedFailure.variant] || `${typedFailure.variant}: `;
+                height += wrapText(failurePrefix + (typedFailure.message || ''), contentWidth).length;
             } else {
-                 // Handle cases like 'cancelled' or others without message
-                 height += 1; // Assume 1 line for these
+                height += 1; // Fallback line for other failure types
             }
             height++; // Space after failure
         });
     }
+    // Add minimum height constraint? No, let layout handle minimum box size.
     return height;
 }
 
 
-// --- Main Render Loop ---
-
-function redraw() {
-    console.log(`[redraw] Called. isFinished=${isFinished}. Has currentTests? ${Object.keys(currentTests).length > 0}. Has currentTestStates? ${Object.keys(currentTestStates).length > 0}`);
-    // console.log('[redraw] currentTestStates:', JSON.stringify(currentTestStates, null, 2)); // Optional: Log full state (can be verbose)
-    redrawScheduled = false; // Reset flag at the start
-    // Use term.clear() instead of ScreenBuffer fill
-    term.clear();
-
-    // Draw components directly using term
-    drawTitleBar(); // Draws at y=1, height=3
-
-    // Calculate heights and positions
-    const titleHeight = 3;
-    const totalContentHeight = term.height - titleHeight; // Total space below title
-    const contentWidth = currentWidth - (PADDING * 2); // Available width inside boxes
-
-    // Calculate actual summary height needed (capped to prevent excessive growth)
-    // Add 2 for box border
-    const requiredSummaryHeight = calculateSummaryHeight(currentTestStates) + 2;
-    // Limit summary height to avoid pushing test list out entirely, e.g., max 50% of content area or minimum 3 lines if possible
-    const maxAllowedSummaryHeight = Math.max(3, Math.min(requiredSummaryHeight, Math.floor(totalContentHeight * 0.7)));
-
-    // Calculate test list height based on remaining space, ensuring minimum height
-    const testListMinHeight = 3; // Minimum lines needed to draw test list box
-    let testListHeight = Math.max(0, totalContentHeight - maxAllowedSummaryHeight - 1); // -1 for spacing between boxes
-    let summaryHeight = maxAllowedSummaryHeight;
-
-    // If test list doesn't have minimum height, shrink summary to give space
-    if (testListHeight < testListMinHeight && totalContentHeight >= (testListMinHeight + 3 + 1)) { // Check if enough total space for min test + min summary (3) + spacing
-        testListHeight = testListMinHeight;
-        summaryHeight = Math.max(3, totalContentHeight - testListHeight - 1); // Give remaining to summary (min 3)
-    } else if (testListHeight < testListMinHeight) {
-        // Not enough space for both, prioritize test list if possible
-        testListHeight = Math.max(0, totalContentHeight - 3 - 1); // Give summary minimum (3) + spacing
-        summaryHeight = totalContentHeight - testListHeight -1; // Remaining for summary
-        if (testListHeight < testListMinHeight) { // Still not enough? Give all to test list if it fits min
-             if (totalContentHeight >= testListMinHeight) {
-                 testListHeight = totalContentHeight;
-                 summaryHeight = 0;
-             } else { // Give all to summary if test list won't fit
-                 testListHeight = 0;
-                 summaryHeight = totalContentHeight;
-             }
-        }
-    }
-
-
-    const testListY = titleHeight + 1;
-    const summaryY = testListY + testListHeight + 1; // Position summary below test list box + spacing
-
-    // --- Draw Test List ---
-    if (testListHeight >= testListMinHeight) {
-        // Draw Test List Box
-        drawBox(term, 1, testListY, currentWidth, testListHeight, term.gray);
-        // Draw tests inside the box
-        drawTestList(testListY + 1, testListHeight - 2, contentWidth); // Pass Y start (+1), height (-2), width
-    } else {
-         // Not enough space to draw the test list box meaningfully
-         // Optionally draw a placeholder message?
-         // term.moveTo(1 + PADDING, testListY).gray('Terminal too small to display tests.');
-    }
-
-    // --- Draw Summary ---
-    // Check if summaryY is within bounds and summaryHeight is drawable
-    if (summaryY <= term.height && summaryHeight >= 3) {
-        // drawSummary handles its own height calculation and clipping internally now
-        drawSummary(summaryY);
-    } else if (summaryY <= term.height && summaryHeight > 0) {
-         // Not enough space for a full summary box, maybe draw just the counts line?
-         // Or indicate truncation? For now, do nothing if less than 3 lines.
-    }
-
-
-    // Move cursor to bottom left after drawing (or just below content if screen full)
-    term.moveTo(1, term.height);
-}
-
-function scheduleRedraw() { // Restore function
+function scheduleRedraw() {
     if (!redrawScheduled) {
         redrawScheduled = true;
-        // Use setImmediate for efficient batching of redraws
         setImmediate(redraw);
     }
 }
@@ -610,141 +629,80 @@ function scheduleRedraw() { // Restore function
 
 function onResize(width: number, height: number) {
     currentWidth = Math.min(width, MAX_APP_WIDTH);
-    scheduleRedraw(); // Use scheduleRedraw
+    logUpdate.clear(); // Clear before redraw on resize to avoid artifacts
+    scheduleRedraw();
 }
 
-// Modified onExit to not clear screen
-function onExit(exitCode = 0) {
-    if (timerInterval) {
-        clearInterval(timerInterval);
-        timerInterval = null;
-    }
-    // Ensure one last draw call happens if needed
-    if (redrawScheduled) { // Check flag
-        redraw();
-    }
-    term.grabInput(false);
-    term.fullscreen(false);
-    // Don't clear screen
-    term.moveTo(1, term.height).styleReset()('\n'); // Move cursor to bottom and ensure prompt is on new line
-    term.processExit(exitCode);
+function handleExitKeyPress() {
+     if (isFinished) {
+         cleanupUI(1);
+     } else {
+         cleanupUI(1); // Trigger cleanup immediately
+     }
 }
 
 // --- Public Interface ---
 
 export function initializeUI(model: string, initialTests: CategorizedTestCases, initialStates: AllTestStates) {
     currentModel = model;
-    currentTests = initialTests; // Set initial tests
-    currentTestStates = initialStates; // Set initial states
-    isFinished = false; // Reset finished flag
-    term.fullscreen(true);
+    currentTests = initialTests;
+    currentTestStates = initialStates;
+    isFinished = false;
+    lastOutputLineCount = 0;
+
     term.grabInput(true);
-    term.on('key', (name: string) => {
-        if (name === 'CTRL_C') {
-            // If already finished, exit immediately. Otherwise, let cleanup handle it.
-            if (isFinished) {
-                 onExit(1); // Exit with error code if interrupted after finish
-            } else {
-                // Signal cancellation (TestRunner should handle this)
-                // For now, just trigger exit directly for simplicity during dev
-                 console.log("\nCtrl+C detected, exiting...");
-                 onExit(1);
-            }
-        }
-    });
+    term.on('key', (name: string) => { if (name === 'CTRL_C') handleExitKeyPress(); });
     term.on('resize', onResize);
 
-    // Initial draw
-    scheduleRedraw(); // Use scheduleRedraw
+    scheduleRedraw(); // Initial draw
 
-    // Start timer for updating elapsed times
     if (!timerInterval) {
         timerInterval = setInterval(() => {
-            // Stop interval immediately if finished
-            if (isFinished) {
-                 clearInterval(timerInterval!);
-                 timerInterval = null;
-                 return;
-            }
-
+            if (isFinished) { clearInterval(timerInterval!); timerInterval = null; return; }
             let runningTestsExist = false;
-            // Update spinner frame
             spinnerFrame = (spinnerFrame + 1) % spinnerChars.length;
-
             Object.entries(currentTestStates).forEach(([testId, state]) => {
                 if (state.status === 'running') {
                     runningTestsExist = true;
-                    if (!state.startedAt) {
-                        // Should not happen, but defensively set start time if missing
-                        state.startedAt = Date.now();
-                        elapsedTimes[testId] = 0;
-                    } else {
-                         elapsedTimes[testId] = Date.now() - state.startedAt;
-                    }
+                    if (!state.startedAt) { state.startedAt = Date.now(); elapsedTimes[testId] = 0; }
+                    else { elapsedTimes[testId] = Date.now() - state.startedAt; }
                 }
             });
-
-            // Schedule redraw ONLY if tests are running (for spinner/timer updates)
-            if (runningTestsExist) {
-                 scheduleRedraw(); // Use scheduleRedraw
-            }
-            // Finished state is determined by cleanupUI calling isFinished = true
-        }, 100); // Update interval
-    } // <-- Fixed: Added closing brace
+            // Only redraw if spinner needs update
+            if (runningTestsExist) scheduleRedraw();
+        }, 100);
+    }
 }
 
 export function updateUI(tests: CategorizedTestCases, testStates: AllTestStates) {
-    console.log(`[updateUI] Called. Received ${Object.keys(testStates).length} states.`);
-    // console.log('[updateUI] testStates received:', JSON.stringify(testStates, null, 2)); // Optional: Log full state (can be verbose)
     currentTests = tests;
     currentTestStates = testStates;
-
-    // Update elapsed times map based on new states
     const newElapsedTimes: { [testId: string]: number } = {};
-    let runningTestsExist = false;
-     Object.entries(testStates).forEach(([testId, state]) => {
+    Object.entries(testStates).forEach(([testId, state]) => {
         if (state.status === 'running') {
-            runningTestsExist = true;
-            if (state.startedAt) {
-                 newElapsedTimes[testId] = Date.now() - state.startedAt;
-            } else {
-                // Assign start time if newly running and missing
-                state.startedAt = Date.now();
-                newElapsedTimes[testId] = 0;
-            }
+            if (state.startedAt) { newElapsedTimes[testId] = Date.now() - state.startedAt; }
+            else { state.startedAt = Date.now(); newElapsedTimes[testId] = 0; }
         } else if (elapsedTimes[testId] !== undefined) {
-             // Keep final time if test just finished
-             // This might be slightly off if duration isn't set yet, rely on state.duration preferably
-             // Test finished, keep the last calculated elapsed time
-             newElapsedTimes[testId] = elapsedTimes[testId];
+            newElapsedTimes[testId] = elapsedTimes[testId]; // Keep final time
         }
     });
     elapsedTimes = newElapsedTimes;
-
-
-    // Ensure timer is running if needed and not finished
-    // No longer need to re-call initializeUI here as state is passed initially
-    // if (runningTestsExist && !timerInterval && !isFinished) {
-    //     initializeUI(currentModel); // Re-call to potentially restart timer interval if stopped
-    // }
-
-    // Always schedule redraw when UI state is updated from the runner
-    scheduleRedraw(); // Use scheduleRedraw
+    scheduleRedraw(); // Always redraw when state updates
 }
 
-// Modified cleanupUI to not clear screen and handle exit code
 export function cleanupUI(exitCode = 0) {
-     isFinished = true; // Mark as finished FIRST
-     if (timerInterval) { // Clear timer immediately
-        clearInterval(timerInterval);
-         timerInterval = null;
-    }
-    // Schedule one final redraw to show completed state using the standard mechanism
-    scheduleRedraw(); // Use scheduleRedraw
-    // Use setTimeout to allow final redraw to potentially complete *before* exiting
-    setTimeout(() => {
-        onExit(exitCode); // Pass exit code to onExit
-    }, 150); // Delay slightly longer than redraw interval
+    if (isFinished) return; // Prevent double cleanup
+    isFinished = true;
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+
+    // Perform one final draw to show the completed state
+    redraw();
+    logUpdate.done(); // Persist final frame
+
+    term.grabInput(false);
+    // Add a newline *after* logUpdate is done to ensure prompt is clear
+    process.stderr.write('\n');
+    term.processExit(exitCode);
 }
 
 // Initial width calculation
