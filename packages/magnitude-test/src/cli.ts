@@ -16,12 +16,12 @@ import logger from '@/logger';
 import { describeModel, tryDeriveEnvironmentPlannerClient } from './util';
 import * as dotenv from 'dotenv';
 import { execSync } from 'child_process';
-import React from 'react';
-import { App, AllTestStates, TestState } from './app'; // Import state types
-//import { getUniqueTestId, initializeTestStates } from './app/util'; // Import ID generator AND initializer
-import { render } from 'ink';
+// Removed React import
+// Removed App import
+// Removed render import
 import { TestRunner } from './runner/testRunner'; // Import the new executor
 import { initializeTestStates } from './app/util';
+import { initializeUI, updateUI, cleanupUI } from '@/term-app'; // Import term-app functions
 import chalk from 'chalk';
 
 interface CliOptions {
@@ -250,22 +250,20 @@ program
         // --- Initialize State using utility ---
         const testStates = initializeTestStates(categorizedTests);
 
-        // --- Render Initial UI ---
-        // Get rerender/unmount first
-        const { rerender, unmount } = render(
-            React.createElement(App, {
-                model: describeModel(config.planner),//config: config as Required<MagnitudeConfig>,
-                tests: categorizedTests,
-                testStates: testStates // Pass initial state
-            }) 
-        ); 
+        // --- Initialize Terminal UI ---
+        // No need for React.createElement or render
+        // Initialize the terminal UI directly
+        initializeUI(describeModel(config.planner));
+
 
         // --- Instantiate Executor ---
-        // Pass the initialized state and the actual rerender/unmount functions
+        // Pass the updateUI and cleanupUI functions from term-app
 
         const executor = new TestRunner(
             {
                 workerCount: workerCount,
+                // prettyDisplay might not be relevant for term-app, or handled differently.
+                // Keeping it for now, but TestRunner might need adjustment.
                 prettyDisplay: !(options.plain || options.debug),
                 planner: config.planner,
                 executor: config.executor,
@@ -275,9 +273,9 @@ program
             },
             categorizedTests,
             testStates, // Pass the shared state object
-            rerender,
-            unmount,
-            //config as Required<MagnitudeConfig>
+            updateUI,   // Pass the update function from term-app
+            cleanupUI,  // Pass the cleanup function from term-app
+            //config as Required<MagnitudeConfig> // This seems commented out
         );
 
         // --- Start Execution ---

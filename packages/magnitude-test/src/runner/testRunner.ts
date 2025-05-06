@@ -1,15 +1,21 @@
-import React from 'react';
+// Removed React import
 import logger from '@/logger';
 import { AgentError, TestCaseAgent, AgentStateTracker, Magnus } from 'magnitude-core';
 import type { AgentState, ExecutorClient, PlannerClient, FailureDescriptor, TestCaseAgentOptions, StepDescriptor } from 'magnitude-core';
 import { CategorizedTestCases, TestFunctionContext, TestRunnable } from '@/discovery/types';
-import { AllTestStates, TestState, App } from '@/app';
-import { getUniqueTestId } from '@/app/util';
+// Removed App import from '@/app'
+import { AllTestStates, TestState } from '@/term-app/types'; // Import types from term-app
+import { getUniqueTestId } from '@/term-app/util'; // Import util from term-app
 import { Browser, BrowserContext, BrowserContextOptions, chromium, LaunchOptions, Page } from 'playwright';
 import { describeModel, sendTelemetry } from '../util';
 import { WorkerPool } from './workerPool';
 
-type RerenderFunction = (node: React.ReactElement<any, string | React.JSXElementConstructor<any>>) => void;
+// Removed RerenderFunction type
+
+// Define types for the term-app functions (can be refined if needed)
+type UpdateUIFunction = (tests: CategorizedTestCases, testStates: AllTestStates) => void;
+type CleanupUIFunction = () => void;
+
 
 export interface TestRunnerConfig {
     workerCount: number;
@@ -33,21 +39,21 @@ export class TestRunner {
     private config: Required<TestRunnerConfig>;
     private tests: CategorizedTestCases;
     private testStates: AllTestStates;
-    private rerender: RerenderFunction;
-    private unmount: () => void;
+    private updateUI: UpdateUIFunction; // Changed from rerender
+    private cleanupUI: CleanupUIFunction; // Changed from unmount
 
     constructor(
         config: Required<TestRunnerConfig>,
         tests: CategorizedTestCases,
         testStates: AllTestStates,
-        rerender: RerenderFunction,
-        unmount: () => void,
+        updateUI: UpdateUIFunction,   // Changed parameter name and type
+        cleanupUI: CleanupUIFunction, // Changed parameter name and type
     ) {
         this.config = config;
         this.tests = tests;
         this.testStates = testStates;
-        this.rerender = rerender;
-        this.unmount = unmount;
+        this.updateUI = updateUI;     // Assign updateUI
+        this.cleanupUI = cleanupUI;   // Assign cleanupUI
     }
 
     private updateStateAndRender(testId: string, newState: Partial<TestState>) {
@@ -60,17 +66,10 @@ export class TestRunner {
                     ...newState
                 }
             };
-            // Update internal reference (important!)
+            // Update internal reference
             this.testStates = nextTestStates;
-            // Rerender with the new state object reference
-            this.rerender(
-                React.createElement(App, {
-                    //config: this.config,
-                    model: describeModel(this.config.planner),
-                    tests: this.tests,
-                    testStates: nextTestStates // Pass the new object
-                })
-            );
+            // Call updateUI with the tests structure and the new states
+            this.updateUI(this.tests, nextTestStates);
         } else {
             logger.warn(`Attempted to update state for unknown testId: ${testId}`);
         }
@@ -260,8 +259,9 @@ export class TestRunner {
             poolResult = { completed: false, results: [] };
         } finally {
             await browser.close();
-            process.stdout.write('\x1B[?25h');
-            this.unmount();
+            // No need to restore cursor visibility here, term-app handles it
+            // process.stdout.write('\x1B[?25h');
+            this.cleanupUI(); // Call the cleanup function
             process.exit(poolResult.completed ? 0 : 1);
         }
     }
