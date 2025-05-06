@@ -20,6 +20,8 @@ let currentTests: CategorizedTestCases = {}; // Store the test structure
 let currentModel = '';
 let elapsedTimes: { [testId: string]: number } = {}; // Store elapsed times for running tests
 let isFinished = false; // Flag to indicate if tests are done
+let spinnerFrame = 0; // Current frame for the spinner animation
+const spinnerChars = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
 // --- Utility Functions (from Ink components) ---
 
@@ -53,9 +55,10 @@ function getActionSymbol(variant: "load" | "click" | "hover" | "type" | "scroll"
 }
 
 // Returns just the character, styling applied separately
+// Spinner is handled directly in drawTest now
 function getTestStatusIndicatorChar(status: TestState['status']): string {
     switch (status) {
-        case 'running': return ' '; // Placeholder for spinner
+        // case 'running': return ' '; // Spinner handled in drawTest
         case 'passed': return '✓';
         case 'failed': return '✕';
         case 'cancelled': return '⊘';
@@ -111,7 +114,7 @@ function drawFailure(x: number, y: number, failure: FailureDescriptor, bottomBou
     if (currentY >= bottomBoundary) return currentY;
     const prefix = '↳ ';
     const indentX = x + prefix.length;
-    const contentWidth = availableWidth - prefix.length; // Width for wrapped text
+    const contentWidth = Math.max(1, availableWidth - prefix.length); // Width for wrapped text, ensure positive
 
     term.moveTo(x, currentY).styleReset().red(prefix); // Draw prefix first
 
@@ -214,12 +217,18 @@ function drawTest(x: number, y: number, test: TestRunnable, state: TestState, fi
     const stepIndent = testIndent + 2;
     const actionIndent = stepIndent + 2;
     const testId = getUniqueTestId(filepath, groupName, test.title);
-    const contentWidth = availableWidth - (testIndent - (1 + PADDING)); // Width for text content within test item
+    // Calculate content width based on the starting X position and the overall available width
+    const contentWidth = Math.max(1, availableWidth - (x - (1 + PADDING))); // Ensure positive width
 
     // --- Draw Test Title Line ---
     term.moveTo(testIndent, currentY).styleReset();
-    const statusChar = getTestStatusIndicatorChar(state.status);
-    applyStatusStyle(state.status, statusChar);
+    // Handle spinner directly
+    if (state.status === 'running') {
+        term.blue(spinnerChars[spinnerFrame]); // Draw current spinner frame
+    } else {
+        const statusChar = getTestStatusIndicatorChar(state.status);
+        applyStatusStyle(state.status, statusChar); // Apply style for non-running states
+    }
 
     // Calculate space for timer to potentially wrap title correctly
     const timerText = state.status !== 'pending' ? ` [${formatDuration(elapsedTimes[testId] ?? 0)}]` : '';
@@ -237,8 +246,8 @@ function drawTest(x: number, y: number, test: TestRunnable, state: TestState, fi
     if (currentY >= bottomBoundary) return currentY; // Check after increment
 
     // --- Draw Steps and Checks ---
-    const stepContentWidth = availableWidth - (stepIndent - (1 + PADDING));
-    const actionContentWidth = availableWidth - (actionIndent + 2 - (1 + PADDING)); // action text starts 2 chars after symbol
+    const stepContentWidth = Math.max(1, availableWidth - (stepIndent - (1 + PADDING)));
+    const actionContentWidth = Math.max(1, availableWidth - (actionIndent + 2 - (1 + PADDING))); // action text starts 2 chars after symbol
 
     if (state.stepsAndChecks.length > 0) {
         state.stepsAndChecks.forEach((item) => {
@@ -489,7 +498,7 @@ function calculateSummaryHeight(testStates: AllTestStates): number { // Removed 
         failuresWithContext.forEach(({ failure }: { failure: FailureDescriptor }) => {
             height++; // For context line
             // Estimate wrapped height (basic) - real wrapping might differ
-            const contentWidth = currentWidth - (PADDING * 2) - 4; // Approximate width for failure message
+            const contentWidth = Math.max(1, currentWidth - (PADDING * 2) - 4); // Approximate width for failure message, ensure positive
             if (failure.variant === 'bug') {
                  height += wrapText(`Found bug: ${failure.title}`, contentWidth).length -1;
                  height += wrapText(`Expected: ${failure.expectedResult}`, contentWidth).length -1;
@@ -521,37 +530,65 @@ function redraw() {
     // Draw components directly using term
     drawTitleBar(); // Draws at y=1, height=3
 
-    // Calculate heights
+    // Calculate heights and positions
     const titleHeight = 3;
-    // Estimate summary height *before* drawing it to reserve space
-    // Pass only currentTestStates to the corrected calculateSummaryHeight
-    const estimatedSummaryHeight = calculateSummaryHeight(currentTestStates) + 2; // +2 for box border
-    const availableTestListHeight = term.height - titleHeight - estimatedSummaryHeight - 1; // -1 for spacing
-
-    let testListY = titleHeight + 1; // Start below title bar
-    let testListHeight = 0;
-    let summaryY = term.height - estimatedSummaryHeight + 1; // Default position at bottom
-
+    const totalContentHeight = term.height - titleHeight; // Total space below title
     const contentWidth = currentWidth - (PADDING * 2); // Available width inside boxes
 
-    if (availableTestListHeight > 3) { // Only draw test box if there's enough space (min height 3 for box)
-        testListHeight = availableTestListHeight;
-        // Draw Test List Box
-        drawBox(term, 1, testListY, currentWidth, testListHeight, term.gray); // Use gray for this box
-        // Draw tests inside the box, passing boundaries and available width
-        drawTestList(testListY + 1, testListHeight - 2, contentWidth); // Pass Y start (+1), height (-2), and width
+    // Calculate actual summary height needed (capped to prevent excessive growth)
+    // Add 2 for box border
+    const requiredSummaryHeight = calculateSummaryHeight(currentTestStates) + 2;
+    // Limit summary height to avoid pushing test list out entirely, e.g., max 50% of content area or minimum 3 lines if possible
+    const maxAllowedSummaryHeight = Math.max(3, Math.min(requiredSummaryHeight, Math.floor(totalContentHeight * 0.7)));
 
-        summaryY = testListY + testListHeight; // Position summary box right below test list box
-    } else {
-        // Not enough space for test list box, draw summary at the bottom
-        summaryY = Math.max(testListY, term.height - estimatedSummaryHeight + 1); // Ensure it doesn't overlap title
+    // Calculate test list height based on remaining space, ensuring minimum height
+    const testListMinHeight = 3; // Minimum lines needed to draw test list box
+    let testListHeight = Math.max(0, totalContentHeight - maxAllowedSummaryHeight - 1); // -1 for spacing between boxes
+    let summaryHeight = maxAllowedSummaryHeight;
+
+    // If test list doesn't have minimum height, shrink summary to give space
+    if (testListHeight < testListMinHeight && totalContentHeight >= (testListMinHeight + 3 + 1)) { // Check if enough total space for min test + min summary (3) + spacing
+        testListHeight = testListMinHeight;
+        summaryHeight = Math.max(3, totalContentHeight - testListHeight - 1); // Give remaining to summary (min 3)
+    } else if (testListHeight < testListMinHeight) {
+        // Not enough space for both, prioritize test list if possible
+        testListHeight = Math.max(0, totalContentHeight - 3 - 1); // Give summary minimum (3) + spacing
+        summaryHeight = totalContentHeight - testListHeight -1; // Remaining for summary
+        if (testListHeight < testListMinHeight) { // Still not enough? Give all to test list if it fits min
+             if (totalContentHeight >= testListMinHeight) {
+                 testListHeight = totalContentHeight;
+                 summaryHeight = 0;
+             } else { // Give all to summary if test list won't fit
+                 testListHeight = 0;
+                 summaryHeight = totalContentHeight;
+             }
+        }
     }
 
 
-    // Draw Summary Box (at calculated position)
-    // Ensure summary doesn't draw off screen if terminal is too small
-    if (summaryY <= term.height) { // Check if summary box starts within screen bounds
+    const testListY = titleHeight + 1;
+    const summaryY = testListY + testListHeight + 1; // Position summary below test list box + spacing
+
+    // --- Draw Test List ---
+    if (testListHeight >= testListMinHeight) {
+        // Draw Test List Box
+        drawBox(term, 1, testListY, currentWidth, testListHeight, term.gray);
+        // Draw tests inside the box
+        drawTestList(testListY + 1, testListHeight - 2, contentWidth); // Pass Y start (+1), height (-2), width
+    } else {
+         // Not enough space to draw the test list box meaningfully
+         // Optionally draw a placeholder message?
+         // term.moveTo(1 + PADDING, testListY).gray('Terminal too small to display tests.');
+    }
+
+    // --- Draw Summary ---
+    // Check if summaryY is within bounds and summaryHeight is drawable
+    if (summaryY <= term.height && summaryHeight >= 3) {
+        // drawSummary handles its own height calculation and clipping internally now
         drawSummary(summaryY);
+    } else if (summaryY <= term.height && summaryHeight > 0) {
+         // Not enough space for a full summary box, maybe draw just the counts line?
+         // Or indicate truncation? For now, do nothing if less than 3 lines.
     }
 
 
@@ -593,8 +630,10 @@ function onExit(exitCode = 0) {
 
 // --- Public Interface ---
 
-export function initializeUI(model: string) {
+export function initializeUI(model: string, initialTests: CategorizedTestCases, initialStates: AllTestStates) {
     currentModel = model;
+    currentTests = initialTests; // Set initial tests
+    currentTestStates = initialStates; // Set initial states
     isFinished = false; // Reset finished flag
     term.fullscreen(true);
     term.grabInput(true);
@@ -627,6 +666,9 @@ export function initializeUI(model: string) {
             }
 
             let runningTestsExist = false;
+            // Update spinner frame
+            spinnerFrame = (spinnerFrame + 1) % spinnerChars.length;
+
             Object.entries(currentTestStates).forEach(([testId, state]) => {
                 if (state.status === 'running') {
                     runningTestsExist = true;
@@ -683,14 +725,14 @@ export function updateUI(tests: CategorizedTestCases, testStates: AllTestStates)
 
 
     // Ensure timer is running if needed and not finished
-    if (runningTestsExist && !timerInterval && !isFinished) {
-        initializeUI(currentModel); // Re-call to potentially restart timer interval if stopped
-    }
+    // No longer need to re-call initializeUI here as state is passed initially
+    // if (runningTestsExist && !timerInterval && !isFinished) {
+    //     initializeUI(currentModel); // Re-call to potentially restart timer interval if stopped
+    // }
 
-    // Only schedule redraw if not finished (avoids redraw after cleanup starts)
-    if (!isFinished) {
-        scheduleRedraw();
-    }
+    // Always schedule redraw when UI is updated.
+    // Cleanup logic will handle stopping redraws eventually.
+    scheduleRedraw();
 }
 
 // Modified cleanupUI to not clear screen and handle exit code

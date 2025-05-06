@@ -158,16 +158,22 @@ export class TestRunner {
 
         if (stateTracker.getState().failure) {
             // If agent failure, update UI with it
+            // If agent failure, update UI with it, including final steps/checks
             failed = true;
+            const finalStateWithFailure = stateTracker.getState();
             this.updateStateAndRender(testId, {
                 status: 'failed',
-                failure: stateTracker.getState().failure
+                failure: finalStateWithFailure.failure,
+                stepsAndChecks: finalStateWithFailure.stepsAndChecks // Include final steps/checks
             });
         }
 
         if (!failed) {
+            // Test passed, update UI including final steps/checks
+            const finalStatePassed = stateTracker.getState();
             this.updateStateAndRender(testId, {
-                status: 'passed'
+                status: 'passed',
+                stepsAndChecks: finalStatePassed.stepsAndChecks // Include final steps/checks
             });
         }
 

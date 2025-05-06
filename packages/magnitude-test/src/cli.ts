@@ -251,9 +251,8 @@ program
         const testStates = initializeTestStates(categorizedTests);
 
         // --- Initialize Terminal UI ---
-        // No need for React.createElement or render
-        // Initialize the terminal UI directly
-        initializeUI(describeModel(config.planner));
+        // Pass the initial tests and states
+        initializeUI(describeModel(config.planner), categorizedTests, testStates);
 
 
         // --- Instantiate Executor ---
