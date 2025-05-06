@@ -1,5 +1,11 @@
 # magnitude-core
 
+## 0.1.0
+
+### Minor Changes
+
+- playwright interop
+
 ## 0.0.14
 
 ### Patch Changes

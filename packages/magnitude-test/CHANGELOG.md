@@ -1,5 +1,16 @@
 # magnitude-test
 
+## 0.1.0
+
+### Minor Changes
+
+- playwright interop
+
+### Patch Changes
+
+- Updated dependencies
+  - magnitude-core@0.1.0
+
 ## 0.0.21
 
 ### Patch Changes
