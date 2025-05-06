@@ -493,53 +493,33 @@ export function redraw() {
     setRedrawScheduled(false);
 
     // --- Calculate Layout ---
-    const titleHeight = 3;
-    const availableHeight = process.stdout.rows || 24; // Fallback to 24 rows
-    const totalContentHeight = availableHeight - titleHeight;
-    const requiredSummaryHeight = calculateSummaryHeight(currentTestStates) + 2; // +2 for box borders
-    // Ensure summary doesn't take excessive space, minimum 3 lines for box
-    const maxAllowedSummaryHeight = Math.max(3, Math.min(requiredSummaryHeight, Math.floor(totalContentHeight * 0.7)));
     const testListMinHeight = 3; // Minimum 3 lines for test list box
+    const summaryMinHeight = 3;  // Minimum 3 lines for summary box
 
-    let testListHeight = 0;
-    let summaryHeight = 0;
-    let spacingHeight = 0;
-
-    // Calculate the actual height needed for tests
-    const requiredTestListHeight = calculateTestListHeight(currentTests, currentTestStates) + 2; // +2 for box borders
-    // Ensure test list has at least minimum height but only as tall as needed
-    const optimalTestListHeight = Math.max(testListMinHeight, requiredTestListHeight);
-
-    // Reserve space for summary (if possible)
-    // Note: spacingHeight is unconditionally set to 0 later in the code.
-    if (totalContentHeight >= optimalTestListHeight + 3) { // Enough for optimal test list and min summary (3 lines)
-        testListHeight = optimalTestListHeight;
-        const remainingForSummary = totalContentHeight - testListHeight;
-        // summaryHeight will be at least 3 here, capped by maxAllowedSummaryHeight.
-        summaryHeight = Math.min(maxAllowedSummaryHeight, remainingForSummary);
-    } else if (totalContentHeight >= testListMinHeight + 3) { // Enough for min test list (3 lines) and min summary (3 lines)
-        // Not enough for optimalTestListHeight + 3.
-        // Test list might be "too big" for its optimal size if summary is also to be shown.
-        // Prioritize summary getting space. Let summary take up to its max,
-        // provided test list gets at least its minTestListHeight.
-        summaryHeight = Math.min(maxAllowedSummaryHeight, totalContentHeight - testListMinHeight);
-        // summaryHeight is at least 3 because (totalContentHeight - testListMinHeight) >= 3 from the condition.
-        testListHeight = totalContentHeight - summaryHeight; // testListHeight will be >= testListMinHeight.
+    // Calculate the actual height needed for the test list
+    let testListHeight = calculateTestListHeight(currentTests, currentTestStates);
+    if (testListHeight > 0) { // If there's content for the test list
+        testListHeight += 2; // Add 2 for box borders
+        testListHeight = Math.max(testListMinHeight, testListHeight); // Ensure minimum height
     } else {
-        // Not enough for min test list + min summary. Prioritize test list.
-        // Test list takes all available height, or its min if totalContentHeight is very small.
-        testListHeight = Math.min(optimalTestListHeight, totalContentHeight); // Try to be optimal within total
-        testListHeight = Math.max(testListMinHeight, testListHeight);       // But at least min
-        if (totalContentHeight < testListMinHeight) { // If total is less than even min for test list
-            testListHeight = totalContentHeight; // Test list takes whatever is there (could be < min, clamped later)
-        }
-        summaryHeight = 0;
+        testListHeight = 0; // No content, no box
     }
-    // Ensure heights are at least the minimum required to draw the box, or 0
-    testListHeight = testListHeight >= testListMinHeight ? testListHeight : 0;
-    summaryHeight = summaryHeight >= 3 ? summaryHeight : 0;
-    // Recalculate spacing based on final heights
-    spacingHeight = 0; // Always set spacing to 0 to remove the gap
+
+    // Calculate the actual height needed for the summary
+    let summaryHeight = calculateSummaryHeight(currentTestStates);
+    if (summaryHeight > 0) { // If there's content for the summary
+        summaryHeight += 2; // Add 2 for box borders
+        summaryHeight = Math.max(summaryMinHeight, summaryHeight); // Ensure minimum height
+    } else {
+        // If summary content is 0, but there are tests, we might still want to show an empty summary box
+        // For now, let's keep it simple: if calculateSummaryHeight is 0, summaryHeight is 0.
+        // This means an empty summary (e.g. no failures, 0 tokens) won't render a box.
+        // If we want to always show the summary box if tests are running, this logic would need adjustment.
+        summaryHeight = 0; 
+    }
+    
+    // Spacing is not used between test list and summary if they stack vertically and grow.
+    const spacingHeight = 0;
 
     // --- Generate Output Strings ---
     const outputLines: string[] = [];
