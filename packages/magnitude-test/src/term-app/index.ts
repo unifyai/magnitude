@@ -734,11 +734,15 @@ function scheduleRedraw() {
 
 // --- Event Handlers ---
 
-// function onResize(width: number, height: number) { // REMOVED terminal-kit
-// currentWidth = Math.min(width, MAX_APP_WIDTH);
-// logUpdate.clear(); // Clear before redraw on resize to avoid artifacts
-// scheduleRedraw();
-// }
+// Handle resize events using Node.js built-in functionality
+function onResize() {
+    const newWidth = Math.min(process.stdout.columns || MAX_APP_WIDTH, MAX_APP_WIDTH);
+    if (newWidth !== currentWidth) {
+        currentWidth = newWidth;
+        logUpdate.clear(); // Clear before redraw on resize to avoid artifacts
+        scheduleRedraw();
+    }
+}
 
 function handleExitKeyPress() {
     // This will no longer be triggered by CTRL_C via terminal-kit
@@ -774,10 +778,14 @@ export function initializeUI(model: string, initialTests: CategorizedTestCases, 
     // term.grabInput(true); // REMOVED terminal-kit
     // term.on('key', (name: string) => { if (name === 'CTRL_C') handleExitKeyPress(); }); // REMOVED terminal-kit
     // term.on('resize', onResize); // REMOVED terminal-kit
+    
     // Basic CTRL+C handling
     process.on('SIGINT', () => {
         handleExitKeyPress();
     });
+    
+    // Add resize event handler to process.stdout
+    process.stdout.on('resize', onResize);
 
 
     scheduleRedraw(); // Initial draw
@@ -820,6 +828,9 @@ export function cleanupUI(exitCode = 0) {
     if (isFinished) return; // Prevent double cleanup
     isFinished = true;
     if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+
+    // Remove the resize listener
+    process.stdout.removeListener('resize', onResize);
 
     // Perform one final draw to show the completed state
     redraw();
