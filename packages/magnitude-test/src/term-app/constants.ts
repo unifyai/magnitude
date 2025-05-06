@@ -1,6 +1,5 @@
 // --- ANSI Escape Codes ---
 export const ANSI_RESET = '\x1b[0m';
-export const ANSI_BRIGHT_RED = '\x1b[91m';
 export const ANSI_BRIGHT_GREEN = '\x1b[92m';
 export const ANSI_BRIGHT_BLUE = '\x1b[94m';
 export const ANSI_GRAY = '\x1b[90m';

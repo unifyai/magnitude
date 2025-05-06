@@ -5,7 +5,7 @@ import { FailureDescriptor } from 'magnitude-core';
 import { VERSION } from '@/version';
 import { formatDuration, getUniqueTestId, wrapText } from './util';
 import { 
-    ANSI_RESET, ANSI_BRIGHT_RED, ANSI_BRIGHT_GREEN, ANSI_BRIGHT_BLUE, 
+    ANSI_RESET, ANSI_BRIGHT_GREEN, ANSI_BRIGHT_BLUE, 
     ANSI_GRAY, ANSI_RED, ANSI_BOLD, ANSI_DIM, PADDING, BOX_CHARS_ROUNDED
 } from './constants';
 import { 
@@ -303,7 +303,7 @@ export function generateSummaryString(boxHeight: number): string[] {
     if (currentContentLine < maxContentLines) {
         let statusLine = '';
         if (statusCounts.passed > 0) statusLine += `${ANSI_BRIGHT_GREEN}✓ ${statusCounts.passed} passed${ANSI_RESET}  `;
-        if (statusCounts.failed > 0) statusLine += `${ANSI_BRIGHT_RED}✗ ${statusCounts.failed} failed${ANSI_RESET}  `;
+        if (statusCounts.failed > 0) statusLine += `${ANSI_RED}✗ ${statusCounts.failed} failed${ANSI_RESET}  `;
         if (statusCounts.running > 0) statusLine += `${ANSI_BRIGHT_BLUE}▷ ${statusCounts.running} running${ANSI_RESET}  `;
         if (statusCounts.pending > 0) statusLine += `${ANSI_GRAY}◌ ${statusCounts.pending} pending${ANSI_RESET}  `;
         if (statusCounts.cancelled > 0) statusLine += `${ANSI_GRAY}⊘ ${statusCounts.cancelled} cancelled${ANSI_RESET}  `;
