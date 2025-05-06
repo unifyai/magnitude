@@ -199,7 +199,7 @@ export function generateTestListString(boxHeight: number): string[] {
         if (currentContentLine >= maxContentLines) break;
 
         const fileHeader = `${ANSI_BRIGHT_BLUE}${ANSI_BOLD}☰ ${filepath}${ANSI_RESET}`;
-        insertLineIntoBoxAnsi(boxLines, fileHeader, currentContentLine + 1, PADDING + fileIndent, currentWidth);
+        insertLineIntoBoxAnsi(boxLines, fileHeader, currentContentLine + 1, (PADDING - 1) + fileIndent, currentWidth);
         currentContentLine++;
 
         // Draw ungrouped tests
@@ -212,7 +212,7 @@ export function generateTestListString(boxHeight: number): string[] {
                     const testLines = generateTestString(test, state, filepath, null, testBaseIndent, contentWidth - testBaseIndent);
                     testLines.forEach(line => {
                         if (currentContentLine < maxContentLines) {
-                            insertLineIntoBoxAnsi(boxLines, line, currentContentLine + 1, PADDING, currentWidth);
+                            insertLineIntoBoxAnsi(boxLines, line, currentContentLine + 1, PADDING - 1, currentWidth);
                             currentContentLine++;
                         }
                     });
@@ -226,7 +226,7 @@ export function generateTestListString(boxHeight: number): string[] {
             for (const [groupName, groupTests] of Object.entries(groups)) {
                 if (currentContentLine >= maxContentLines) break;
                 const groupHeader = `${ANSI_BRIGHT_BLUE}${ANSI_BOLD}↳ ${groupName}${ANSI_RESET}`;
-                insertLineIntoBoxAnsi(boxLines, groupHeader, currentContentLine + 1, PADDING + groupIndent, currentWidth);
+                insertLineIntoBoxAnsi(boxLines, groupHeader, currentContentLine + 1, (PADDING - 1) + groupIndent, currentWidth);
                 currentContentLine++;
 
                 for (const test of groupTests) {
@@ -237,7 +237,7 @@ export function generateTestListString(boxHeight: number): string[] {
                         const testLines = generateTestString(test, state, filepath, groupName, testBaseIndent + 2, contentWidth - (testBaseIndent + 2));
                         testLines.forEach(line => {
                             if (currentContentLine < maxContentLines) {
-                                insertLineIntoBoxAnsi(boxLines, line, currentContentLine + 1, PADDING, currentWidth);
+                                insertLineIntoBoxAnsi(boxLines, line, currentContentLine + 1, PADDING - 1, currentWidth);
                                 currentContentLine++;
                             }
                         });
@@ -249,7 +249,7 @@ export function generateTestListString(boxHeight: number): string[] {
 
         // Add blank line between files if space allows
         if (currentContentLine < maxContentLines) {
-            insertLineIntoBoxAnsi(boxLines, '', currentContentLine + 1, PADDING, currentWidth);
+            insertLineIntoBoxAnsi(boxLines, '', currentContentLine + 1, PADDING - 1, currentWidth);
             currentContentLine++;
         }
     }
