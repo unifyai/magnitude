@@ -291,7 +291,10 @@ export function generateSummaryString(boxHeight: number): string[] {
     const hasFailures = failuresWithContext.length > 0;
     const boxColor = hasFailures ? ANSI_RED : ANSI_GRAY;
     const boxLines = createBoxAnsi(currentWidth, boxHeight, boxColor);
-    const contentWidth = currentWidth - (PADDING * 2); // Width inside padding
+    const baseContentWidth = currentWidth - (PADDING * 2); // Width inside padding (original contentWidth)
+    const summaryInternalLeftPadding = 1;
+    const effectiveSummaryContentWidth = baseContentWidth - summaryInternalLeftPadding; // Actual width for text after internal padding
+
     let currentContentLine = 0; // 0-based index for content lines
     const maxContentLines = boxHeight - 2;
 
@@ -306,37 +309,37 @@ export function generateSummaryString(boxHeight: number): string[] {
 
         const tokenText = `${ANSI_GRAY}tokens: ${totalInputTokens} in, ${totalOutputTokens} out${ANSI_RESET}`;
         const spaceNeeded = str(statusLine) + str(tokenText);
-        const spacer = ' '.repeat(Math.max(0, contentWidth - spaceNeeded));
+        const spacer = ' '.repeat(Math.max(0, effectiveSummaryContentWidth - spaceNeeded)); // Use effective width
         const combinedLine = statusLine + spacer + tokenText;
 
-        insertLineIntoBoxAnsi(boxLines, combinedLine, currentContentLine + 1, 0, currentWidth); // Insert at start of content area
+        insertLineIntoBoxAnsi(boxLines, combinedLine, currentContentLine + 1, summaryInternalLeftPadding, currentWidth); // Apply internal padding
         currentContentLine++;
     }
 
     // --- Failures ---
     if (hasFailures && currentContentLine < maxContentLines) {
         const failureHeader = `${ANSI_DIM}Failures:${ANSI_RESET}`; // Dim
-        insertLineIntoBoxAnsi(boxLines, failureHeader, currentContentLine + 1, 0, currentWidth);
+        insertLineIntoBoxAnsi(boxLines, failureHeader, currentContentLine + 1, summaryInternalLeftPadding, currentWidth); // Apply internal padding
         currentContentLine++;
 
         for (const { filepath, groupName, testTitle, failure } of failuresWithContext) {
             if (currentContentLine >= maxContentLines) break;
             const contextString = `${ANSI_DIM}${filepath}${groupName ? ` > ${groupName}` : ''} > ${testTitle}${ANSI_RESET}`; // Dim
-            insertLineIntoBoxAnsi(boxLines, contextString, currentContentLine + 1, 1, currentWidth); // Indent context
+            insertLineIntoBoxAnsi(boxLines, contextString, currentContentLine + 1, 1 + summaryInternalLeftPadding, currentWidth); // Indent context + internal padding
             currentContentLine++;
 
             if (currentContentLine < maxContentLines) {
-                const failureLines = generateFailureString(failure, 2, contentWidth - 2); // Indent failure details further
+                const failureLines = generateFailureString(failure, 2, effectiveSummaryContentWidth - 2); // Use effective width, indent failure details further
                 failureLines.forEach(line => {
                     if (currentContentLine < maxContentLines) {
-                        insertLineIntoBoxAnsi(boxLines, line, currentContentLine + 1, 0, currentWidth);
+                        insertLineIntoBoxAnsi(boxLines, line, currentContentLine + 1, summaryInternalLeftPadding, currentWidth); // Apply internal padding
                         currentContentLine++;
                     }
                 });
             }
 
             if (currentContentLine < maxContentLines) {
-                insertLineIntoBoxAnsi(boxLines, '', currentContentLine + 1, 0, currentWidth); // Space line
+                insertLineIntoBoxAnsi(boxLines, '', currentContentLine + 1, summaryInternalLeftPadding, currentWidth); // Space line with internal padding
                 currentContentLine++;
             }
         }
