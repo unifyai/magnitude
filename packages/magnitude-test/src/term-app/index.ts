@@ -13,7 +13,7 @@ const PADDING = 2; // Horizontal padding inside boxes
 
 // --- State ---
 let currentWidth = Math.min(term.width, MAX_APP_WIDTH);
-let redrawScheduled = false;
+let redrawScheduled = false; // Restore flag
 let timerInterval: NodeJS.Timeout | null = null;
 let currentTestStates: AllTestStates = {}; // Store the latest states
 let currentTests: CategorizedTestCases = {}; // Store the test structure
@@ -523,7 +523,9 @@ function calculateSummaryHeight(testStates: AllTestStates): number { // Removed 
 // --- Main Render Loop ---
 
 function redraw() {
-    redrawScheduled = false;
+    console.log(`[redraw] Called. isFinished=${isFinished}. Has currentTests? ${Object.keys(currentTests).length > 0}. Has currentTestStates? ${Object.keys(currentTestStates).length > 0}`);
+    // console.log('[redraw] currentTestStates:', JSON.stringify(currentTestStates, null, 2)); // Optional: Log full state (can be verbose)
+    redrawScheduled = false; // Reset flag at the start
     // Use term.clear() instead of ScreenBuffer fill
     term.clear();
 
@@ -596,7 +598,7 @@ function redraw() {
     term.moveTo(1, term.height);
 }
 
-function scheduleRedraw() {
+function scheduleRedraw() { // Restore function
     if (!redrawScheduled) {
         redrawScheduled = true;
         // Use setImmediate for efficient batching of redraws
@@ -608,7 +610,7 @@ function scheduleRedraw() {
 
 function onResize(width: number, height: number) {
     currentWidth = Math.min(width, MAX_APP_WIDTH);
-    scheduleRedraw();
+    scheduleRedraw(); // Use scheduleRedraw
 }
 
 // Modified onExit to not clear screen
@@ -618,7 +620,7 @@ function onExit(exitCode = 0) {
         timerInterval = null;
     }
     // Ensure one last draw call happens if needed
-    if (redrawScheduled) {
+    if (redrawScheduled) { // Check flag
         redraw();
     }
     term.grabInput(false);
@@ -653,7 +655,7 @@ export function initializeUI(model: string, initialTests: CategorizedTestCases, 
     term.on('resize', onResize);
 
     // Initial draw
-    scheduleRedraw();
+    scheduleRedraw(); // Use scheduleRedraw
 
     // Start timer for updating elapsed times
     if (!timerInterval) {
@@ -682,22 +684,18 @@ export function initializeUI(model: string, initialTests: CategorizedTestCases, 
                 }
             });
 
+            // Schedule redraw ONLY if tests are running (for spinner/timer updates)
             if (runningTestsExist) {
-                scheduleRedraw(); // Redraw if any test is running to update timer
-            } else {
-                // No tests running, assume finished
-                isFinished = true;
-                clearInterval(timerInterval!);
-                timerInterval = null;
-                // Schedule one final redraw to ensure final state is shown
-                scheduleRedraw();
-                 // Don't exit here, let TestRunner call cleanupUI
+                 scheduleRedraw(); // Use scheduleRedraw
             }
+            // Finished state is determined by cleanupUI calling isFinished = true
         }, 100); // Update interval
-    }
+    } // <-- Fixed: Added closing brace
 }
 
 export function updateUI(tests: CategorizedTestCases, testStates: AllTestStates) {
+    console.log(`[updateUI] Called. Received ${Object.keys(testStates).length} states.`);
+    // console.log('[updateUI] testStates received:', JSON.stringify(testStates, null, 2)); // Optional: Log full state (can be verbose)
     currentTests = tests;
     currentTestStates = testStates;
 
@@ -730,21 +728,20 @@ export function updateUI(tests: CategorizedTestCases, testStates: AllTestStates)
     //     initializeUI(currentModel); // Re-call to potentially restart timer interval if stopped
     // }
 
-    // Always schedule redraw when UI is updated.
-    // Cleanup logic will handle stopping redraws eventually.
-    scheduleRedraw();
+    // Always schedule redraw when UI state is updated from the runner
+    scheduleRedraw(); // Use scheduleRedraw
 }
 
 // Modified cleanupUI to not clear screen and handle exit code
 export function cleanupUI(exitCode = 0) {
-     isFinished = true; // Mark as finished
-     if (timerInterval) {
+     isFinished = true; // Mark as finished FIRST
+     if (timerInterval) { // Clear timer immediately
         clearInterval(timerInterval);
-        timerInterval = null;
+         timerInterval = null;
     }
-    // Schedule one final redraw before exiting fullscreen/grabInput
-    scheduleRedraw();
-    // Use setTimeout to allow final redraw to potentially complete
+    // Schedule one final redraw to show completed state using the standard mechanism
+    scheduleRedraw(); // Use scheduleRedraw
+    // Use setTimeout to allow final redraw to potentially complete *before* exiting
     setTimeout(() => {
         onExit(exitCode); // Pass exit code to onExit
     }, 150); // Delay slightly longer than redraw interval
