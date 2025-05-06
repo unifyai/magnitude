@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import path from 'path';
+import path from 'node:path';
 import { spawn } from 'child_process';
-import fs from 'fs/promises';
-import { fileURLToPath } from 'url';
+import fs from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 
 // Get the directory name of the current module
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

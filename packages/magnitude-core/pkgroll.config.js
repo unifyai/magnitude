@@ -1,7 +1,7 @@
 export default {
     external: [
       // Core Node.js modules
-      'fs', 'path', 'os', 'util', 'events', 'stream', 'assert', 'url', 'crypto',
+      'node:fs', 'node:path', 'node:os', 'node:util', 'node:events', 'node:stream', 'node:assert', 'node:url', 'node:crypto',
       'playwright'
     ]
   };

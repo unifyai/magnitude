@@ -1,6 +1,6 @@
 import { TestOptions, TestGroup, MagnitudeConfig, CategorizedTestCases, TestFunction, TestRunnable, CategorizedTestRunnable } from "./types";
 import { TestCompiler } from "@/compiler";
-import { pathToFileURL } from "url";
+import { pathToFileURL } from "node:url";
 
 declare global {
     var __testRegistry: TestRegistry | undefined;

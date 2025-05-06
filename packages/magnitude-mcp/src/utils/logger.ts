@@ -1,7 +1,7 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import * as util from 'util';
-import * as os from 'os';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as util from 'node:util';
+import * as os from 'node:os';
 
 /**
  * Log levels

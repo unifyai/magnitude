@@ -1,6 +1,6 @@
-import { mkdirSync, existsSync, writeFileSync } from "fs";
-import { tmpdir } from "os";
-import { join, resolve, basename } from "path";
+import { mkdirSync, existsSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve, basename } from "node:path";
 import { build, BuildOptions } from "esbuild";
 //import { ConfigError } from "@/utils/errors";
 
@@ -15,25 +15,25 @@ export class TestCompiler {
         external: [
             //"magnitude-ts",
             //"magnitude-test",
-            "fs",
-            "path",
-            "os",
-            "util",
-            "events",
-            "stream",
-            "assert",
-            "url",
-            "crypto",
-            "buffer",
-            "querystring",
-            "fsevents",
+            "node:fs",
+            "node:path",
+            "node:os",
+            "node:util",
+            "node:events",
+            "node:stream",
+            "node:assert",
+            "node:url",
+            "node:crypto",
+            "node:buffer",
+            "node:querystring",
+            "node:fsevents",
             //"@boundaryml/baml/*",
         ],
         banner: {
             js: `
-        import { fileURLToPath } from 'url';
-        import { dirname } from 'path';
-        import { createRequire } from 'module';
+        import { fileURLToPath } from 'node:url';
+        import { dirname } from 'node:path';
+        import { createRequire } from 'node:module';
 
         const __filename = fileURLToPath(import.meta.url);
         const __dirname = dirname(__filename);
@@ -75,9 +75,9 @@ export class TestCompiler {
             resolveExtensions: [".ts", ".js", ".mjs"],
             banner: {
                 js: `
-          import { fileURLToPath } from 'url';
-          import { dirname } from 'path';
-          import { createRequire } from 'module';
+          import { fileURLToPath } from 'node:url';
+          import { dirname } from 'node:path';
+          import { createRequire } from 'node:module';
 
           const __filename = fileURLToPath(import.meta.url);
           const __dirname = dirname(__filename);
