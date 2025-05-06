@@ -24,16 +24,16 @@ export class TestRegistry {
     }
 
     public static getInstance(): TestRegistry {
-        // Use global to ensure same instance is used across module boundaries
-        if (!(global as any).__magnitude__) {
-            (global as any).__magnitude__ = {};
+        // Use globalThis to ensure same instance is used across module boundaries
+        if (!(globalThis as any).__magnitude__) {
+            (globalThis as any).__magnitude__ = {};
         }
 
-        if (!(global as any).__magnitude__.registry) {
-            (global as any).__magnitude__.registry = new TestRegistry();
+        if (!(globalThis as any).__magnitude__.registry) {
+            (globalThis as any).__magnitude__.registry = new TestRegistry();
         }
 
-        return (global as any).__magnitude__.registry;
+        return (globalThis as any).__magnitude__.registry;
     }
 
     public register(testCase: TestRunnable): void {
