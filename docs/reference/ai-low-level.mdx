@@ -1,14 +1,28 @@
 ---
 title: Low-Level AI Actions
-description: "Reference for the low-level AI methods `ai.click()`, `ai.type()`, and `ai.exec()` for direct browser interaction control."
+description: Bypass the planner and trigger specific web actions with AI
 ---
 
-While `ai.step()` is the primary method for defining actions using natural language, the `ai` object also provides lower-level methods for more direct control over specific browser interactions. These methods bypass the AI's interpretation for the specific action described.
+While `ai.step()` is the primary method for defining actions using natural language, the `ai` object also provides lower-level methods for more direct control over specific browser interactions, like clicking and typing into specific targets.
+
+
+These actions bypass the planner and go straight to Moondream. This can be useful to use AI selectors directly as we refine the agent's behavior on steps and checks.
+
+## Action Method Comparison
+
+
+|                      | Example                | Web Actions | Brittleness | Control |
+| -------------------- | ---------------------- | ----------- | ----------- | ------- |
+| 🧠 **High Level AI** | ai.step(decription)    | One or Many | 😀 Low      | Medium  |
+| 🤖 **Low Level AI**  | ai.click(target)       | One         | 🙂 Medium   | High    |
+| ✒️ **Playwright**    | page.mouse.click(x, y) | One         | ⚠️ High     | High    |
+
+
+## When to use low level actions
 
 They can be useful when:
-- The AI's interpretation of a natural language step is ambiguous.
 - You need precise control over a specific interaction.
-- You are integrating with existing automation logic that generates specific action intents.
+- Moondream is having trouble clicking a specific target and you want to directly control the prompt
 
 ## `ai.click(target)`
 
@@ -45,7 +59,7 @@ await ai.type("the password box", process.env.USER_PASSWORD); // Use secure meth
 
 ## `ai.exec(action)`
 
-Executes a predefined `ActionIntent` object. This is the lowest-level method, typically used for advanced scenarios or internal integrations.
+Execute any action using its JSON representation.
 
 <RequestExample>
 ```typescript Exec Example
