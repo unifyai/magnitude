@@ -99,7 +99,7 @@ export function insertLineIntoBoxAnsi(lines: string[], contentLine: string, line
         const paddingRight = ' '.repeat(availableSpace - currentVisibleLength);
 
         // Reconstruct the line with box color preserved
-        lines[lineIndex] = `${boxColor}${BOX_CHARS_ROUNDED.vertical}${paddingLeft}${truncatedContent}${paddingRight}${BOX_CHARS_ROUNDED.vertical}${ANSI_RESET}`;
+        lines[lineIndex] = `${boxColor}${BOX_CHARS_ROUNDED.vertical}${ANSI_RESET}${paddingLeft}${truncatedContent}${paddingRight}${boxColor}${BOX_CHARS_ROUNDED.vertical}${ANSI_RESET}`;
     }
 }
 
