@@ -35,8 +35,9 @@ export function generateTitleBarString(): string[] {
     // Construct the middle line directly
     const titleWidth = str(titleText);
     const modelWidth = str(modelText);
-    const spaceBetween = contentWidth - titleWidth - modelWidth - (PADDING * 2);
-    const middleLineContent = ' '.repeat(PADDING) + titleText + ' '.repeat(Math.max(1, spaceBetween)) + modelText + ' '.repeat(PADDING);
+    const singleSpacePadding = 1;
+    const spaceBetween = contentWidth - titleWidth - modelWidth - (singleSpacePadding * 2); // Account for 1 space on each side
+    const middleLineContent = ' '.repeat(singleSpacePadding) + titleText + ' '.repeat(Math.max(0, spaceBetween)) + modelText + ' '.repeat(singleSpacePadding); // Add 1 space padding
 
     // Replace the default middle line (index 1)
     boxLines[1] = `${ANSI_BRIGHT_BLUE}${BOX_CHARS_ROUNDED.vertical}${middleLineContent.padEnd(contentWidth)}${BOX_CHARS_ROUNDED.vertical}${ANSI_RESET}`;
@@ -529,7 +530,7 @@ export function redraw() {
     testListHeight = testListHeight >= testListMinHeight ? testListHeight : 0;
     summaryHeight = summaryHeight >= 3 ? summaryHeight : 0;
     // Recalculate spacing based on final heights
-    spacingHeight = (testListHeight > 0 && summaryHeight > 0) ? 1 : 0;
+    spacingHeight = 0; // Always set spacing to 0 to remove the gap
 
     // --- Generate Output Strings ---
     const outputLines: string[] = [];
