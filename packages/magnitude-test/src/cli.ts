@@ -73,22 +73,23 @@ test('can add and complete todos', { url: 'https://magnitodo.com' }, async ({ ai
 });
 `;
 
-async function initializeProject(): Promise<void> {
+async function initializeProject(force = false, destination = 'tests/magnitude'): Promise<void> {
     /**
      * Initialize magnitude test case files in a node project
      */
     const cwd = process.cwd();
     const isNodeProject = await isProjectRoot(cwd);
 
-    if (!isNodeProject) {
+    if (!isNodeProject && !force) {
         console.error("Couldn't find package.json in current directory, please initialize Magnitude in a node.js project");
+        console.error("To override this check, use --force option");
         process.exit(1);
     }
 
     console.log(chalk.blueBright(`Initializing Magnitude tests in ${cwd}`));
 
     // Create directory structure
-    const testsDir = path.join(cwd, 'tests', 'magnitude');
+    const testsDir = path.join(cwd, destination);
 
     const configPath = path.join(testsDir, 'magnitude.config.ts');
 
@@ -210,7 +211,7 @@ program
 
         logger.info({ ...config.planner }, "Planner:");
         //console.log(magnitudeBlue(`Using planner: ${describeModel(config.planner)}`));
-        
+
         // If executor not provided, default to moondream cloud with MOONDREAM_API_KEY
         if (!config.executor || !config.executor.options || (!config.executor.options.apiKey && !config.executor.options.baseUrl)) {
             const apiKey = process.env.MOONDREAM_API_KEY;
@@ -218,7 +219,7 @@ program
                 console.error("Missing MOONDREAM_API_KEY, get one at https://moondream.ai/c/cloud/api-keys");
                 process.exit(1);
             }
-            
+
             config.executor = {
                 provider: 'moondream',
                 options: {
@@ -294,8 +295,10 @@ program
 program
     .command('init')
     .description('Initialize Magnitude test directory structure')
-    .action(async () => {
-        await initializeProject();
+    .option('-f, --force', 'force initialization even if no package.json is found')
+    .option('--dir, --destination <path>', 'destination directory for Magnitude tests', 'tests/magnitude')
+    .action(async (options) => {
+        await initializeProject(options.force, options.destination);
     });
 
 program.parse();
