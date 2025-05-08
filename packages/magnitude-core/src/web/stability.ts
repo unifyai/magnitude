@@ -40,13 +40,13 @@ export interface PageStabilityOptions {
  * Utility class to check for visual stability of a page
  */
 export class PageStabilityAnalyzer {
-    private page: Page;
+    private page!: Page;
     private options: Required<PageStabilityOptions>;
     private lastStart: number;
     private logger: Logger;
 
-    constructor(page: Page, options: PageStabilityOptions = {}) {
-        this.page = page;
+    constructor(options: PageStabilityOptions = {}) {
+        //this.page = page;
         this.options = {
             differenceThreshold: options.differenceThreshold ?? 0.01,
             requiredStableChecks: options.requiredStableChecks ?? 3,
@@ -59,6 +59,10 @@ export class PageStabilityAnalyzer {
         this.logger = logger.child(
             { name: 'magnus.stability' }
         );
+    }
+
+    setActivePage(page: Page) {
+        this.page = page;
     }
 
     private log(message: string): void {

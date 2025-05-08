@@ -4,12 +4,26 @@ export class ActionVisualizer {
     /**
      * Manages the visual indicator for actions on a page
      */
-    private page: Page;
+    private page!: Page;
     private visualElementId: string = 'action-visual-indicator';
     private lastPosition: { x: number; y: number } | null = null;
 
-    constructor(page: Page) {
+    constructor() {
+        //this.page = page;
+    }
+
+    setActivePage(page: Page) {
         this.page = page;
+
+        page.on('load', async () => {
+            // Use a try-catch as page navigation might interrupt this
+            try {
+                await this.redrawLastPosition();
+            } catch (error) {
+                // Ignore errors that might occur during navigation races
+                // console.warn("Error redrawing visualizer on load:", error);
+            }
+        });
     }
 
     async visualizeAction(x: number, y: number): Promise<void> {

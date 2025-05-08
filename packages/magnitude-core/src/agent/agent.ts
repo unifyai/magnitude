@@ -85,8 +85,9 @@ export class TestCaseAgent {
             deviceScaleFactor: dpr,
             ...this.config.browserContextOptions
         });
-        const page = await this.context.newPage();
-        this.harness = new WebHarness(page);
+        //const page = await this.context.newPage();
+        this.harness = new WebHarness(this.context);
+        await this.harness.start();
 
         this.checkAborted();
         this.events.emit('start');

@@ -255,16 +255,14 @@ program
         // --- Initialize State using utility ---
         const testStates = initializeTestStates(categorizedTests);
 
-        // --- Initialize Terminal UI ---
-        // Pass the initial tests and states
-        const renderSettings = {
-            showActions: config.display?.showActions ?? true
-        };
-        initializeUI(describeModel(config.planner), categorizedTests, testStates, renderSettings);
+        const showUI = !options.debug && !options.plain;
 
-
-        // --- Instantiate Executor ---
-        // Pass the updateUI and cleanupUI functions from term-app
+        if (showUI) {
+            const renderSettings = {
+                showActions: config.display?.showActions ?? true
+            };
+            initializeUI(describeModel(config.planner), categorizedTests, testStates, renderSettings);
+        }
 
         const executor = new TestRunner(
             {
@@ -280,8 +278,8 @@ program
             },
             categorizedTests,
             testStates, // Pass the shared state object
-            updateUI,   // Pass the update function from term-app
-            cleanupUI,  // Pass the cleanup function from term-app
+            showUI ? updateUI : ()=>{},   // Pass the update function from term-app
+            showUI ? cleanupUI : ()=>{},  // Pass the cleanup function from term-app
             //config as Required<MagnitudeConfig> // This seems commented out
         );
 

@@ -1,33 +1,40 @@
-import { Page, Browser } from "playwright";
+import { Page, Browser, BrowserContext } from "playwright";
 import { ClickWebAction, ScrollWebAction, TypeWebAction, WebAction } from '@/web/types';
 import { PageStabilityAnalyzer } from "./stability";
 import { parseTypeContent } from "./util";
 import { ActionVisualizer } from "./visualizer";
+import logger from "@/logger";
 
 export class WebHarness {
     /**
      * Executes web actions on a page
      * Not responsible for browser lifecycle
      */
-    private page: Page;
+    private context: BrowserContext;
+    private page!: Page;
     private stability: PageStabilityAnalyzer;
     private visualizer: ActionVisualizer;
 
-    constructor(page: Page) {
-        this.page = page;
-        this.stability = new PageStabilityAnalyzer(this.page);
-        this.visualizer = new ActionVisualizer(this.page);
+    constructor(context: BrowserContext) {
+        //this.page = page;
+        this.context = context;
+        this.stability = new PageStabilityAnalyzer();
+        this.visualizer = new ActionVisualizer();
 
-        // Listen for page load events to redraw the visualizer
-        this.page.on('load', async () => {
-            // Use a try-catch as page navigation might interrupt this
-            try {
-                await this.visualizer.redrawLastPosition();
-            } catch (error) {
-                // Ignore errors that might occur during navigation races
-                // console.warn("Error redrawing visualizer on load:", error);
-            }
+        this.context.on('page', (page: Page) => {
+            this.setActivePage(page);
+            //logger.info('ayo we got a new page');
         });
+    }
+
+    setActivePage(page: Page) {
+        this.page = page;
+        this.stability.setActivePage(this.page);
+        this.visualizer.setActivePage(this.page);
+    }
+
+    async start() {
+        await this.context.newPage();
     }
 
     getPage() {
