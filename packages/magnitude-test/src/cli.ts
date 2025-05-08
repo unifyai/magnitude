@@ -73,7 +73,7 @@ test('can add and complete todos', { url: 'https://magnitodo.com' }, async ({ ai
 });
 `;
 
-async function initializeProject(force = false): Promise<void> {
+async function initializeProject(force = false, destination = 'tests/magnitude'): Promise<void> {
     /**
      * Initialize magnitude test case files in a node project
      */
@@ -89,7 +89,7 @@ async function initializeProject(force = false): Promise<void> {
     console.log(chalk.blueBright(`Initializing Magnitude tests in ${cwd}`));
 
     // Create directory structure
-    const testsDir = path.join(cwd, 'tests', 'magnitude');
+    const testsDir = path.join(cwd, destination);
 
     const configPath = path.join(testsDir, 'magnitude.config.ts');
 
@@ -298,8 +298,9 @@ program
     .command('init')
     .description('Initialize Magnitude test directory structure')
     .option('-f, --force', 'force initialization even if no package.json is found')
+    .option('--dir, --destination <path>', 'destination directory for Magnitude tests', 'tests/magnitude')
     .action(async (options) => {
-        await initializeProject(options.force);
+        await initializeProject(options.force, options.destination);
     });
 
 program.parse();
