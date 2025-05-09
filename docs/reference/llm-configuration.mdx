@@ -32,11 +32,10 @@ export default {
 ```
 
 If no planner is configured, Magnitude will pick a provider and model based on available environment variables in this order:
-- `GOOGLE_API_KEY`: `gemini-2.5-pro-preview-03-25`,
-- `GOOGLE_APPLICATION_CREDENTIALS`: `gemini-2.5-pro-preview-03-25`,
-- `OPENROUTER_API_KEY`: `google/gemini-2.5-pro-preview-03-25`,
-- `ANTHROPIC_API_KEY`: `claude-3-7-sonnet-latest`,
-- `OPENAI_API_KEY`: `gpt-4.1-2025-04-14`
+- `GOOGLE_API_KEY` (Google AI Studio `gemini-2.5-pro-preview-03-25`)
+- `OPENROUTER_API_KEY` (OpenRouter `google/gemini-2.5-pro-preview-03-25`)
+- `ANTHROPIC_API_KEY` (Anthropic `claude-3-7-sonnet-latest`)
+- `OPENAI_API_KEY` (OpenAI `gpt-4.1-2025-04-14`)
 
 # Providers
 
@@ -69,23 +68,33 @@ interface GoogleVertexClient {
 }
 ```
 
-### Authentication
+The easiest way to authenticate with Vertex AI is to authenticate using the `gcloud` CLI.
 
-The `vertex-ai` provider by default will try to authenticate using the following strategies:
+1. Create a project in [Google Cloud](https://console.cloud.google.com).
+2. Enable Vertex AI in that project by going to [Vertex AI Dashboard](https://console.cloud.google.com/vertex-ai/dashboard) an selecting "Enable all Recommended APIs"
+3. Install the `gcloud` CLI ([instructions](https://cloud.google.com/sdk/docs/install))
+4. Run `gcloud auth application-default login --project <your-project-id>`
 
-- if `GOOGLE_APPLICATION_CREDENTIALS` is set, it will use the specified service account
-- if you have run `gcloud auth application-default login`, it will use those credentials
-- if running in GCP, it will query the metadata server to use the attached service account
-- if `gcloud` is available on the `PATH`, it will use `gcloud auth print-access-token`
+Once you've done these steps, you can set up a project to use Vertex with the available credentials like this:
+```ts
+import { type MagnitudeConfig } from "magnitude-test";
 
-If you're using Google Cloud [application default
-credentials](https://cloud.google.com/docs/authentication/application-default-credentials), you
-can expect authentication to work out of the box.
+export default {
+    url: "http://localhost:5173",
+    planner: {
+        provider: 'vertex-ai',
+        options: {
+            model: 'google/gemini-2.5-pro-preview-05-06',
+            location: 'us-central1'
+        }
+    }
+} satisfies MagnitudeConfig;
+```
 
-Setting [`options.credentials`](#credentials) will take precedence and force `vertex-ai` to load
-service account credentials from that file path.
+If running in GCP, it will query the metadata server to use the attached service account.
 
-<Info>Source: [BAML Google Vertex Provider Docs](https://docs.boundaryml.com/ref/llm-client-providers/google-vertex#authentication)</Info>
+<Info>More info: [BAML Google Vertex Provider Docs](https://docs.boundaryml.com/ref/llm-client-providers/google-vertex#authentication)</Info>
+
 
 
 ## Anthropic

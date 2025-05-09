@@ -31,10 +31,10 @@ Magnitude requires setting up two LLM clients:
 For the **planner**, you can use models like Gemini 2.5 pro, Claude Sonnet 3.7, GPT 4.1, or any other model that accepts image input.
 
 Magnitude will automatically read and use any of the following API keys if configured:
-- `GOOGLE_APPLICATION_CREDENTIALS` (gemini-2.5-pro-preview-03-25)
-- `OPENROUTER_API_KEY` (google/gemini-2.5-pro-preview-03-25)
-- `ANTHROPIC_API_KEY` (claude-3-7-sonnet-latest)
-- `OPENAI_API_KEY` (gpt-4.1-2025-04-14)
+- `GOOGLE_API_KEY` (Google AI Studio `gemini-2.5-pro-preview-03-25`)
+- `OPENROUTER_API_KEY` (OpenRouter `google/gemini-2.5-pro-preview-03-25`)
+- `ANTHROPIC_API_KEY` (Anthropic `claude-3-7-sonnet-latest`)
+- `OPENAI_API_KEY` (OpenAI `gpt-4.1-2025-04-14`)
 
 If you have any of these in your environment, no additional setup is needed for the planner. To explicitly select a specific provider and model, see [configuration](https://docs.magnitude.run/reference/llm-configuration). Currently we support Google Vertex AI, Anthropic, AWS Bedrock, OpenAI, and OpenAI-compatible providers.
 
