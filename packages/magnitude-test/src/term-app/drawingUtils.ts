@@ -1,5 +1,5 @@
 import { TestState } from './types';
-import { ActionDescriptor, FailureDescriptor } from 'magnitude-core';
+import { ActionDescriptor, ActionVariant, FailureDescriptor } from 'magnitude-core';
 import { ANSI_RESET, ANSI_GREEN, ANSI_BRIGHT_BLUE, ANSI_GRAY, ANSI_RED, BOX_CHARS_ROUNDED } from './constants';
 
 /**
@@ -115,6 +115,7 @@ export function describeAction(action: ActionDescriptor): string {
         case 'click': return `clicked ${action.target}`;
         case 'type': return `typed "${action.content}" into ${action.target}`;
         case 'scroll': return `scrolled (${action.deltaX}, ${action.deltaY})`;
+        case 'tab': return `switched to tab ${action.index}`;
         default: return `unknown action: ${(action as any).variant}`;
     }
 }
@@ -124,12 +125,18 @@ export function describeAction(action: ActionDescriptor): string {
  * @param variant The action variant
  * @returns Plain character symbol
  */
-export function getActionSymbol(variant: "load" | "click" | "hover" | "type" | "scroll" | "wait" | "back"): string {
+export function getActionSymbol(variant: ActionVariant): string {
     // Returns plain char
     switch (variant) {
-        case "load": return "↻"; case "click": return "⊙"; case "hover": return "◉";
-        case "type": return "⏎"; case "scroll": return "⇅"; case "wait": return "◴";
-        case "back": return "←"; default: return "?";
+        case "load": return "↻";
+        case "click": return "⊙";
+        //case "hover": return "◉";
+        case "type": return "⏎";
+        case "scroll": return "⇅";
+        case "tab": return "⇆";
+        //case "wait": return "◴";
+        //case "back": return "←";
+        default: return "?";
     }
 }
 
@@ -141,8 +148,11 @@ export function getActionSymbol(variant: "load" | "click" | "hover" | "type" | "
 export function getTestStatusIndicatorChar(status: TestState['status']): string {
     // Returns plain char
     switch (status) {
-        case 'passed': return '✓'; case 'failed': return '✕';
-        case 'cancelled': return '⊘'; case 'pending': default: return '◌';
+        case 'passed': return '✓';
+        case 'failed': return '✕';
+        case 'cancelled': return '⊘';
+        case 'pending':
+        default: return '◌';
     }
 }
 

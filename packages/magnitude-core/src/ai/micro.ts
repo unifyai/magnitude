@@ -136,8 +136,12 @@ export class MicroAgent {
         else if (intent.variant === 'scroll') {
             return await this.convertScroll(screenshot, intent as ScrollIntent);
         }
+        else if (intent.variant === 'tab') {
+            // tab switch requires no lm conversion, already web action
+            return intent;
+        }
 
-        throw Error(`Unhandled ingredient variant: ${(intent as any).variant}`);
+        throw Error(`Unhandled intent variant: ${(intent as any).variant}`);
     }
 
     async convertClick(screenshot: Screenshot, intent: ClickIntent): Promise<ClickWebAction> {

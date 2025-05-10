@@ -46,6 +46,16 @@ export class TabManager {
         this.events.emit('tabChanged', page);
     }
 
+    async switchTab(index: number) {
+        const pages = this.context.pages();
+        if (index < 0 || index >= pages.length) {
+            throw new Error(`Invalid tab index: ${index}`);
+        }
+        const page = pages[index];
+        await page.bringToFront();
+        this.setActivePage(page);
+    }
+
     getActivePage() {
         return this.activePage;
     }

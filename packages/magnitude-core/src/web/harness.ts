@@ -1,5 +1,5 @@
 import { Page, Browser, BrowserContext } from "playwright";
-import { ClickWebAction, ScrollWebAction, TypeWebAction, WebAction } from '@/web/types';
+import { ClickWebAction, ScrollWebAction, SwitchTabWebAction, TypeWebAction, WebAction } from '@/web/types';
 import { PageStabilityAnalyzer } from "./stability";
 import { parseTypeContent } from "./util";
 import { ActionVisualizer } from "./visualizer";
@@ -127,6 +127,10 @@ export class WebHarness {
         await this.page.mouse.wheel(deltaX, deltaY);
     }
 
+    async switchTab({ index }: SwitchTabWebAction) {
+        await this.tabs.switchTab(index);
+    }
+
     async executeAction(action: WebAction) {
         if (action.variant === 'click') {
             await this.click(action);
@@ -134,6 +138,8 @@ export class WebHarness {
             await this.type(action);
         } else if (action.variant === 'scroll') {
             await this.scroll(action);
+        } else if (action.variant === 'tab') {
+            await this.switchTab(action);
         } else {
             throw Error(`Unhandled web action variant: ${(action as any).variant}`);
         }

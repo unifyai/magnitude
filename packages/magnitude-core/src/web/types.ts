@@ -11,7 +11,7 @@ export interface Screenshot {
 //     variant: ActionVariant
 // }
 
-export type WebAction = NavigateWebAction | ClickWebAction | TypeWebAction | ScrollWebAction;
+export type WebAction = NavigateWebAction | ClickWebAction | TypeWebAction | ScrollWebAction | SwitchTabWebAction;
 
 // Currently only emitted synthetically
 export interface NavigateWebAction {
