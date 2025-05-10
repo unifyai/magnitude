@@ -113,7 +113,7 @@ export class MacroAgent {
         return response.checks;
     }
 
-    async evaluateCheck(screenshot: Screenshot, check: string, existingRecipe: ActionIntent[]): Promise<boolean> {
+    async evaluateCheck(screenshot: Screenshot, check: string, existingRecipe: ActionIntent[], tabState: TabState): Promise<boolean> {
         const downscaledScreenshot = await this.transformScreenshot(screenshot);
 
         const stringifiedExistingRecipe = [];
@@ -123,15 +123,18 @@ export class MacroAgent {
 
         const start = Date.now();
         const response = await this.baml.EvaluateCheck(
-            Image.fromBase64('image/png', downscaledScreenshot.image),
-            check,
-            stringifiedExistingRecipe
+            {
+                screenshot: Image.fromBase64('image/png', downscaledScreenshot.image),
+                actionHistory: stringifiedExistingRecipe,
+                tabState: tabState
+            },
+            check
         );
         this.logger.trace(`evaluateCheck took ${Date.now()-start}ms`);
         return response.passes;
     }
 
-    async classifyCheckFailure(screenshot: Screenshot, check: string, existingRecipe: ActionIntent[]): Promise<BugDetectedFailure | MisalignmentFailure> {
+    async classifyCheckFailure(screenshot: Screenshot, check: string, existingRecipe: ActionIntent[], tabState: TabState): Promise<BugDetectedFailure | MisalignmentFailure> {
         const downscaledScreenshot = await this.transformScreenshot(screenshot);
 
         const stringifiedExistingRecipe = [];
@@ -141,9 +144,12 @@ export class MacroAgent {
 
         const start = Date.now();
         const response = await this.baml.ClassifyCheckFailure(
-            Image.fromBase64('image/png', downscaledScreenshot.image),
-            check,
-            stringifiedExistingRecipe
+            {
+                screenshot: Image.fromBase64('image/png', downscaledScreenshot.image),
+                actionHistory: stringifiedExistingRecipe,
+                tabState: tabState
+            },
+            check
         );
         this.logger.trace(`classifyCheckFailure took ${Date.now()-start}ms`);
         //return response.check;

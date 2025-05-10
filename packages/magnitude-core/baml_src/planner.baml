@@ -211,7 +211,7 @@ class EvaluatedCheck {
 }
 
 // Moondream struggles to handle converted check, this is a bypass to use big model to evaluate check directly
-function EvaluateCheck (screenshot: image, check: string, previousActions: string[]) -> EvaluatedCheck {
+function EvaluateCheck (context: BrowserExecutionContext, check: string) -> EvaluatedCheck {
     client GeminiPro
     prompt #"
         {{ _.role("system") }}
@@ -219,19 +219,9 @@ function EvaluateCheck (screenshot: image, check: string, previousActions: strin
         {{ ctx.output_format }}
 
         {{ _.role("user")}}
-
-        The history of previous actions:
-        {%if not previousActions %}
-        (there are none)
-        {%endif%}
-        {%for action in previousActions%}
-        {{ action }}
-        {%endfor%}
-        
         Check to evaluate:
         <check>{{ check }}</check>
 
-        Current screenshot:
-        {{screenshot}}
+        {{ DescribeBrowserExecutionContext(context) }}
     "# 
 }

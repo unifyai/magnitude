@@ -44,7 +44,7 @@ template_string BaseMeta #"
 // this is a tricky prompt, but its not as critical to get right as others
 // it does become more important if we rely on classify as bug/misalign then correct minor misaligns only if not bug
 // ^ if we need this then we should think of a more isolated/logical prompt to detect misalignments
-function ClassifyCheckFailure (screenshot: image, check: string, previousActions: string[]) -> BugFailureClassification | MisalignmentClassification {
+function ClassifyCheckFailure (context: BrowserExecutionContext, check: string) -> BugFailureClassification | MisalignmentClassification {
     client SonnetAnthropic
     prompt #"
         {{ _.role("system") }}
@@ -66,19 +66,10 @@ function ClassifyCheckFailure (screenshot: image, check: string, previousActions
 
         {{ _.role("user") }}
 
-        The history of previous actions:
-        {%if not previousActions %}
-        (there are none)
-        {%endif%}
-        {%for action in previousActions%}
-        {{ action }}
-        {%endfor%}
-        
         The "check" that was marked as failed:
         {{ check }}
 
-        Current screenshot:
-        {{screenshot}}
+        {{ DescribeBrowserExecutionContext(context) }}
     "#
 }
 

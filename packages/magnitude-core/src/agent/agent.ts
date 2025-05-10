@@ -252,21 +252,21 @@ export class TestCaseAgent {
     }
 
     async check(description: string): Promise<void> {
-        this.checkAborted();
         logger.info(`check: ${description}`);
 
         this.events.emit('checkStart', description);
 
-
         if (!this.lastScreenshot) {
-            this.lastScreenshot = await this.screenshot(); // Already checks signal
+            this.lastScreenshot = await this.screenshot();
         }
 
-        this.checkAborted();
+        const tabState: TabState = await this.harness.retrieveTabState();
+
         const result = await this.macro.evaluateCheck(
             this.lastScreenshot,
             description,
-            this.lastStepActions ?? []
+            this.lastStepActions ?? [],
+            tabState
         );
         
         // check conversion disabled until moondream can better handle composite/complex checks
@@ -308,7 +308,8 @@ export class TestCaseAgent {
             const failure = await this.macro.classifyCheckFailure(
                 this.lastScreenshot,
                 description,
-                this.lastStepActions ?? []
+                this.lastStepActions ?? [],
+                tabState
             );
 
             this.fail(failure);
