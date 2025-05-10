@@ -9,6 +9,7 @@ import logger from "@/logger";
 import { Logger } from 'pino';
 import { BugDetectedFailure, MisalignmentFailure } from "@/common";
 import { PlannerClient } from "@/ai/types";
+import { TabState } from "@/web/tabs";
 
 
 interface MacroAgentConfig {
@@ -69,7 +70,7 @@ export class MacroAgent {
         return screenshot;
     }
 
-    async createPartialRecipe(screenshot: Screenshot, testStep: TestStepDefinition, existingRecipe: ActionIntent[]): Promise<{ actions: ActionIntent[], finished: boolean }> {
+    async createPartialRecipe(screenshot: Screenshot, testStep: TestStepDefinition, existingRecipe: ActionIntent[], tabState: TabState): Promise<{ actions: ActionIntent[], finished: boolean }> {
         const downscaledScreenshot = await this.transformScreenshot(screenshot);
 
         const stringifiedExistingRecipe = [];
@@ -80,9 +81,12 @@ export class MacroAgent {
         //console.log("existing:", stringifiedExistingRecipe);
         const start = Date.now();
         const response = await this.baml.CreatePartialRecipe(
-            Image.fromBase64('image/png', downscaledScreenshot.image),
+            {
+                screenshot: Image.fromBase64('image/png', downscaledScreenshot.image),
+                actionHistory: stringifiedExistingRecipe,
+                tabState: tabState
+            },
             testStep,
-            stringifiedExistingRecipe
         );
         this.logger.trace(`createPartialRecipe took ${Date.now()-start}ms`);
         return response;

@@ -248,7 +248,7 @@ export class TestRunner {
             poolResult = await workerPool.runTasks<boolean>(taskFunctions, (result) => result === false);
 
             if (!poolResult.completed) {
-                logger.info(`Test run aborted early due to failure.`);
+                logger.info(poolResult.results, `Test run aborted early due to failure.`);
                 poolResult.results.forEach((result, index) => {
                     if (result === undefined) {
                         const { testId } = allTestItems[index];

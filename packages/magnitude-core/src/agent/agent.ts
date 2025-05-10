@@ -1,4 +1,5 @@
-import { Screenshot, WebAction } from "@/web/types";
+import { Screenshot, WebAction, ClickWebAction, TypeWebAction, ScrollWebAction, SwitchTabWebAction } from "@/web/types";
+import { ActionIntent, ClickIntent, TypeIntent, ScrollIntent, SwitchTabIntent } from "@/intents/types";
 import { MicroAgent } from "@/ai/micro";
 import { MacroAgent } from "@/ai/macro";
 import { Browser, BrowserContext, BrowserContextOptions, Page } from "playwright";
@@ -6,11 +7,12 @@ import { WebHarness } from "@/web/harness";
 import { StepOptions } from "@/types";
 import { AgentEvents } from "../common/events";
 import logger from '../logger';
-import { ActionIntent } from "../intents/types";
+
 import { PlannerClient, ExecutorClient } from "@/ai/types";
 import EventEmitter from "eventemitter3";
 import { AgentError } from "./errors";
-import { convertOptionsToTestData, FailureDescriptor } from "../common";
+import { ActionDescriptor, convertOptionsToTestData, FailureDescriptor } from "../common";
+import { TabState } from "@/web/tabs";
 
 export interface TestCaseAgentOptions {
     planner: PlannerClient,
@@ -58,7 +60,7 @@ export class TestCaseAgent {
     }
 
     getPage(): Page {
-        return this.harness.getPage();
+        return this.harness.page;
     }
 
     getContext(): BrowserContext {
@@ -95,6 +97,8 @@ export class TestCaseAgent {
 
         this.checkAborted();
         await this.harness.goto(startingUrl);
+
+        //console.log('tabs:', await this.harness.retrieveTabState());
         //const screenshot = await this.screenshot();
         // Synthetic load action
         // Removing for now since state tracker will err with no preceding step
@@ -185,14 +189,33 @@ export class TestCaseAgent {
         this.lastStepActions = [];
 
         while (true) {
-            this.checkAborted();
             const screenshot = await this.screenshot();
-            this.checkAborted();
-            const { actions, finished } = await this.macro.createPartialRecipe(
-                screenshot,
-                { description: description, checks: [], testData: testData },
-                this.lastStepActions
-            );
+            // RangeError: Maximum call stack size exceeded.
+            const tabState: TabState = await this.harness.retrieveTabState();
+            //const tabState: TabState = { activeTab: 0, tabs: [{url: 'foo', title: 'foo', page: null as unknown as Page}] };
+
+            logger.info(`Creating partial recipe`);
+            let actions: ActionIntent[];
+            let finished: boolean;
+            try {
+                ({ actions, finished } = await this.macro.createPartialRecipe(
+                    screenshot,
+                    { description: description, checks: [], testData: testData },
+                    this.lastStepActions,
+                    tabState
+                ));
+            } catch (error: unknown) {
+                logger.error(`Error creating partial recipe: ${error}`);
+                /**
+                 * (1) Failure to conform to JSON
+                 * (2) Misconfigured BAML client / bad API key
+                 * (3) Network error (past max retries)
+                 */
+                this.fail({
+                    variant: 'misalignment',
+                    message: `Could not create partial recipe: ${(error as Error).message}`
+                });
+            }
 
             // TODO: Should emit events for recipe creation
             logger.info({ actions, finished }, `Partial recipe created`);
@@ -209,9 +232,9 @@ export class TestCaseAgent {
                 const action = await this.exec(intent);
                 this.lastStepActions.push(intent);
 
-                const postActionScreenshot = await this.screenshot(); // Already checks signal
+                const postActionScreenshot = await this.screenshot();
 
-                const actionDescriptor = { ...intent, ...action, screenshot: postActionScreenshot.image };
+                const actionDescriptor: ActionDescriptor = { ...intent, ...action, screenshot: postActionScreenshot.image } as ActionDescriptor;
                 //stepState.actions.push(actionDescriptor);
                 this.events.emit('action', actionDescriptor);
                 //for (const listener of this.listeners) if(listener.onActionTaken) listener.onActionTaken({...ingredient, ...action, screenshot: postActionScreenshot.image});

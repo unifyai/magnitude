@@ -40,6 +40,11 @@ export interface ScrollWebAction {
     deltaY: number
 }
 
+export type SwitchTabWebAction = {
+    variant: 'tab',
+    index: number
+}
+
 // export type ActionVariant = 'click' | 'type';
 
 

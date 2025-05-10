@@ -4,6 +4,7 @@ import { PageStabilityAnalyzer } from "./stability";
 import { parseTypeContent } from "./util";
 import { ActionVisualizer } from "./visualizer";
 import logger from "@/logger";
+import { TabManager, TabState } from "./tabs";
 
 export class WebHarness {
     /**
@@ -11,34 +12,46 @@ export class WebHarness {
      * Not responsible for browser lifecycle
      */
     private context: BrowserContext;
-    private page!: Page;
     private stability: PageStabilityAnalyzer;
     private visualizer: ActionVisualizer;
+    private tabs: TabManager;
 
     constructor(context: BrowserContext) {
         //this.page = page;
         this.context = context;
         this.stability = new PageStabilityAnalyzer();
         this.visualizer = new ActionVisualizer();
+        this.tabs = new TabManager(context);
 
-        this.context.on('page', (page: Page) => {
-            this.setActivePage(page);
-            //logger.info('ayo we got a new page');
+        // this.context.on('page', (page: Page) => {
+        //     this.setActivePage(page);
+        //     //logger.info('ayo we got a new page');
+        // });
+        this.tabs.events.on('tabChanged', async (page: Page) => {
+            this.stability.setActivePage(page);
+            this.visualizer.setActivePage(page);
+            
+            //console.log('tabs:', await this.tabs.getState())
+
         });
     }
 
-    setActivePage(page: Page) {
-        this.page = page;
-        this.stability.setActivePage(this.page);
-        this.visualizer.setActivePage(this.page);
+    async retrieveTabState(): Promise<TabState> {
+        return this.tabs.retrieveState();
     }
+
+    // setActivePage(page: Page) {
+    //     this.page = page;
+    //     this.stability.setActivePage(this.page);
+    //     this.visualizer.setActivePage(this.page);
+    // }
 
     async start() {
         await this.context.newPage();
     }
 
-    getPage() {
-        return this.page;
+    get page() {
+        return this.tabs.getActivePage();
     }
 
     async screenshot(): Promise<{ image: string, dimensions: { width: number, height: number } }> {

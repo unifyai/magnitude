@@ -3,7 +3,9 @@
  * Micro converts intents into web actions.
  */
 
-export type ActionIntent = ClickIntent | TypeIntent | ScrollIntent;
+import { SwitchTabWebAction } from "@/web/types";
+
+export type ActionIntent = ClickIntent | TypeIntent | ScrollIntent | SwitchTabIntent; // really we want switch tab to be an option only if >1 tab
 export type Intent = ActionIntent | CheckIntent;
 //export type Recipe = Ingredient[];
 
@@ -24,6 +26,14 @@ export interface ScrollIntent {
     deltaX: number;
     deltaY: number;
 }
+
+// For cases where no translation is needed from intent to action, they are the same
+export type SwitchTabIntent = SwitchTabWebAction;
+
+// export interface SwitchTabIntent {
+//     variant: 'tab';
+//     index: number;
+// }
 
 export interface CheckIntent {
     variant: 'check';
