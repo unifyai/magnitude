@@ -1,6 +1,7 @@
 import { TestDeclaration, TestOptions, TestFunction, TestGroupFunction, TestRunnable } from './types';
 import { TestRegistry } from './testRegistry';
 import { addProtocolIfMissing } from '@/util';
+import { processUrl } from './util';
 
 
 function testDecl(
@@ -26,9 +27,12 @@ function testDecl(
 
     // Get global registry
     const registry = TestRegistry.getInstance();
-    const combinedOptions = { ...registry.getActiveOptions(), ...(options ?? {}) };
+    const registryOptions = registry.getActiveOptions();
+    const combinedOptions = {
+        ...registryOptions, ...(options ?? {}),
+        url: processUrl(registryOptions.url, options?.url)
+    };
 
-    // TODO: implement relative URLs
     if (!combinedOptions.url) {
         throw Error("URL must be provided either through (1) env var MAGNITUDE_TEST_URL, (2) via test.config, or (3) in group or test options");
     }

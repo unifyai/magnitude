@@ -1,6 +1,7 @@
 import { TestOptions, TestGroup, MagnitudeConfig, CategorizedTestCases, TestFunction, TestRunnable, CategorizedTestRunnable } from "./types";
 import { TestCompiler } from "@/compiler";
 import { pathToFileURL } from "node:url";
+import { processUrl } from "./util";
 
 declare global {
     var __testRegistry: TestRegistry | undefined;
@@ -116,10 +117,14 @@ export class TestRegistry {
 
         //const configuredOptions = this.globalOptions;
         const globalOptions = this.globalOptions.url ? {
-            url: this.globalOptions.url
+            url: processUrl(envOptions.url, this.globalOptions.url)
         } : {};
 
-        const groupOptions = this.currentGroup?.options ?? {};
+        const groupOptions = this.currentGroup?.options ? {
+            ...this.currentGroup.options,
+            url: processUrl(globalOptions.url, this.currentGroup.options.url)
+        } : {};
+
 
         const combinedOptions = {
             ...envOptions,
