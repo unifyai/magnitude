@@ -29,15 +29,18 @@ export class TestCompiler {
             "node:fsevents",
             //"@boundaryml/baml/*",
         ],
+        alias: {
+            "fs": "node:fs"
+        },
         banner: {
             js: `
-        import { fileURLToPath } from 'node:url';
-        import { dirname } from 'node:path';
-        import { createRequire } from 'node:module';
+        import { fileURLToPath as __magCompileFileURLToPath } from 'node:url';
+        import { dirname as __magCompileDirname } from 'node:path';
+        import { createRequire as __magCompileCreateRequire } from 'node:module';
 
-        const __filename = fileURLToPath(import.meta.url);
-        const __dirname = dirname(__filename);
-        const require = createRequire(import.meta.url);
+        const __filename = __magCompileFileURLToPath(import.meta.url);
+        const __dirname = __magCompileDirname(__filename);
+        const require = __magCompileCreateRequire(import.meta.url);
       `,
         },
     };
@@ -75,13 +78,13 @@ export class TestCompiler {
             resolveExtensions: [".ts", ".js", ".mjs"],
             banner: {
                 js: `
-          import { fileURLToPath } from 'node:url';
-          import { dirname } from 'node:path';
-          import { createRequire } from 'node:module';
+          import { fileURLToPath as __magCompileFileURLToPath } from 'node:url';
+          import { dirname as __magCompileDirname } from 'node:path';
+          import { createRequire as __magCompileCreateRequire } from 'node:module';
 
-          const __filename = fileURLToPath(import.meta.url);
-          const __dirname = dirname(__filename);
-          const require = createRequire(import.meta.url);
+          const __filename = __magCompileFileURLToPath(import.meta.url);
+          const __dirname = __magCompileDirname(__filename);
+          const require = __magCompileCreateRequire(import.meta.url);
         `,
             },
         });
