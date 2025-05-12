@@ -1,5 +1,5 @@
 import type { Page } from 'playwright';
-import getShadowDOMInputAdapterScript from './shadowDOMInputAdapter';
+import getShadowDOMInputAdapterScript from './scripts/shadowDOMInputAdapter';
 import logger from '@/logger';
 
 export class DOMTransformer {
@@ -26,7 +26,7 @@ export class DOMTransformer {
             }).catch(() => false); // If evaluate fails (e.g., page closed), assume not injected.
 
             if (scriptAlreadyInjected) {
-                // console.log('Select manager script already present on this page load.');
+                logger.trace('Select manager script already present on this page load.');
                 return;
             }
 

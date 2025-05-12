@@ -249,7 +249,7 @@ module.exports = function getShadowDOMInputAdapterScript() {
 
         const setButton = document.createElement('button');
         setButton.textContent = 'Set';
-        this._setStyles(setButton, { padding: '8px 12px', cursor: 'pointer', marginTop: '8px' });
+        this._setStyles(setButton, { display: 'block', width: '100%', padding: '8px 12px', cursor: 'pointer', marginTop: '8px' });
 
         const self = this;
         function applyDateValue() {
@@ -284,7 +284,10 @@ module.exports = function getShadowDOMInputAdapterScript() {
         this.activePopupOriginalElement = originalDateInput;
         originalDateInput.blur();
         this._setupOutsideClickListener();
-        setTimeout(() => textInput.focus(), 0);
+        setTimeout(() => {
+          textInput.focus();
+          textInput.select();
+        }, 0);
         console.log('Custom date popup created for:', originalDateInput.id || originalDateInput.name);
       },
 
@@ -370,7 +373,10 @@ module.exports = function getShadowDOMInputAdapterScript() {
         this.activePopupOriginalElement = originalColorInput;
         originalColorInput.blur();
         this._setupOutsideClickListener();
-        setTimeout(() => textInput.focus(), 0);
+        setTimeout(() => {
+          textInput.focus();
+          textInput.select();
+        }, 0);
         console.log('Custom color popup created for:', originalColorInput.id || originalColorInput.name);
       },
 
