@@ -122,7 +122,7 @@ module.exports = function getShadowDOMInputAdapterScript() {
       _createPopupElement: function(originalElement, type) { // Added type for specific styling/content
         const rect = originalElement.getBoundingClientRect();
         const popup = document.createElement('div');
-        popup.dataset.popupType = type; // Store type for styling or message targeting
+        popup.dataset.popupType = type;
         this._setStyles(popup, {
           position: 'fixed',
           left: `${rect.left}px`,
@@ -134,32 +134,38 @@ module.exports = function getShadowDOMInputAdapterScript() {
           zIndex: '2147483647',
           padding: '10px',
           borderRadius: '4px',
-          display: 'flex', // For easier layout of content + message
-          flexDirection: 'column', // Stack content and message
-          gap: '5px', // Space between items
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '5px', 
         });
         return popup;
       },
 
-      _displayValidationMessage: function(popupElement, messageText) {
-        let messageDiv = popupElement.querySelector('.custom-popup-validation-message');
-        if (!messageDiv) {
-          messageDiv = document.createElement('div');
-          messageDiv.className = 'custom-popup-validation-message';
-          this._setStyles(messageDiv, {
-            color: 'red',
-            fontSize: '0.8em',
-            minHeight: '1em', // Keep space even if empty to prevent layout shifts
+      _updateInputValidationIndicator: function(inputElementContainer, isValid) {
+        let indicatorSpan = inputElementContainer.querySelector('.validation-indicator');
+        if (!indicatorSpan) {
+          indicatorSpan = document.createElement('span');
+          indicatorSpan.className = 'validation-indicator';
+          this._setStyles(indicatorSpan, {
+            marginLeft: '5px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            width: '16px', // Fixed width for the indicator
+            height: '16px', // Fixed height
+            justifyContent: 'center',
           });
-          // Insert after the main content area, assuming content is added before calling this
-          const mainContent = popupElement.firstChild; // Simple assumption, might need refinement
-          if (mainContent && mainContent.nextSibling) {
-            popupElement.insertBefore(messageDiv, mainContent.nextSibling);
-          } else {
-            popupElement.appendChild(messageDiv);
-          }
+          inputElementContainer.appendChild(indicatorSpan); // Append next to the input
         }
-        messageDiv.textContent = messageText || '';
+
+        if (isValid === true) {
+          indicatorSpan.textContent = '✔';
+          indicatorSpan.style.color = 'green';
+        } else if (isValid === false) {
+          indicatorSpan.textContent = '✖';
+          indicatorSpan.style.color = 'red';
+        } else { // null or undefined or empty string
+          indicatorSpan.textContent = '';
+        }
       },
 
       // --- SELECT Element Specific Logic ---
@@ -184,7 +190,7 @@ module.exports = function getShadowDOMInputAdapterScript() {
             gap: '0', // Select doesn't need the main popup gap
         });
 
-        const contentWrapper = document.createElement('div'); // Wrapper for select items
+        const contentWrapper = document.createElement('div'); 
         this._setStyles(contentWrapper, { padding: '5px 0' });
         
         Array.from(select.options).forEach((option, index) => {
@@ -207,8 +213,7 @@ module.exports = function getShadowDOMInputAdapterScript() {
           contentWrapper.appendChild(div);
         });
 
-        dropdown.appendChild(contentWrapper); // Add items
-        // Validation message div will be added by _displayValidationMessage if needed, though selects don't typically have one
+        dropdown.appendChild(contentWrapper);
         
         const rootNode = select.getRootNode() instanceof ShadowRoot ? select.getRootNode() : document.body;
         rootNode.appendChild(dropdown);
@@ -235,46 +240,65 @@ module.exports = function getShadowDOMInputAdapterScript() {
 
       createAndShowDatePopup: function(originalDateInput) {
         const popup = this._createPopupElement(originalDateInput, 'date');
-        const contentWrapper = document.createElement('div'); // Wrapper for input + button
-        
+        this._setStyles(popup, { flexDirection: 'row', alignItems: 'center', gap: '0' }); // Override for side-by-side
+
         const textInput = document.createElement('input');
         textInput.type = 'text';
         textInput.placeholder = 'MM/DD/YYYY';
-        this._setStyles(textInput, { display: 'block', width: 'calc(100% - 16px)', padding: '8px', border: '1px solid #ccc', borderRadius: '3px'});
+        this._setStyles(textInput, { flexGrow: '1', padding: '8px', border: '1px solid #ccc', borderRadius: '3px' });
         if (originalDateInput.value) { // YYYY-MM-DD
           const parts = originalDateInput.value.split('-');
           if (parts.length === 3) textInput.value = `${parts[1]}/${parts[2]}/${parts[0]}`;
-          else textInput.value = originalDateInput.value; // Fallback
+          else textInput.value = originalDateInput.value;
         }
-
-        const setButton = document.createElement('button');
-        setButton.textContent = 'Set';
-        this._setStyles(setButton, { display: 'block', width: '100%', padding: '8px 12px', cursor: 'pointer', marginTop: '8px' });
+        
+        popup.appendChild(textInput);
+        this._updateInputValidationIndicator(popup, null); // Create indicator span
 
         const self = this;
-        function applyDateValue() {
-          self._displayValidationMessage(popup, null); // Clear previous message
-          const dateParts = textInput.value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        textInput.addEventListener('input', function() {
+          const inputValue = this.value;
+          if (!inputValue) {
+            self._updateInputValidationIndicator(popup, null);
+            return;
+          }
+          const dateParts = inputValue.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
           if (dateParts) {
             const month = parseInt(dateParts[1], 10);
             const day = parseInt(dateParts[2], 10);
             const year = parseInt(dateParts[3], 10);
             if (month >= 1 && month <= 12 && day >= 1 && day <= 31) { // Basic validation
+              self._updateInputValidationIndicator(popup, true);
               originalDateInput.value = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
               originalDateInput.dispatchEvent(new Event('input', { bubbles: true }));
               originalDateInput.dispatchEvent(new Event('change', { bubbles: true }));
-              self.closeActivePopup();
-            } else { self._displayValidationMessage(popup, 'Invalid date value.'); }
-          } else { self._displayValidationMessage(popup, 'Use MM/DD/YYYY format.'); }
-        }
-
-        textInput.onkeydown = function(e) { if (e.key === 'Enter') { e.preventDefault(); applyDateValue(); }};
-        setButton.onclick = applyDateValue;
-
-        contentWrapper.appendChild(textInput);
-        contentWrapper.appendChild(setButton);
-        popup.appendChild(contentWrapper);
-        this._displayValidationMessage(popup, null); // Ensure validation message div is created and empty
+              // Do NOT close popup here, wait for Enter or outside click
+            } else {
+              self._updateInputValidationIndicator(popup, false);
+            }
+          } else {
+            self._updateInputValidationIndicator(popup, false);
+          }
+        });
+        
+        textInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                // Perform final validation and close if valid
+                const inputValue = this.value;
+                const dateParts = inputValue.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+                if (dateParts) {
+                    const month = parseInt(dateParts[1], 10);
+                    const day = parseInt(dateParts[2], 10);
+                    const year = parseInt(dateParts[3], 10);
+                    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+                        // Value is already set by input listener, just close
+                        self.closeActivePopup();
+                    }
+                }
+                // If not valid, popup stays open, indicator shows '✖'
+            }
+        });
 
         const rootNode = originalDateInput.getRootNode() instanceof ShadowRoot ? originalDateInput.getRootNode() : document.body;
         rootNode.appendChild(popup);
@@ -305,11 +329,8 @@ module.exports = function getShadowDOMInputAdapterScript() {
 
       createAndShowColorPopup: function(originalColorInput) {
         const popup = this._createPopupElement(originalColorInput, 'color');
-        const contentWrapper = document.createElement('div'); // Wrapper for input group + button
+        this._setStyles(popup, { flexDirection: 'row', alignItems: 'center', gap: '0' });
 
-        const inputGroup = document.createElement('div');
-        this._setStyles(inputGroup, { display: 'flex', alignItems: 'center' });
-        
         const textInput = document.createElement('input');
         textInput.type = 'text';
         textInput.placeholder = '#RRGGBB';
@@ -319,52 +340,63 @@ module.exports = function getShadowDOMInputAdapterScript() {
         const previewSpan = document.createElement('span');
         this._setStyles(previewSpan, {
           width: '28px', height: '28px', display: 'inline-block', border: '1px solid #ccc',
-          backgroundColor: originalColorInput.value || '#ffffff', borderRadius: '3px', flexShrink: '0'
+          backgroundColor: originalColorInput.value || '#ffffff', borderRadius: '3px', flexShrink: '0',
+          marginRight: '5px', // Space before validation indicator
         });
-
-        textInput.addEventListener('input', () => {
-          const value = textInput.value.trim();
-          if (/^#([0-9A-Fa-f]{3}){1,2}$/.test(value) || /^[0-9A-Fa-f]{6}$/.test(value) || /^[0-9A-Fa-f]{3}$/.test(value)) {
-            previewSpan.style.backgroundColor = value.startsWith('#') ? value : '#' + value;
-          } else {
-            previewSpan.style.backgroundColor = '#ffffff';
-          }
-        });
-        if(textInput.value) textInput.dispatchEvent(new Event('input'));
-
-        const setButton = document.createElement('button');
-        setButton.textContent = 'Set';
-        this._setStyles(setButton, { display: 'block', marginTop: '8px', padding: '8px 12px', cursor: 'pointer', width: '100%' });
         
+        popup.appendChild(textInput);
+        popup.appendChild(previewSpan);
+        this._updateInputValidationIndicator(popup, null); // Create indicator span
+
         const self = this;
-        function applyColorValue() {
-          self._displayValidationMessage(popup, null); // Clear previous message
-          const value = textInput.value.trim();
-          let finalColor = '';
-          if (/^#([0-9A-Fa-f]{3}){1,2}$/.test(value)) {
-            finalColor = value;
-          } else if (/^[0-9A-Fa-f]{6}$/.test(value) || /^[0-9A-Fa-f]{3}$/.test(value)) {
-            finalColor = '#' + value;
+        textInput.addEventListener('input', function() {
+          const inputValue = this.value.trim();
+          if (!inputValue) {
+            self._updateInputValidationIndicator(popup, null);
+            previewSpan.style.backgroundColor = '#ffffff';
+            return;
           }
-          
+
+          let finalColor = '';
+          if (/^#([0-9A-Fa-f]{3}){1,2}$/.test(inputValue)) {
+            finalColor = inputValue;
+          } else if (/^[0-9A-Fa-f]{6}$/.test(inputValue) || /^[0-9A-Fa-f]{3}$/.test(inputValue)) {
+            finalColor = '#' + inputValue;
+          }
+
           if (finalColor) {
+            previewSpan.style.backgroundColor = finalColor;
+            self._updateInputValidationIndicator(popup, true);
             originalColorInput.value = finalColor;
             originalColorInput.dispatchEvent(new Event('input', { bubbles: true }));
             originalColorInput.dispatchEvent(new Event('change', { bubbles: true }));
-            self.closeActivePopup();
-          } else { self._displayValidationMessage(popup, 'Invalid hex color value.'); }
-        }
+            // Do NOT close popup here, wait for Enter or outside click
+          } else {
+            previewSpan.style.backgroundColor = '#ffffff';
+            self._updateInputValidationIndicator(popup, false);
+          }
+        });
+        if(textInput.value) textInput.dispatchEvent(new Event('input')); // Trigger initial validation/preview
 
-        textInput.onkeydown = function(e) { if (e.key === 'Enter') { e.preventDefault(); applyColorValue(); }};
-        setButton.onclick = applyColorValue;
-
-        inputGroup.appendChild(textInput);
-        inputGroup.appendChild(previewSpan);
-        contentWrapper.appendChild(inputGroup);
-        contentWrapper.appendChild(setButton);
-        popup.appendChild(contentWrapper);
-        this._displayValidationMessage(popup, null); // Ensure validation message div is created
-
+        textInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                // Perform final validation and close if valid
+                const inputValue = this.value.trim();
+                let finalColor = '';
+                if (/^#([0-9A-Fa-f]{3}){1,2}$/.test(inputValue)) {
+                    finalColor = inputValue;
+                } else if (/^[0-9A-Fa-f]{6}$/.test(inputValue) || /^[0-9A-Fa-f]{3}$/.test(inputValue)) {
+                    finalColor = '#' + inputValue;
+                }
+                if (finalColor) {
+                    // Value is already set by input listener, just close
+                    self.closeActivePopup();
+                }
+                // If not valid, popup stays open, indicator shows '✖'
+            }
+        });
+        
         const rootNode = originalColorInput.getRootNode() instanceof ShadowRoot ? originalColorInput.getRootNode() : document.body;
         rootNode.appendChild(popup);
         
