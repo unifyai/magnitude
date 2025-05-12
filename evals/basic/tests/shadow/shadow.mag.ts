@@ -17,7 +17,7 @@ test.group('shadow DOM arena', { url: 'localhost:8080/shadow' }, () => {
         //await page.click('select');
         await ai.click('Option 2');
         // await new Promise(resolve => setTimeout(resolve, 2000));
-        // await page.pause();
+        await page.pause();
         // //await ai.harness.screenshot({ path: 'foo.png' });
         // //await ai.harness.applyTransformations();
         // await new Promise(resolve => setTimeout(resolve, 20000));

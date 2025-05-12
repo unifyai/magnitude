@@ -1,5 +1,6 @@
 import type { Page } from 'playwright';
 import getSelectManagerScript from './selectScript';
+import logger from '@/logger';
 
 export class DOMTransformer {
     private initializedPages = new WeakSet<Page>(); // Track pages for which 'load' listener is set
@@ -39,10 +40,10 @@ export class DOMTransformer {
                 window.__magnitudeSelectManagerScriptInjected = true;
             `);
 
-            console.log(`Script injected into page: ${targetPage.url()}`);
+            logger.trace(`Script injected into page: ${targetPage.url()}`);
         } catch (error) {
             const url = targetPage.isClosed() ? '[closed page]' : targetPage.url();
-            console.warn(`Error injecting script into ${url}: ${(error as Error).message}`);
+            logger.warn(`Error injecting script into ${url}: ${(error as Error).message}`);
         }
     }
 }
