@@ -33,12 +33,9 @@ export class WebHarness {
         this.tabs.events.on('tabChanged', async (page: Page) => {
             this.stability.setActivePage(page);
             this.visualizer.setActivePage(page);
-            //this.transformer.setActivePage(page);
+            this.transformer.setActivePage(page);
             // need to wait for page to load before evaluating a script
-            // tmp hack for testing
-            setTimeout(() => {
-                this.transformer.setActivePage(page);
-            }, 2000);
+            //page.on('load', () => { this.transformer.setActivePage(page); });
             
             //console.log('tabs:', await this.tabs.getState())
 

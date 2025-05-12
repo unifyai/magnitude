@@ -6,9 +6,13 @@ export class DOMTransformer {
 
     constructor() {}
 
-    public async setActivePage(newPage: Page) {
+    public setActivePage(newPage: Page) {
         this.page = newPage;
-        
+
+        newPage.on('load', async () => { await this.setupScript(); });
+    }
+    
+    public async setupScript() {
         try {
             // Get the script as a string from the separate file
             const scriptFnString = getSelectManagerScript();
@@ -21,9 +25,5 @@ export class DOMTransformer {
         } catch (error) {
             console.warn(`Error injecting script: ${(error as Error).message}`);
         }
-    }
-    
-    public async detach() {
-        // No-op
     }
 }
