@@ -120,7 +120,7 @@
         <label for="native_select">Select:</label>
         <select id="native_select" class="target-interactive">
             <option value="opt1">Option 1</option>
-            <option value="opt2_target_val">Opt 2 (Target)</option>
+            <option value="opt2_target_val">Option 2 (Target)</option>
             <option value="opt3">Option 3</option>
         </select>
     </div>
@@ -162,6 +162,27 @@
         <input type="text" id="std_text" placeholder="Standard text input" style="flex-grow:1;">
         <button id="target_std_btn" class="target-interactive" style="margin-left:5px;padding:4px 8px;">Btn</button>
     </div>
+
+    <div class="input-row">
+        <label for="custom_select">Custom Select:</label>
+        <shadow-select id="custom_select"></shadow-select>
+    </div>
+
+    <script>
+    class ShadowSelect extends HTMLElement {
+      constructor() {
+        super();
+        this.attachShadow({ mode: 'open' });
+        const select = document.createElement('select');
+        select.innerHTML = `
+          <option value="a">Option A</option>
+          <option value="b">Option B</option>
+        `;
+        this.shadowRoot.appendChild(select);
+      }
+    }
+    customElements.define('shadow-select', ShadowSelect);
+    </script>
 
 </body>
 </html>

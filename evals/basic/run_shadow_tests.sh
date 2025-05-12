@@ -1,1 +1,1 @@
-bun ../../packages/magnitude-test/src/cli.ts ./tests/shadow/* -w 4
+bun ../../packages/magnitude-test/src/cli.ts ./tests/shadow/* -w 4 -d

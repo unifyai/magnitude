@@ -30,6 +30,7 @@ export class TestCaseAgent {
     private abortSignal?: AbortSignal;
     private macro: MacroAgent;
     private micro: MicroAgent;
+    // tmp public
     private harness!: WebHarness;
     private context!: BrowserContext;
     private events: EventEmitter<AgentEvents>;
@@ -111,6 +112,10 @@ export class TestCaseAgent {
 
     async screenshot(): Promise<Screenshot> {
         this.checkAborted();
+
+        // Does applying here make sense? is frequent at least
+        //await this.harness.applyTransformations();
+
         const screenshot = await this.harness.screenshot();
         this.lastScreenshot = screenshot;
         return screenshot;
@@ -218,6 +223,8 @@ export class TestCaseAgent {
         const testData = convertOptionsToTestData(options);
 
         this.events.emit('stepStart', description);
+
+        //await this.harness.applyTransformations();
         //const recipe = []
         //const stepActionIngredients: ActionIngredient[] = [];
         this.lastStepActions = [];

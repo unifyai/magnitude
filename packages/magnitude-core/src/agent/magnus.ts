@@ -42,4 +42,9 @@ export class Magnus {
     async exec(action: ActionIntent) {
         await this.agent.exec(action);
     }
+
+    // tmp
+    // get harness() {
+    //     return this.agent.harness;
+    // }
 }

@@ -1,10 +1,11 @@
-import { Page, Browser, BrowserContext } from "playwright";
+import { Page, Browser, BrowserContext, PageScreenshotOptions } from "playwright";
 import { ClickWebAction, ScrollWebAction, SwitchTabWebAction, TypeWebAction, WebAction } from '@/web/types';
 import { PageStabilityAnalyzer } from "./stability";
 import { parseTypeContent } from "./util";
 import { ActionVisualizer } from "./visualizer";
 import logger from "@/logger";
 import { TabManager, TabState } from "./tabs";
+import { DOMTransformer } from "./transformer";
 
 export class WebHarness {
     /**
@@ -14,6 +15,7 @@ export class WebHarness {
     private context: BrowserContext;
     private stability: PageStabilityAnalyzer;
     private visualizer: ActionVisualizer;
+    private transformer: DOMTransformer;
     private tabs: TabManager;
 
     constructor(context: BrowserContext) {
@@ -21,6 +23,7 @@ export class WebHarness {
         this.context = context;
         this.stability = new PageStabilityAnalyzer();
         this.visualizer = new ActionVisualizer();
+        this.transformer = new DOMTransformer();
         this.tabs = new TabManager(context);
 
         // this.context.on('page', (page: Page) => {
@@ -30,6 +33,12 @@ export class WebHarness {
         this.tabs.events.on('tabChanged', async (page: Page) => {
             this.stability.setActivePage(page);
             this.visualizer.setActivePage(page);
+            //this.transformer.setActivePage(page);
+            // need to wait for page to load before evaluating a script
+            // tmp hack for testing
+            setTimeout(() => {
+                this.transformer.setActivePage(page);
+            }, 2000);
             
             //console.log('tabs:', await this.tabs.getState())
 
@@ -54,12 +63,12 @@ export class WebHarness {
         return this.tabs.getActivePage();
     }
 
-    async screenshot(): Promise<{ image: string, dimensions: { width: number, height: number } }> {
+    async screenshot(options: PageScreenshotOptions = {}): Promise<{ image: string, dimensions: { width: number, height: number } }> {
         /**
          * Get b64 encoded string of screenshot (PNG) with screen dimensions
          */
         const viewportSize = this.page.viewportSize();
-        const buffer = await this.page.screenshot({ type: 'png' });
+        const buffer = await this.page.screenshot({ type: 'png', ...options }, );
 
         if (!viewportSize) {
             throw Error("Invalid viewport for screenshot");
@@ -74,12 +83,12 @@ export class WebHarness {
         };
     }
  
-     async goto(url: string) {
-         // No need to redraw here anymore, the 'load' event listener handles it
-         await this.page.goto(url);
-     }
+    async goto(url: string) {
+        // No need to redraw here anymore, the 'load' event listener handles it
+        await this.page.goto(url);
+    }
  
-     async click({ x, y }: ClickWebAction) {
+    async click({ x, y }: ClickWebAction) {
         await this.visualizer.visualizeAction(x, y);
         this.page.mouse.click(x, y);
         //await this.visualizer.removeActionVisuals();
@@ -150,6 +159,12 @@ export class WebHarness {
     async waitForStability(timeout?: number): Promise<void> {
         await this.stability.waitForStability(timeout);
     }
+
+    // async applyTransformations() {
+    //     const start = Date.now();
+    //     await this.transformer.applyTransformations();
+    //     logger.trace(`DOM transformations took ${Date.now() - start}ms`);
+    // }
 
     // async waitForStability(timeout?: number): Promise<void> {
     //     await this.stability.waitForStability(timeout);

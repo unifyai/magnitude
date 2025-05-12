@@ -12,8 +12,16 @@ test.group('shadow DOM arena', { url: 'localhost:8080/shadow' }, () => {
     // });
 
     test('dropdown test 2', async ({ ai, page }) => {
+        //await ai.step('Select option 2 in the dropdown');
+        //await ai.click('Option 1');
+        await page.click('select');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        await page.pause();
+        //await ai.harness.screenshot({ path: 'foo.png' });
+        //await ai.harness.applyTransformations();
+        await new Promise(resolve => setTimeout(resolve, 20000));
         //await ai.step("Select Option 2 for standard select")
 
-        await page.reload();
+        //await page.reload();
     });
 })
