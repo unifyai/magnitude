@@ -119,9 +119,10 @@ module.exports = function getSelectManagerScript() {
         }, 0);
       },
       
-      _createPopupElement: function(originalElement) {
+      _createPopupElement: function(originalElement, type) { // Added type for specific styling/content
         const rect = originalElement.getBoundingClientRect();
         const popup = document.createElement('div');
+        popup.dataset.popupType = type; // Store type for styling or message targeting
         this._setStyles(popup, {
           position: 'fixed',
           left: `${rect.left}px`,
@@ -133,8 +134,32 @@ module.exports = function getSelectManagerScript() {
           zIndex: '2147483647',
           padding: '10px',
           borderRadius: '4px',
+          display: 'flex', // For easier layout of content + message
+          flexDirection: 'column', // Stack content and message
+          gap: '5px', // Space between items
         });
         return popup;
+      },
+
+      _displayValidationMessage: function(popupElement, messageText) {
+        let messageDiv = popupElement.querySelector('.custom-popup-validation-message');
+        if (!messageDiv) {
+          messageDiv = document.createElement('div');
+          messageDiv.className = 'custom-popup-validation-message';
+          this._setStyles(messageDiv, {
+            color: 'red',
+            fontSize: '0.8em',
+            minHeight: '1em', // Keep space even if empty to prevent layout shifts
+          });
+          // Insert after the main content area, assuming content is added before calling this
+          const mainContent = popupElement.firstChild; // Simple assumption, might need refinement
+          if (mainContent && mainContent.nextSibling) {
+            popupElement.insertBefore(messageDiv, mainContent.nextSibling);
+          } else {
+            popupElement.appendChild(messageDiv);
+          }
+        }
+        messageDiv.textContent = messageText || '';
       },
 
       // --- SELECT Element Specific Logic ---
@@ -151,15 +176,16 @@ module.exports = function getSelectManagerScript() {
       },
 
       createAndShowSelectDropdown: function(select) {
-        const dropdown = this._createPopupElement(select); // Use generic popup creator
-        this._setStyles(dropdown, { // Override/add select specific styles
-            padding: '0', // Select dropdowns often have no padding on the main container
+        const dropdown = this._createPopupElement(select, 'select');
+        this._setStyles(dropdown, { 
+            padding: '0', 
             maxHeight: `${Math.min(300, window.innerHeight - select.getBoundingClientRect().bottom - 20)}px`,
             overflowY: 'auto',
+            gap: '0', // Select doesn't need the main popup gap
         });
 
-        const innerContainer = document.createElement('div');
-        this._setStyles(innerContainer, { padding: '5px 0' });
+        const contentWrapper = document.createElement('div'); // Wrapper for select items
+        this._setStyles(contentWrapper, { padding: '5px 0' });
         
         Array.from(select.options).forEach((option, index) => {
           const div = document.createElement('div');
@@ -178,10 +204,12 @@ module.exports = function getSelectManagerScript() {
             select.dispatchEvent(new Event('change', { bubbles: true }));
             this.closeActivePopup();
           };
-          innerContainer.appendChild(div);
+          contentWrapper.appendChild(div);
         });
 
-        dropdown.appendChild(innerContainer);
+        dropdown.appendChild(contentWrapper); // Add items
+        // Validation message div will be added by _displayValidationMessage if needed, though selects don't typically have one
+        
         const rootNode = select.getRootNode() instanceof ShadowRoot ? select.getRootNode() : document.body;
         rootNode.appendChild(dropdown);
 
@@ -206,12 +234,13 @@ module.exports = function getSelectManagerScript() {
       },
 
       createAndShowDatePopup: function(originalDateInput) {
-        const popup = this._createPopupElement(originalDateInput);
+        const popup = this._createPopupElement(originalDateInput, 'date');
+        const contentWrapper = document.createElement('div'); // Wrapper for input + button
         
         const textInput = document.createElement('input');
         textInput.type = 'text';
         textInput.placeholder = 'MM/DD/YYYY';
-        this._setStyles(textInput, { display: 'block', width: 'calc(100% - 16px)', padding: '8px', marginBottom: '10px', border: '1px solid #ccc', borderRadius: '3px'});
+        this._setStyles(textInput, { display: 'block', width: 'calc(100% - 16px)', padding: '8px', border: '1px solid #ccc', borderRadius: '3px'});
         if (originalDateInput.value) { // YYYY-MM-DD
           const parts = originalDateInput.value.split('-');
           if (parts.length === 3) textInput.value = `${parts[1]}/${parts[2]}/${parts[0]}`;
@@ -220,31 +249,33 @@ module.exports = function getSelectManagerScript() {
 
         const setButton = document.createElement('button');
         setButton.textContent = 'Set';
-        this._setStyles(setButton, { padding: '8px 12px', cursor: 'pointer' });
+        this._setStyles(setButton, { padding: '8px 12px', cursor: 'pointer', marginTop: '8px' });
 
-        const self = this; // For referencing 'this' inside event listeners
+        const self = this;
         function applyDateValue() {
+          self._displayValidationMessage(popup, null); // Clear previous message
           const dateParts = textInput.value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
           if (dateParts) {
             const month = parseInt(dateParts[1], 10);
             const day = parseInt(dateParts[2], 10);
             const year = parseInt(dateParts[3], 10);
-            // Basic validation (can be improved)
-            if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+            if (month >= 1 && month <= 12 && day >= 1 && day <= 31) { // Basic validation
               originalDateInput.value = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
               originalDateInput.dispatchEvent(new Event('input', { bubbles: true }));
               originalDateInput.dispatchEvent(new Event('change', { bubbles: true }));
               self.closeActivePopup();
-            } else { alert('Invalid date format or value.'); }
-          } else { alert('Invalid date format. Please use MM/DD/YYYY.'); }
+            } else { self._displayValidationMessage(popup, 'Invalid date value.'); }
+          } else { self._displayValidationMessage(popup, 'Use MM/DD/YYYY format.'); }
         }
 
         textInput.onkeydown = function(e) { if (e.key === 'Enter') { e.preventDefault(); applyDateValue(); }};
         setButton.onclick = applyDateValue;
 
-        popup.appendChild(textInput);
-        popup.appendChild(setButton);
-        
+        contentWrapper.appendChild(textInput);
+        contentWrapper.appendChild(setButton);
+        popup.appendChild(contentWrapper);
+        this._displayValidationMessage(popup, null); // Ensure validation message div is created and empty
+
         const rootNode = originalDateInput.getRootNode() instanceof ShadowRoot ? originalDateInput.getRootNode() : document.body;
         rootNode.appendChild(popup);
 
@@ -270,18 +301,22 @@ module.exports = function getSelectManagerScript() {
       },
 
       createAndShowColorPopup: function(originalColorInput) {
-        const popup = this._createPopupElement(originalColorInput);
+        const popup = this._createPopupElement(originalColorInput, 'color');
+        const contentWrapper = document.createElement('div'); // Wrapper for input group + button
+
+        const inputGroup = document.createElement('div');
+        this._setStyles(inputGroup, { display: 'flex', alignItems: 'center' });
         
         const textInput = document.createElement('input');
         textInput.type = 'text';
         textInput.placeholder = '#RRGGBB';
-        this._setStyles(textInput, { display: 'inline-block', width: 'calc(100% - 50px)', padding: '8px', marginRight: '5px', border: '1px solid #ccc', borderRadius: '3px'});
+        this._setStyles(textInput, { flexGrow: '1', padding: '8px', border: '1px solid #ccc', borderRadius: '3px', marginRight: '5px'});
         if (originalColorInput.value) textInput.value = originalColorInput.value;
 
         const previewSpan = document.createElement('span');
         this._setStyles(previewSpan, {
           width: '28px', height: '28px', display: 'inline-block', border: '1px solid #ccc',
-          backgroundColor: originalColorInput.value || '#ffffff', borderRadius: '3px', verticalAlign: 'middle'
+          backgroundColor: originalColorInput.value || '#ffffff', borderRadius: '3px', flexShrink: '0'
         });
 
         textInput.addEventListener('input', () => {
@@ -292,14 +327,15 @@ module.exports = function getSelectManagerScript() {
             previewSpan.style.backgroundColor = '#ffffff';
           }
         });
-        if(textInput.value) textInput.dispatchEvent(new Event('input')); // Initial preview
+        if(textInput.value) textInput.dispatchEvent(new Event('input'));
 
         const setButton = document.createElement('button');
         setButton.textContent = 'Set';
-        this._setStyles(setButton, { display: 'block', marginTop: '10px', padding: '8px 12px', cursor: 'pointer' });
+        this._setStyles(setButton, { display: 'block', marginTop: '8px', padding: '8px 12px', cursor: 'pointer', width: '100%' });
         
         const self = this;
         function applyColorValue() {
+          self._displayValidationMessage(popup, null); // Clear previous message
           const value = textInput.value.trim();
           let finalColor = '';
           if (/^#([0-9A-Fa-f]{3}){1,2}$/.test(value)) {
@@ -313,19 +349,18 @@ module.exports = function getSelectManagerScript() {
             originalColorInput.dispatchEvent(new Event('input', { bubbles: true }));
             originalColorInput.dispatchEvent(new Event('change', { bubbles: true }));
             self.closeActivePopup();
-          } else { alert('Invalid hex color value.'); }
+          } else { self._displayValidationMessage(popup, 'Invalid hex color value.'); }
         }
 
         textInput.onkeydown = function(e) { if (e.key === 'Enter') { e.preventDefault(); applyColorValue(); }};
         setButton.onclick = applyColorValue;
 
-        const inputGroup = document.createElement('div');
-        this._setStyles(inputGroup, { display: 'flex', alignItems: 'center', marginBottom: '10px' });
         inputGroup.appendChild(textInput);
         inputGroup.appendChild(previewSpan);
-        
-        popup.appendChild(inputGroup);
-        popup.appendChild(setButton);
+        contentWrapper.appendChild(inputGroup);
+        contentWrapper.appendChild(setButton);
+        popup.appendChild(contentWrapper);
+        this._displayValidationMessage(popup, null); // Ensure validation message div is created
 
         const rootNode = originalColorInput.getRootNode() instanceof ShadowRoot ? originalColorInput.getRootNode() : document.body;
         rootNode.appendChild(popup);
