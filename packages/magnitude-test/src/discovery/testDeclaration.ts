@@ -1,8 +1,6 @@
 import { TestDeclaration, TestOptions, TestFunction, TestGroupFunction, TestRunnable } from './types';
-import { TestRegistry } from './testRegistry';
+import { TestRegistry, processUrl } from './testRegistry';
 import { addProtocolIfMissing } from '@/util';
-import { processUrl } from './util';
-
 
 function testDecl(
     title: string,

@@ -1,7 +1,8 @@
 import { TestOptions, TestGroup, MagnitudeConfig, CategorizedTestCases, TestFunction, TestRunnable, CategorizedTestRunnable } from "./types";
 import { TestCompiler } from "@/compiler";
 import { pathToFileURL } from "node:url";
-import { processUrl } from "./util";
+
+// Warning: The registry is bundled with every test, be careful about the module tree here.
 
 declare global {
     var __testRegistry: TestRegistry | undefined;
@@ -160,6 +161,21 @@ export class TestRegistry {
         } finally {
             // Always unset the current file path when done
             this.unsetCurrentFilePath();
+        }
+    }
+}
+
+export function processUrl(base: string | undefined, relative: string | undefined): string | undefined {
+    if (!relative) return base;
+    if (!base) return relative;
+    try {
+        return new URL(relative).toString(); // It's a full URL by itself
+    } catch {
+        try {
+            // Not a full URL on its own, try to combine with base
+            return new URL(relative, base).toString();
+        } catch (e) {
+            return relative;
         }
     }
 }
