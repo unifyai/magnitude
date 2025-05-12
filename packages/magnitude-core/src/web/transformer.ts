@@ -1,5 +1,5 @@
 import type { Page } from 'playwright';
-import getSelectManagerScript from './selectScript';
+import getShadowDOMInputAdapterScript from './shadowDOMInputAdapter';
 import logger from '@/logger';
 
 export class DOMTransformer {
@@ -22,7 +22,7 @@ export class DOMTransformer {
         try {
             // Check if a marker for the script already exists on the page for this load cycle.
             const scriptAlreadyInjected = await targetPage.evaluate(() => {
-                return (window as any).__magnitudeSelectManagerScriptInjected === true;
+                return (window as any).__magnitudeShadowDOMAdapterInjected === true;
             }).catch(() => false); // If evaluate fails (e.g., page closed), assume not injected.
 
             if (scriptAlreadyInjected) {
@@ -31,13 +31,13 @@ export class DOMTransformer {
             }
 
             // Get the script as a string from the separate file
-            const scriptFnString = getSelectManagerScript();
+            const scriptFnString = getShadowDOMInputAdapterScript();
 
             // Evaluate the script function in the browser and set the marker.
             // We need to wrap it in a self-executing function
             await targetPage.evaluate(`
                 (${scriptFnString})();
-                window.__magnitudeSelectManagerScriptInjected = true;
+                window.__magnitudeShadowDOMAdapterInjected = true;
             `);
 
             logger.trace(`Script injected into page: ${targetPage.url()}`);

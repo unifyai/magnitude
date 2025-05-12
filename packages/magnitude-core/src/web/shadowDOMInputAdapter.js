@@ -1,14 +1,14 @@
-// Custom select manager script for browser injection
-module.exports = function getSelectManagerScript() {
+// Custom Shadow DOM Input Adapter script for browser injection
+module.exports = function getShadowDOMInputAdapterScript() {
   return function() {
-    if (typeof window.customSelectManager !== 'undefined') {
-      console.warn('customSelectManager already defined. Cleaning up old one.');
-      if(typeof window.customSelectManager.cleanup === 'function') {
-        window.customSelectManager.cleanup();
+    if (typeof window.magnitudeShadowDOMAdapter !== 'undefined') {
+      console.warn('magnitudeShadowDOMAdapter already defined. Cleaning up old one.');
+      if(typeof window.magnitudeShadowDOMAdapter.cleanup === 'function') {
+        window.magnitudeShadowDOMAdapter.cleanup();
       }
     }
 
-    window.customSelectManager = {
+    window.magnitudeShadowDOMAdapter = {
       activePopup: null, // Generic reference to the currently open popup/dropdown
       activePopupType: null, // 'select', 'date', 'color'
       activePopupOriginalElement: null, // The element that triggered the popup
@@ -24,7 +24,7 @@ module.exports = function getSelectManagerScript() {
         this.boundHandleDocumentClick = this.handleDocumentClick.bind(this);
         document.addEventListener('click', this.boundHandleDocumentClick, true);
 
-        console.log('Custom input manager mousedown and click listeners added.');
+        console.log('Shadow DOM Input Adapter mousedown and click listeners added.');
       },
 
       cleanup: function() {
@@ -37,7 +37,7 @@ module.exports = function getSelectManagerScript() {
           document.removeEventListener('click', this.boundHandleDocumentClick, true);
           this.boundHandleDocumentClick = null;
         }
-        console.log('Custom input manager cleaned up.');
+        console.log('Shadow DOM Input Adapter cleaned up.');
       },
 
       // --- Main Mousedown & Click Handlers ---
@@ -383,6 +383,6 @@ module.exports = function getSelectManagerScript() {
       // _copyAttributes is not used in this version as we are not replacing elements.
     };
 
-    window.customSelectManager.init();
+    window.magnitudeShadowDOMAdapter.init();
   }.toString();
 }
