@@ -1,7 +1,7 @@
 import logger from '@/logger';
-import { TestCaseAgent, Magnus } from 'magnitude-core';
+import { TestCaseAgent, Magnus, AgentStateTracker, StepDescriptor } from 'magnitude-core';
 import { BrowserContext, chromium, LaunchOptions, Page } from 'playwright';
-import { tryDeriveEnvironmentPlannerClient } from '@/util';
+import { tryDeriveEnvironmentPlannerClient, sendTelemetry } from '@/util';
 import { processUrl } from '@/discovery/testRegistry';
 import { MagnitudeConfig, TestFunctionContext } from '@/discovery/types';
 
@@ -59,6 +59,8 @@ export async function createMagnitude(config: MagnitudeConfig) {
                     signal
                 });
 
+                const stateTracker = new AgentStateTracker(agent);
+
                 try {
                     await agent.start(browser, startingUrl);
 
@@ -78,6 +80,30 @@ export async function createMagnitude(config: MagnitudeConfig) {
                         await agent.close();
                     } catch (closeErr: unknown) {
                         logger.warn(`Error during agent.close: ${closeErr}`);
+                    }
+                    const state = stateTracker.getState();
+                    const numSteps = state.stepsAndChecks.filter(item => item.variant === 'step').length;
+                    const numChecks = state.stepsAndChecks.filter(item => item.variant === 'check').length;
+                    const actionCount = state.stepsAndChecks
+                        .filter((item): item is StepDescriptor => item.variant === 'step')
+                        .reduce((sum, step) => sum + step.actions.length, 0);
+
+                    // Send telemetry if enabled (default to true if not specified)
+                    const telemetryEnabled = config.telemetry !== false;
+                    if (telemetryEnabled) {
+                        await sendTelemetry({
+                            startedAt: state.startedAt ?? Date.now(),
+                            doneAt: Date.now(),
+                            macroUsage: state.macroUsage,
+                            microUsage: state.microUsage,
+                            cached: state.cached ?? false,
+                            testCase: {
+                                numChecks: numChecks,
+                                numSteps: numSteps,
+                            },
+                            actionCount: actionCount,
+                            result: state.failure?.variant ?? 'passed'
+                        });
                     }
                 }
             }) as (...rest: T) => Promise<Awaited<R>> // https://github.com/microsoft/TypeScript/issues/56083
