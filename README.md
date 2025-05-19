@@ -1,19 +1,17 @@
-<div>
-  <div style="display: flex; align-items: center;">
-    <img src="https://magnitude.run/magnus.svg" alt="Magnitude Logo" width="60"" />
-    <h1 style="margin-left: 20px; font-size: 48px;"><b>Magnitude</b></h1>
-  </div>
-
-  <h3 align="center">
-    Open source AI agent for web automation
-  </h3>
-
-  <hr style="height: 1px; border: none; background-color: #e1e4e8; margin: 24px 0;">
-
-  <p>
-    <a href="https://docs.magnitude.run/getting-started/introduction" target="_blank"><img src="https://img.shields.io/badge/📕-Docs-0369a1?style=flat-square&labelColor=0369a1&color=gray" alt="Documentation" /></a> <img src="https://img.shields.io/badge/License-Apache%202.0-0369a1?style=flat-square&labelColor=0369a1&color=gray" alt="License" /> <a href="https://discord.gg/VcdpMh9tTy" target="_blank"><img src="https://img.shields.io/badge/Discord-22%20online-5865F2?style=flat-square&labelColor=5865F2&color=gray&logo=discord&logoColor=white" alt="Discord" /></a> <a href="https://x.com/tgrnwld" target="_blank"><img src="https://img.shields.io/badge/-Follow%20Tom!-000000?style=flat-square&labelColor=000000&color=gray&logo=x&logoColor=white" alt="Follow @tgrnwld" /></a>
-  </p>
+<div style="display: flex; align-items: center; justify-content: center;">
+  <img src="assets/magnus-full.png" alt="Magnus Full Logo" width="60" style="margin-right: 25px;" />
+  <img src="assets/magnitude-text.png" alt="Magnitude Text Logo" width="300" style="margin-top: 15px" />
 </div>
+
+<h3 align="center">
+  Open source AI agent for web automation
+</h3>
+
+<hr style="height: 1px; border: none; background-color: #e1e4e8; margin: 24px 0;">
+
+<p align="center">
+  <a href="https://docs.magnitude.run/getting-started/introduction" target="_blank"><img src="https://img.shields.io/badge/📕-Docs-0369a1?style=flat-square&labelColor=0369a1&color=gray" alt="Documentation" /></a> <img src="https://img.shields.io/badge/License-Apache%202.0-0369a1?style=flat-square&labelColor=0369a1&color=gray" alt="License" /> <a href="https://discord.gg/VcdpMh9tTy" target="_blank"><img src="https://img.shields.io/badge/Discord-22%20online-5865F2?style=flat-square&labelColor=5865F2&color=gray&logo=discord&logoColor=white" alt="Discord" /></a> <a href="https://x.com/tgrnwld" target="_blank"><img src="https://img.shields.io/badge/-Follow%20Tom!-000000?style=flat-square&labelColor=000000&color=gray&logo=x&logoColor=white" alt="Follow @tgrnwld" /></a>
+</p>
 
 **If it happens in the browser, Magnitude can automate it**
 
