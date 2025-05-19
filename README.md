@@ -2,17 +2,19 @@
   <img src="assets/full-header.png" alt="Magnitude Text Logo" width="500"/>
 </div>
 
-<h3 align="center">
+<h1 align="center">
   Open source AI agent for web automation
-</h3>
+</h1>
 
-<hr style="height: 1px; border: none; background-color: #e1e4e8; margin: 24px 0;">
+<p align="center">
+  If it happens in the browser, Magnitude can automate it
+</p>
 
 <p align="center">
   <a href="https://docs.magnitude.run/getting-started/introduction" target="_blank"><img src="https://img.shields.io/badge/📕-Docs-0369a1?style=flat-square&labelColor=0369a1&color=gray" alt="Documentation" /></a> <img src="https://img.shields.io/badge/License-Apache%202.0-0369a1?style=flat-square&labelColor=0369a1&color=gray" alt="License" /> <a href="https://discord.gg/VcdpMh9tTy" target="_blank"><img src="https://img.shields.io/badge/Discord-22%20online-5865F2?style=flat-square&labelColor=5865F2&color=gray&logo=discord&logoColor=white" alt="Discord" /></a> <a href="https://x.com/tgrnwld" target="_blank"><img src="https://img.shields.io/badge/-Follow%20Tom!-000000?style=flat-square&labelColor=000000&color=gray&logo=x&logoColor=white" alt="Follow @tgrnwld" /></a>
 </p>
 
-**If it happens in the browser, Magnitude can automate it**
+<hr style="height: 1px; border: none; background-color: #e1e4e8; margin: 24px 0;">
 
 We built Magnitude on 3 core principles:
 
