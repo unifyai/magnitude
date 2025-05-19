@@ -1,6 +1,5 @@
-<div style="display: flex; align-items: center; justify-content: center;">
-  <img src="assets/magnus-full.png" alt="Magnus Full Logo" width="60" style="margin-right: 25px;" />
-  <img src="assets/magnitude-text.png" alt="Magnitude Text Logo" width="300" style="margin-top: 15px" />
+<div align="center">
+  <img src="assets/full-header.png" alt="Magnitude Text Logo" width="500"/>
 </div>
 
 <h3 align="center">
