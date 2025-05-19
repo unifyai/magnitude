@@ -1,28 +1,38 @@
-<div align="center">
-  <p>
-    <img src="https://magnitude.run/logo.svg" alt="Magnitude Logo" width="100" style="vertical-align: middle; margin-right: 20px" />
-  </p>
+<div>
+  <div style="display: flex; align-items: center;">
+    <img src="https://magnitude.run/magnus.svg" alt="Magnitude Logo" width="60"" />
+    <h1 style="margin-left: 20px; font-size: 48px;"><b>Magnitude</b></h1>
+  </div>
 
   <h3 align="center">
-    Magnitude: The open source, AI-native testing framework for web apps
+    Open source AI agent for web automation
   </h3>
 
-  <p>
-    <a href="https://discord.gg/VcdpMh9tTy" target="_blank"><img src="https://img.shields.io/discord/1305570963206836295?style=flat-square&color=5865F2&logo=discord&logoColor=white&label=Discord" alt="Discord" /></a> <a href="https://magnitude.run/" target="_blank"><img src="https://img.shields.io/badge/Homepage-blue?style=flat-square&logo=homebridge&logoColor=white" alt="Homepage" /></a> <a href="https://docs.magnitude.run/getting-started/introduction" target="_blank"><img src="https://img.shields.io/badge/Docs-blue?style=flat-square&logo=readthedocs&logoColor=white" alt="Documentation" /></a> <img src="https://img.shields.io/github/license/magnitudedev/magnitude?style=flat-square" alt="License" /> <a href="https://x.com/tgrnwld" target="_blank"><img src="https://img.shields.io/badge/follow-%40tgrnwld-000000?style=flat-square&logo=x&logoColor=white" alt="Follow @tgrnwld" /></a> <a href="https://x.com/ndrsrkl" target="_blank"><img src="https://img.shields.io/badge/follow-%40ndrsrkl-000000?style=flat-square&logo=x&logoColor=white" alt="Follow @ndrsrkl" /></a>
-  </p>
-
   <hr style="height: 1px; border: none; background-color: #e1e4e8; margin: 24px 0;">
+
+  <p>
+    <a href="https://docs.magnitude.run/getting-started/introduction" target="_blank"><img src="https://img.shields.io/badge/📕-Docs-0369a1?style=flat-square&labelColor=0369a1&color=gray" alt="Documentation" /></a> <img src="https://img.shields.io/badge/License-Apache%202.0-0369a1?style=flat-square&labelColor=0369a1&color=gray" alt="License" /> <a href="https://discord.gg/VcdpMh9tTy" target="_blank"><img src="https://img.shields.io/badge/Discord-22%20online-5865F2?style=flat-square&labelColor=5865F2&color=gray&logo=discord&logoColor=white" alt="Discord" /></a> <a href="https://x.com/tgrnwld" target="_blank"><img src="https://img.shields.io/badge/-Follow%20Tom!-000000?style=flat-square&labelColor=000000&color=gray&logo=x&logoColor=white" alt="Follow @tgrnwld" /></a>
+  </p>
 </div>
 
-End-to-end testing framework powered by visual AI agents that see your interface and adapt to any changes in it.
+**If it happens in the browser, Magnitude can automate it**
 
-## How it works
-- ✍️ Build test cases easily with natural language
-- 🧠 Strong reasoning agent to plan and adjust tests
-- 👁️ Fast visual agent to reliably execute runs
-- 📄 Plan is saved to execute runs the same way
-- 🛠 Reasoning agent steps in if there is a problem
-- 🏃‍♂️ Run tests locally or in CI/CD pipelines
+We built Magnitude on 3 core principles:
+
+**1️⃣ Control is critical:** Production-grade automation requires precision, not relying on AI to guess a bunch of intermediate actions based on a high-level task
+
+**2️⃣ Semantics over selectors:** Determinism should be achieved with semantic descriptions of low-level actions, not inherently brittle XPath/CSS selectors
+
+**3️⃣ Vision drives scalability:** Using highly specialized VLMs to locate elements will scale, drawing bounding boxes around elements won’t
+
+
+### Features of Magnitude:
+
+- **🗣️ Natural language:** automations can be defined as simple natural language commands (e.g. “log in to the app”, “verify the dashboard is visible”)
+- **🎮 Fine-grained control:** combine high-level act() syntax to leave more to the AI agent, low-level click(), type(), etc. to have more control, and traditional Playwright code as needed
+- **🎨 Fully customizable:** define your own actions/tools alongside our included ones
+- **🧪 Native test runner:** built on top of the core web agent but optimized for building UI test automation, and includes powerful visual assertions with check() syntax
+- **🔄 Cached automations:** we construct a JSON representation of the actions taken, which can then be executed in the future for cheap, fast, deterministic runs (coming soon!)
 
 ![Video showing Magnitude tests running in a terminal and agent taking actions in the browser](assets/demo.gif)
 
