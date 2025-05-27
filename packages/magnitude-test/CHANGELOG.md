@@ -1,5 +1,13 @@
 # magnitude-test
 
+## 0.1.4
+
+### Patch Changes
+
+- moondream 524 retry
+- Updated dependencies
+  - magnitude-core@0.1.4
+
 ## 0.1.3
 
 ### Patch Changes

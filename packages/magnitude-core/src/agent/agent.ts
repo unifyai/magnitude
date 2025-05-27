@@ -143,7 +143,7 @@ export class TestCaseAgent {
             // will need to generalize when other moondream calls
             action = await retryOnError(
                 async () => this.micro.convertAction(screenshot, intent),
-                ['503', '429'], 20, 1000
+                ['429', '503', '524'], 20, 1000
             );
             logger.info({ intent: intent, action }, `Converted action`);
         } catch(error: unknown) {
