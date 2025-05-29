@@ -18,7 +18,7 @@ export type MagnitudeConfig = {
     url: string; // base URL used as default, required
     planner?: PlannerClient,
     executor?: ExecutorClient,
-    webServer?: WebServerConfig,
+    webServer?: WebServerConfig | WebServerConfig[],
     browser?: {
         contextOptions?: BrowserContextOptions,
         launchOptions?: LaunchOptions

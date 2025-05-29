@@ -15,7 +15,7 @@
     },
     "packages/magnitude-core": {
       "name": "magnitude-core",
-      "version": "0.1.0",
+      "version": "0.1.4",
       "bin": {
         "magnus": "dist/cli.js",
       },
@@ -36,7 +36,7 @@
     },
     "packages/magnitude-mcp": {
       "name": "magnitude-mcp",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "bin": {
         "magnitude-mcp": "./build/index.js",
       },
@@ -52,7 +52,7 @@
     },
     "packages/magnitude-test": {
       "name": "magnitude-test",
-      "version": "0.1.0",
+      "version": "0.1.4",
       "bin": {
         "magnitude": "dist/cli.js",
       },
@@ -64,7 +64,7 @@
         "esbuild": "^0.25.1",
         "glob": "^11.0.1",
         "log-update": "^6.1.0",
-        "magnitude-core": "0.1.0",
+        "magnitude-core": "0.1.4",
         "pino": "^9.6.0",
         "playwright": "^1.51.0",
         "zod": "^3.24.2",
