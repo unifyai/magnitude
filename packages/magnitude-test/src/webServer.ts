@@ -4,8 +4,8 @@ import { WebServerConfig } from './discovery/types';
 
 export async function isServerRunning(url: string): Promise<boolean> {
     try {
-        const res = await fetch(url, { method: 'HEAD' });
-        return !!res.ok || res.status >= 200; // any response indicates server
+        await fetch(url, { method: 'HEAD' });
+        return true;
     } catch {
         return false;
     }
