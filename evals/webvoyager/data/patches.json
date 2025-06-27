@@ -1,0 +1,72 @@
+{
+    "Apple--4": {
+        "reason": "The M3 Max chip, current in March 2024, will be superseded by June 2025. To maintain the task's focus on a high-end, current-generation product, the chip is updated to its plausible successor, the M4 Max.",
+        "prev": "How much does it cost to buy a Macbook pro, 16-inch, Apple M3 Max chip with 16-core CPU, 40-core GPU, 64GB unified memory, 1TB SSD.",
+        "new": "How much does it cost to buy a Macbook pro, 16-inch, Apple M4 Max chip with 16-core CPU, 40-core GPU, 64GB unified memory, 1TB SSD."
+    },
+    "Apple--22": {
+        "reason": "The original task (Mar 2024) queries the trade-in for a ~2.5-year-old phone (iPhone 13 Pro Max). To preserve this relative age, the task is updated to query the iPhone 14 Pro Max, which will be a similarly aged model in June 2025.",
+        "prev": "Find out the trade-in value for an iPhone 13 Pro Max in good condition on the Apple website.",
+        "new": "Find out the trade-in value for an iPhone 14 Pro Max in good condition on the Apple website."
+    },
+    "Apple--32": {
+        "reason": "The original task (Mar 2024) queries the trade-in for a ~4.5-year-old phone (iPhone 11 Pro Max). To preserve this relative age, the task is updated to query the iPhone 12 Pro Max, which will be a similarly aged model in June 2025.",
+        "prev": "Investigate the trade-in value for an iPhone 11 Pro Max on Apple's website.",
+        "new": "Investigate the trade-in value for an iPhone 12 Pro Max on Apple's website."
+    },
+    "Booking--5": {
+        "reason": "The booking date 'Jan 1 to Jan 4, 2024' is explicitly in the past, making the task impossible. The year is updated to make it feasible.",
+        "prev": "Search a hotel with free WiFi and air conditioning in Bali from Jan 1 to Jan 4, 2024.",
+        "new": "Search a hotel with free WiFi and air conditioning in Bali from Jan 1 to Jan 4, 2026."
+    },
+    "Booking--8": {
+        "reason": "The booking date '20/12/2023' is explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Get the hotel with highest review score and free cancelation in Chennai for 20/12/2023 - 21/12/2023.",
+        "new": "Get the hotel with highest review score and free cancelation in Chennai for 20/12/2025 - 21/12/2025."
+    },
+    "Booking--10": {
+        "reason": "The booking date 'February 14-21, 2024' is explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Find a well-reviewed hotel in Paris with available bookings suitable for a couple (2 adults) on Valentine's Day week, February 14-21, 2024, that offers free cancellation options.",
+        "new": "Find a well-reviewed hotel in Paris with available bookings suitable for a couple (2 adults) on Valentine's Day week, February 14-21, 2026, that offers free cancellation options."
+    },
+    "Booking--28": {
+        "reason": "The booking date 'February 22 to February 29, 2024' is in the past. The year is updated to 2026, and the end date is adjusted to 'February 28' as 2026 is not a leap year, preserving the week-long stay.",
+        "prev": "Find a hotel in Dubai with a swimming pool, for a week-long stay from February 22 to February 29, 2024.",
+        "new": "Find a hotel in Dubai with a swimming pool, for a week-long stay from February 21 to February 28, 2026."
+    },
+    "ESPN--17": {
+        "reason": "The '2023-24' season is over. To find current-season information as intended, the season is updated to '2024-25'.",
+        "prev": "Check out the NBA Basketball Power Index 2023-24 to see which teams are in first place and which are in last place.",
+        "new": "Check out the NBA Basketball Power Index 2024-25 to see which teams are in first place and which are in last place."
+    },
+    "ESPN--30": {
+        "reason": "The '2023-24' season is over. To find current-season information as intended, the season is updated to '2024-25'.",
+        "prev": "Check out the NHL Standings 2023-24 on ESPN to see which teams are at the top and which are at the bottom in Eastern and Western Conference. What about the situation in Division.",
+        "new": "Check out the NHL Standings 2024-25 on ESPN to see which teams are at the top and which are at the bottom in Eastern and Western Conference. What about the situation in Division."
+    },
+    "ESPN--31": {
+        "reason": "The '2023-24' season is over. The year is updated to '2025' to query the current season's roster.",
+        "prev": "Who has the heaviest weight among infielders in the New York Yankees Roster 2023-24?",
+        "new": "Who has the heaviest weight among infielders in the New York Yankees Roster 2025?"
+    },
+    "ESPN--33": {
+        "reason": "The '2023 season' is over. The year is updated to '2024' to find candidates for the most recently completed season.",
+        "prev": "Locate the latest ESPN articles discussing potential MVP candidates in the NFL for 2023 season.",
+        "new": "Locate the latest ESPN articles discussing potential MVP candidates in the NFL for 2024 season."
+    },
+    "Google Flights--1": {
+        "reason": "The flight date 'February 17, 2024' is explicitly in the past, making the task impossible. The year is updated to make it feasible.",
+        "prev": "Show me the list of one-way flights today (February 17, 2024) from Chicago to Paris.",
+        "new": "Show me the list of one-way flights on February 17, 2026 from Chicago to Paris."
+    },
+    "Google Flights--12": {
+        "reason": "The flight dates 'December 25, 2023' and 'January 5, 2024' are explicitly in the past. The years are updated to make the task feasible.",
+        "prev": "Find the best-priced round-trip flight from New York to London leaving on December 25, 2023, and returning on January 5, 2024, with one stop or fewer.",
+        "new": "Find the best-priced round-trip flight from New York to London leaving on December 25, 2025, and returning on January 5, 2026, with one stop or fewer."
+    },
+    "Google Search--39": {
+        "reason": "Asking for '2024' travel trends is a historical query in mid-2025. The year is updated to '2025' to preserve the original intent of finding current/future trends.",
+        "prev": "Identify the top-10 trending travel destination for 2024 through a blog, how many of them are in Asian.",
+        "new": "Identify the top-10 trending travel destination for 2025 through a blog, how many of them are in Asian."
+    }
+}

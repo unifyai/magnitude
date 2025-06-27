@@ -80,7 +80,6 @@ async function runTask(taskToRun: Task | string) {
         },
         url: task.web,
         actions: [
-            //...webActions,
             // Instead of typical task actions, have an answer action
             createAction({
                 name: 'answer',
@@ -90,30 +89,8 @@ async function runTask(taskToRun: Task | string) {
                     console.log("ANSWER GIVEN:", input);
                     await agent.queueDone();
                 }
-            }),
-            // experiment
-            // createAction({
-            //     name: 'act',
-            //     description: 'Delegate a subtask',
-            //     schema: z.string().describe('Task'),
-            //     resolver: async ({ input, agent }) => {
-            //         //console.log("ANSWER GIVEN:", input);
-            //         await agent.act(input);
-            //     }
-            // })
+            })
         ],
-        //narrate: true
-        // browserContextOptions: {
-        //     viewport: { width: 1920, height: 1080 }
-        // },
-        // planner: {
-        //     provider: 'google-ai',
-        //     options: {
-        //         model: 'gemini-2.5-pro-preview-03-25',
-        //         apiKey: process.env.GOOGLE_API_KEY,
-        //         temperature: 0.5
-        //     }
-        // }
     });
 
     agent.events.on('actionDone', async () => {
@@ -137,7 +114,7 @@ async function runTask(taskToRun: Task | string) {
 
 async function main() {
     const taskId = process.argv[2];
-    const tasksFilePath = path.join(__dirname, 'tasks.jsonl');
+    const tasksFilePath = path.join(__dirname, 'data', 'patchedTasks.jsonl');
 
     if (!taskId || taskId.toLowerCase() === 'random') {
         console.log(taskId ? 'Running a random task...' : 'No task ID provided, running a random task...');
