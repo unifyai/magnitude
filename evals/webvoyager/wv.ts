@@ -7,6 +7,8 @@ import * as path from 'path';
 import { createAction } from '../../packages/magnitude-core/src/actions';
 import z from 'zod';
 import { Command } from 'commander';
+import * as p from '@clack/prompts';
+import { Agent } from '../../packages/magnitude-core/src/agent';
 
 const TASKS_PATH = path.join(__dirname, 'data', 'patchedTasks.jsonl');
 
@@ -56,6 +58,19 @@ async function getAllTasks(filePath: string, category?: string): Promise<Task[]>
         }
     }
     return tasks;
+}
+
+async function evalTask(taskId: string) {
+    const task = (await findTaskById(TASKS_PATH, taskId))!;
+
+    const memoryPath = path.join('results', `${task.id}.json`);
+    const memJson = JSON.parse(fs.readFileSync(memoryPath, 'utf-8'));
+
+    const agent = new Agent();
+    await agent.memory.loadJSON(memJson);//.load(memoryPath);
+    const summary = await agent.query('Summarize what happened during this task', z.string());
+    console.log(summary);
+    //agent.query('pass fail')
 }
 
 async function runTask(taskToRun: Task | string) {
@@ -146,7 +161,6 @@ async function runRandomTask() {
 }
 
 async function runTasksByCategory(category: string) {
-    console.log(`Running all tasks in category: ${category}`);
     const categoryTasks = await getAllTasks(TASKS_PATH, category);
     
     if (categoryTasks.length === 0) {
@@ -154,16 +168,55 @@ async function runTasksByCategory(category: string) {
         return;
     }
     
-    console.log(`Found ${categoryTasks.length} tasks in category ${category}`);
+    p.intro(`Found ${categoryTasks.length} tasks in category: ${category}`);
+    
+    const mode = await p.select({
+        message: 'How would you like to run the tasks?',
+        options: [
+            { value: 'all', label: `Run all ${categoryTasks.length} tasks` },
+            { value: 'select', label: 'Select specific tasks to run' }
+        ]
+    });
+    
+    if (p.isCancel(mode)) {
+        p.cancel('Operation cancelled');
+        return;
+    }
+    
+    let tasksToRun: Task[] = [];
+    
+    if (mode === 'all') {
+        tasksToRun = categoryTasks;
+    } else {
+        const selectedIds = await p.multiselect({
+            message: 'Select tasks to run:',
+            options: categoryTasks.map(task => ({
+                value: task.id,
+                label: `${task.id}: ${task.ques.substring(0, 80)}${task.ques.length > 80 ? '...' : ''}`
+            })),
+            required: true
+        });
+        
+        if (p.isCancel(selectedIds)) {
+            p.cancel('Operation cancelled');
+            return;
+        }
+        
+        tasksToRun = categoryTasks.filter(task => 
+            (selectedIds as string[]).includes(task.id)
+        );
+    }
+    
+    p.outro(`Running ${tasksToRun.length} task${tasksToRun.length !== 1 ? 's' : ''}`);
     
     // Run tasks one at a time
-    for (let i = 0; i < categoryTasks.length; i++) {
-        const task = categoryTasks[i];
-        console.log(`\n[${i + 1}/${categoryTasks.length}] Running task: ${task.id}`);
+    for (let i = 0; i < tasksToRun.length; i++) {
+        const task = tasksToRun[i];
+        console.log(`\n[${i + 1}/${tasksToRun.length}] Running task: ${task.id}`);
         await runTask(task);
     }
     
-    console.log(`\nCompleted all ${categoryTasks.length} tasks in category ${category}`);
+    console.log(`\nCompleted ${tasksToRun.length} task${tasksToRun.length !== 1 ? 's' : ''} in category ${category}`);
 }
 
 const program = new Command();
@@ -188,10 +241,39 @@ program
     });
 
 program
-    .command('category <name>')
+    .command('category [name]')
     .description('Run all tasks in a specific category')
-    .action(async (name: string) => {
-        await runTasksByCategory(name);
+    .action(async (name?: string) => {
+        let category = name;
+        
+        if (!category) {
+            // Get all categories first
+            const allTasks = await getAllTasks(TASKS_PATH);
+            const categories = new Map<string, number>();
+            
+            for (const task of allTasks) {
+                categories.set(task.web_name, (categories.get(task.web_name) || 0) + 1);
+            }
+            
+            const categoryOptions = Array.from(categories.entries()).map(([cat, count]) => ({
+                value: cat,
+                label: `${cat} (${count} tasks)`
+            }));
+            
+            const selected = await p.select({
+                message: 'Select a category:',
+                options: categoryOptions
+            });
+            
+            if (p.isCancel(selected)) {
+                p.cancel('Operation cancelled');
+                return;
+            }
+            
+            category = selected as string;
+        }
+        
+        await runTasksByCategory(category);
     });
 
 program
@@ -200,6 +282,13 @@ program
     .action(async () => {
         await listCategories();
     });
+
+program
+    .command('eval <taskId>')
+    .description('Evaluate tasks that have been run')
+    .action(async (taskId: string) => {
+        await evalTask(taskId);
+    })
 
 // Default action when no command is provided
 // program

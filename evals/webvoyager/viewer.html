@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebVoyager Results Visualizer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        
+        .task-selector {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .task-selector select {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: white;
+            cursor: pointer;
+        }
+        
+        .timeline {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .observation {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background-color: #fafafa;
+        }
+        
+        .observation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .observation-index {
+            font-size: 24px;
+            font-weight: bold;
+            color: #666;
+        }
+        
+        .observation-timestamp {
+            font-size: 14px;
+            color: #888;
+        }
+        
+        .observation-image {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        
+        .observation-data {
+            margin-top: 10px;
+        }
+        
+        .data-section {
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+        }
+        
+        .data-label {
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 5px;
+        }
+        
+        .data-content {
+            color: #333;
+            word-wrap: break-word;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 18px;
+            color: #666;
+        }
+        
+        .error {
+            text-align: center;
+            padding: 50px;
+            font-size: 18px;
+            color: #d32f2f;
+        }
+        
+        .stats {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1976d2;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WebVoyager Results Visualizer</h1>
+        
+        <div class="task-selector">
+            <label for="taskSelect">Select Task: </label>
+            <select id="taskSelect">
+                <option value="">Loading tasks...</option>
+            </select>
+        </div>
+        
+        <div id="content">
+            <div class="loading">Select a task to view results</div>
+        </div>
+    </div>
+
+    <script>
+        let currentData = null;
+        let tasks = [];
+
+        async function loadTasks() {
+            try {
+                const response = await fetch('/api/tasks');
+                tasks = await response.json();
+                
+                const select = document.getElementById('taskSelect');
+                select.innerHTML = '<option value="">Select a task...</option>';
+                
+                tasks.forEach(task => {
+                    const option = document.createElement('option');
+                    option.value = task;
+                    option.textContent = task;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading tasks:', error);
+                document.getElementById('content').innerHTML = 
+                    '<div class="error">Error loading tasks. Please refresh the page.</div>';
+            }
+        }
+
+        async function loadTaskData(taskName) {
+            if (!taskName) {
+                document.getElementById('content').innerHTML = 
+                    '<div class="loading">Select a task to view results</div>';
+                return;
+            }
+
+            document.getElementById('content').innerHTML = 
+                '<div class="loading">Loading task data...</div>';
+
+            try {
+                const response = await fetch(`/api/task/${encodeURIComponent(taskName)}`);
+                currentData = await response.json();
+                displayTaskData();
+            } catch (error) {
+                console.error('Error loading task data:', error);
+                document.getElementById('content').innerHTML = 
+                    '<div class="error">Error loading task data. Please try again.</div>';
+            }
+        }
+
+        function displayTaskData() {
+            if (!currentData || !currentData.observations) {
+                document.getElementById('content').innerHTML = 
+                    '<div class="error">No observation data found for this task.</div>';
+                return;
+            }
+
+            const observations = currentData.observations;
+            let html = '';
+
+            // Stats section
+            html += '<div class="stats">';
+            html += '<div class="stats-grid">';
+            html += `<div class="stat-item">
+                        <div class="stat-value">${observations.length}</div>
+                        <div class="stat-label">Total Observations</div>
+                     </div>`;
+            
+            const firstTime = observations[0]?.timestamp || 0;
+            const lastTime = observations[observations.length - 1]?.timestamp || 0;
+            const duration = lastTime - firstTime;
+            const durationMin = Math.floor(duration / 60000);
+            const durationSec = ((duration % 60000) / 1000).toFixed(1);
+            
+            html += `<div class="stat-item">
+                        <div class="stat-value">${durationMin}m ${durationSec}s</div>
+                        <div class="stat-label">Duration</div>
+                     </div>`;
+            html += '</div></div>';
+
+            // Timeline section
+            html += '<div class="timeline">';
+            html += '<h2>Observation Timeline</h2>';
+
+            observations.forEach((obs, index) => {
+                html += '<div class="observation">';
+                html += '<div class="observation-header">';
+                html += `<div class="observation-index">#${index + 1}</div>`;
+                
+                const timestamp = new Date(obs.timestamp);
+                html += `<div class="observation-timestamp">${timestamp.toLocaleString()}</div>`;
+                html += '</div>';
+
+                // Display image if present
+                if (obs.data && obs.data.base64) {
+                    html += `<img class="observation-image" src="data:image/${obs.data.format || 'png'};base64,${obs.data.base64}" alt="Observation ${index + 1}">`;
+                }
+
+                // Display other data
+                if (obs.data) {
+                    html += '<div class="observation-data">';
+                    
+                    // Display source
+                    if (obs.source) {
+                        html += '<div class="data-section">';
+                        html += '<div class="data-label">Source:</div>';
+                        html += `<div class="data-content">${obs.source}</div>`;
+                        html += '</div>';
+                    }
+
+                    // Display any additional data fields
+                    Object.keys(obs.data).forEach(key => {
+                        if (key !== 'base64' && key !== 'format' && key !== 'type' && key !== 'storage') {
+                            html += '<div class="data-section">';
+                            html += `<div class="data-label">${key}:</div>`;
+                            html += `<div class="data-content">${JSON.stringify(obs.data[key], null, 2)}</div>`;
+                            html += '</div>';
+                        }
+                    });
+
+                    // Display type if not media
+                    if (obs.data.type && obs.data.type !== 'media') {
+                        html += '<div class="data-section">';
+                        html += '<div class="data-label">Type:</div>';
+                        html += `<div class="data-content">${obs.data.type}</div>`;
+                        html += '</div>';
+                    }
+                    
+                    html += '</div>';
+                }
+
+                html += '</div>';
+            });
+
+            html += '</div>';
+            document.getElementById('content').innerHTML = html;
+        }
+
+        // Event listeners
+        document.getElementById('taskSelect').addEventListener('change', (e) => {
+            loadTaskData(e.target.value);
+        });
+
+        // Load tasks on page load
+        loadTasks();
+    </script>
+</body>
+</html>

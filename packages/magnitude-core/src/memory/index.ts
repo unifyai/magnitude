@@ -10,7 +10,7 @@ import { Observation, ObservationOptions, ObservationSource, renderObservations 
 import { BamlRenderable, observableDataToContext } from './context';
 import z from 'zod';
 import EventEmitter from 'eventemitter3';
-import { MultiMediaJson, observableDataToJson } from './serde';
+import { jsonToObservableData, MultiMediaJson, observableDataToJson } from './serde';
 
 // export interface AgentMemoryEvents {
 //     'thought': (thought: string) => void;
@@ -116,5 +116,30 @@ export class AgentMemory {
             ...(this.instructions ? { instructions: this.instructions } : {}),
             observations: observations
         };
+    }
+
+    // TODO: turn into class static method / rework cons
+    public async loadJSON(data: SerializedAgentMemory) {
+        //jsonToObservableData(data);
+        const observations = [];
+        for (const observation of data.observations) {
+            observations.push(new Observation(
+                observation.source,
+                await jsonToObservableData(observation.data),
+                observation.options,
+                observation.timestamp
+            ));
+            
+        }
+        // nvm
+        //this.instructions = this.instructions;
+
+        this.observations = observations;
+
+
+        // return {
+        //     ...(this.instructions ? { instructions: this.instructions } : {}),
+        //     observations: observations
+        // };
     }
 }

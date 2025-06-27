@@ -87,3 +87,57 @@ export async function observableDataToJson(data: ObservableData): Promise<MultiM
 }
 
 // TODO: Implement deserialization, and actually leverage serde for logging stuff
+
+
+export async function jsonToObservableData(data: MultiMediaJson): Promise<ObservableData> {
+    // Handle null and undefined primitives
+    if (data === null || data === undefined) {
+        return data;
+    }
+
+    // Handle arrays by recursively converting each item
+    if (Array.isArray(data)) {
+        return Promise.all(data.map(item => jsonToObservableData(item)));
+    }
+
+    // Handle objects, which can be StoredMedia, StoredPrimitive, or a generic object
+    if (typeof data === 'object') {
+        // Check for our special typed objects
+        if ('type' in data && typeof data.type === 'string') {
+            switch (data.type) {
+                case 'media':
+                    // Cast the object to StoredMedia and use the static `fromBase64` method.
+                    const media = data as StoredMedia;
+                    if (media.storage === 'base64') {
+                        return Image.fromBase64(media.base64);
+                    }
+                    throw new Error(`Unsupported media storage type: ${media.storage}`);
+
+                case 'primitive':
+                    // Unwrap the primitive value from its container object.
+                    return (data as StoredPrimitive).content;
+            }
+        }
+
+        // Handle generic observable data object by recursively converting each property's value
+        const result: ObservableDataObject = {};
+        const keys = Object.keys(data);
+        
+        // Process all values concurrently for better performance
+        const values = await Promise.all(
+            keys.map(key => jsonToObservableData((data as MultiMediaObject)[key]))
+        );
+
+        // Reconstruct the object from the processed keys and values
+        keys.forEach((key, index) => {
+            result[key] = values[index];
+        });
+
+        return result;
+    }
+    
+    // According to the MultiMediaJson type definition, raw primitives (string, number, boolean)
+    // are not valid at the top level and should be wrapped in a StoredPrimitive object.
+    // Throw an error if we encounter them, as the input is malformed.
+    throw new Error(`Invalid MultiMediaJson format: Unexpected primitive value '${data}'.`);
+}

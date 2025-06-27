@@ -34,10 +34,10 @@ export class Observation {
     public readonly data: ObservableData;
     public readonly options?: ObservationOptions;
 
-    constructor(source: ObservationSource, data: ObservableData, options?: ObservationOptions) {
+    constructor(source: ObservationSource, data: ObservableData, options?: ObservationOptions, timestamp?: number) {
         this.source = source;
         this.data = data;
-        this.timestamp = Date.now();
+        this.timestamp = timestamp ?? Date.now();
         this.options = options;
     }
 
