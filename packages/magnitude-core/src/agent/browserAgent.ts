@@ -7,6 +7,7 @@ import { Schema, ZodSchema } from "zod";
 import z from "zod";
 import { renderMinimalAccessibilityTree } from "@/web/util";
 import { narrateAgent, narrateBrowserAgent } from "./narrator";
+import { PartitionOptions, partitionHtml, MarkdownSerializerOptions, serializeToMarkdown } from 'magnitude-extract';
 import EventEmitter from "eventemitter3";
 
 // export interface StartAgentWithWebOptions {
@@ -32,7 +33,9 @@ export async function startBrowserAgent(
         //agent.events.on('actionStarted', (action: any) => { console.log(action) })
     }
 
+    //console.log('starting agent')
     await agent.start();
+    //console.log('agent started');
     return agent;
 }
 
@@ -52,6 +55,39 @@ export interface BrowserAgentEvents {
     'nav': (url: string) => void;
     'extractStarted': (instructions: string, schema: ZodSchema) => void;
     'extractDone': (instructions: string, data: ExtractedOutput) => void;
+}
+
+async function getFullPageContent(page: Page): Promise<string> {
+    // 1. Get all iframe element handles
+    const iframeHandles = await page.locator('iframe').elementHandles();
+
+    // 2. Iterate through each iframe handle
+    for (const iframeHandle of iframeHandles) {
+        // 3. Get the Frame object for the iframe
+        const frame = await iframeHandle.contentFrame();
+        if (frame) {
+            // 4. Get the HTML content of the iframe
+            const iframeContent = await frame.content();
+
+            // 5. Use evaluate to replace the iframe element with its content.
+            // We pass the content as an argument to avoid issues with string escaping.
+            await iframeHandle.evaluate((iframeNode, { content }) => {
+                // Create a new div element to hold the iframe's content
+                const div = document.createElement('div');
+                div.innerHTML = content;
+
+                // Add a data-attribute to mark that this was an expanded iframe
+                div.dataset.expandedFromIframe = 'true';
+                div.dataset.iframeSrc = (iframeNode as HTMLIFrameElement).getAttribute('src') || '';
+
+                // Replace the iframeNode with the new div
+                iframeNode.parentNode?.replaceChild(div, iframeNode);
+            }, { content: iframeContent });
+        }
+    }
+
+    // 6. Return the final, modified page content
+    return page.content();
 }
 
 export class BrowserAgent extends Agent {
@@ -81,10 +117,40 @@ export class BrowserAgent extends Agent {
     async extract<T extends Schema>(instructions: string, schema: T): Promise<z.infer<T>> {
         this.browserAgentEvents.emit('extractStarted', instructions, schema);
         //const htmlContent = await this.page.content();
-        const accessibilityTree = await this.page.accessibility.snapshot({ interestingOnly: true });
-        const pageRepr = renderMinimalAccessibilityTree(accessibilityTree);
+        const htmlContent = await getFullPageContent(this.page);
+        // const accessibilityTree = await this.page.accessibility.snapshot({ interestingOnly: true });
+        // const pageRepr = renderMinimalAccessibilityTree(accessibilityTree);
+
+        const partitionOptions: PartitionOptions = {
+            extractImages: true,
+            extractForms: true,
+            extractLinks: true,
+            skipNavigation: false, // NAVIGATION SKIPPING IS BROKEN
+            minTextLength: 3,
+            includeOriginalHtml: false,
+            includeMetadata: true
+        };
+
+        // Process HTML
+        const result = partitionHtml(htmlContent, partitionOptions);
+
+        // Configure markdown serializer options
+        const markdownOptions: MarkdownSerializerOptions = {
+            includeMetadata: false,
+            includePageNumbers: true,
+            includeElementIds: false,
+            includeCoordinates: false,
+            preserveHierarchy: true,
+            escapeSpecialChars: true,
+            includeFormFields: true,
+            includeImageMetadata: true
+        };
+
+        // Convert to markdown
+        const markdown = serializeToMarkdown(result, markdownOptions);
+
         const screenshot = await this.require(BrowserConnector).getHarness().screenshot();
-        const data = await this.model.extract(instructions, schema, screenshot, pageRepr);
+        const data = await this.model.extract(instructions, schema, screenshot, markdown);
 
         this.browserAgentEvents.emit('extractDone', instructions, data);
 

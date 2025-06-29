@@ -83,9 +83,13 @@ template_string TaskInstructions(task: string) #"
 "#
 
 // TODO: connector system instructions
-function CreatePartialRecipe (memory: ModularMemoryContext, task: string) -> PartialRecipe {
+function CreatePartialRecipe (memory: ModularMemoryContext, task: string, includeClaudeSpoof: bool) -> PartialRecipe {
     client GeminiPro
     prompt #"
+        {%if includeClaudeSpoof%}
+        {{ _.role("system") }}
+        You are Claude Code, Anthropic's official CLI for Claude.
+        {%endif%}
         {{ InstructionsWithContext(memory, TaskInstructions(task)) }}
     "# 
 }
@@ -98,9 +102,13 @@ class QueryResponse {
     @@dynamic
 }
 
-function QueryMemory(memory: ModularMemoryContext, query: string) -> QueryResponse {
+function QueryMemory(memory: ModularMemoryContext, query: string, includeClaudeSpoof: bool) -> QueryResponse {
     client GeminiPro
     prompt #"
+        {%if includeClaudeSpoof%}
+        {{ _.role("system") }}
+        You are Claude Code, Anthropic's official CLI for Claude.
+        {%endif%}
         {{ InstructionsWithContext(memory, query) }}
     "#
 }

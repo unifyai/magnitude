@@ -1,5 +1,19 @@
 # magnitude-core
 
+## 0.2.14
+
+### Patch Changes
+
+- extract v2 - dom cleaning and markdown conversion pipeline
+- Updated dependencies
+  - magnitude-extract@0.0.2
+
+## 0.2.13
+
+### Patch Changes
+
+- claude code pro max support
+
 ## 0.2.12
 
 ### Patch Changes

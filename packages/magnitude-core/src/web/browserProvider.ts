@@ -9,14 +9,19 @@ const DEFAULT_BROWSER_OPTIONS: LaunchOptions = {
     args: ["--disable-gpu", "--disable-blink-features=AutomationControlled"],
 };
 
-export type BrowserOptions = ({ instance: Browser } | { cdp: string } | { launchOptions?: LaunchOptions }) & {
-    contextOptions?: BrowserContextOptions;
-};
+export type BrowserOptions = { instance: Browser; contextOptions?: BrowserContextOptions; }
+    | { cdp: string; contextOptions?: BrowserContextOptions; }
+    | { launchOptions?: LaunchOptions; contextOptions?: BrowserContextOptions; }
+    | { context: BrowserContext };
 
 interface ActiveBrowser {
     // either a browser still being launched or already resolved and ready
     browserPromise: Promise<Browser>;
     activeContextsCount: number;
+}
+
+const DEFAULT_BROWSER_CONTEXT_OPTIONS: BrowserContextOptions = {
+    viewport: { width: 1024, height: 768 },
 }
 
 export class BrowserProvider {
@@ -76,12 +81,14 @@ export class BrowserProvider {
     public async _createAndTrackContext(options: BrowserOptions): Promise<BrowserContext> {
         const activeBrowserEntry = await this._launchOrReuseBrowser('launchOptions' in options ? options.launchOptions! : {});
         const browser = await activeBrowserEntry.browserPromise;
-        // FROM HERE
-        const context = await browser.newContext(options.contextOptions);
+        
+        const contextOptions = 'contextOptions' in options ? options.contextOptions : undefined;
+
+        const context = await browser.newContext(contextOptions);
 
         // Get viewport dimensions from context options or use defaults
-        const viewport = options.contextOptions?.viewport || { width: 1024, height: 768 };
-        const deviceScaleFactor = options.contextOptions?.deviceScaleFactor || 1;
+        const viewport = contextOptions?.viewport || { width: 1024, height: 768 };
+        const deviceScaleFactor = contextOptions?.deviceScaleFactor || 1;
 
         // Apply emulation settings to any new pages created
         context.on('page', async (page) => {
@@ -101,6 +108,23 @@ export class BrowserProvider {
     }
 
     public async newContext(options?: BrowserOptions): Promise<BrowserContext> {
+        if (options && 'context' in options) {
+            // Context directly provided, we don't need to manage it
+            return options.context;
+        }
+
+        const dpr = process.env.DEVICE_PIXEL_RATIO ?
+            parseInt(process.env.DEVICE_PIXEL_RATIO) :
+            process.platform === 'darwin' ? 2 : 1;
+        
+        const contextOptions = {
+            ...DEFAULT_BROWSER_CONTEXT_OPTIONS,
+            deviceScaleFactor: dpr,
+            ...(options && 'contextOptions' in options && options.contextOptions ? options.contextOptions : {})//options.browser?.contextOptions
+        };
+
+        options = { ...options, contextOptions };
+
         if (process.env.MAGNTIUDE_PLAYGROUND) {
             // this.logger.trace("MAGNITUDE_PLAYGROUND environment detected, connecting to browser via CDP");
             // Playground environment - force use CDP on 9222
@@ -116,31 +140,24 @@ export class BrowserProvider {
                 ]
             };
             // Overwrite any launch options, instance, or cdp configuration with playground launch options
-            // Passthrough context options (?)
+            // Ignore context options (?)
             options = {
-                launchOptions: playgroundLaunchOptions,
-                contextOptions: options?.contextOptions,
+                launchOptions: playgroundLaunchOptions
             };
         }
-
-        if (options) {
-            if ('cdp' in options) {
-                const browser = await chromium.connectOverCDP(options.cdp);
-                return browser.newContext(options.contextOptions);
-            } else if ('instance' in options) {
-                return await options.instance.newContext(options.contextOptions);
-            } else if ('launchOptions' in options) {
-                this.logger.trace('Creating context with custom launch options');
-                return await this._createAndTrackContext(options);
-            } else {
-                // contextOptions might be passed but no instance | cdp | launchOptions
-                this.logger.trace('Creating context for default browser options');
-                return await this._createAndTrackContext(options);
-            }
+        
+        if ('cdp' in options) {
+            const browser = await chromium.connectOverCDP(options.cdp);
+            return browser.newContext(options.contextOptions);
+        } else if ('instance' in options) {
+            return await options.instance.newContext(options.contextOptions);
+        } else if ('launchOptions' in options) {
+            this.logger.trace('Creating context with custom launch options');
+            return await this._createAndTrackContext(options);
         } else {
-            // No options provided at all
+            // contextOptions might be passed but no instance | cdp | launchOptions
             this.logger.trace('Creating context for default browser options');
-            return await this._createAndTrackContext({});
+            return await this._createAndTrackContext(options);
         }
     }
 

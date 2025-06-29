@@ -8,6 +8,7 @@ import { bold, blueBright, gray, cyanBright } from "ansis";
 import { intro, outro, spinner, log, text, select, confirm, isCancel, multiselect } from '@clack/prompts';
 import { VERSION } from "./version";
 import cuid2 from '@paralleldrive/cuid2';
+import { completeClaudeCodeAuthFlow, getValidClaudeCodeAccessToken } from "./claudeCode";
 
 const createId = cuid2.init({ length: 12 });
 
@@ -27,8 +28,8 @@ const title = String.raw`
 interface ProjectInfo {
     projectName: string;
     model: 'claude' | 'qwen',
-    provider: 'anthropic' | 'openrouter',
-    apiKey: string,
+    provider: 'anthropic' | 'claude-code' | 'openrouter',
+    apiKey?: string,
     assistant: 'cursor' | 'claudecode' | 'cline' | 'gemini' | 'windsurf' | 'none',
     //assistants: ('cursor' | 'claudecode' | 'cline' | 'windsurf')[]
     // assistants: {
@@ -84,7 +85,7 @@ async function establishProjectInfo(info: Partial<ProjectInfo>): Promise<Project
         }
     }
 
-    let provider: 'anthropic' | 'openrouter' | undefined;
+    let provider: 'anthropic' | 'claude-code' | 'openrouter' | undefined;
     let apiKey: string | undefined;
 
     if (model === 'claude') {
@@ -92,35 +93,50 @@ async function establishProjectInfo(info: Partial<ProjectInfo>): Promise<Project
         // if (process.env.ANTHROPIC_API_KEY) {
         //     await confirm({ message: 'Detected an ANTHROPIC_API_KEY. Use that?' });
         // }
-        if (process.env.ANTHROPIC_API_KEY) {
-            log.info(gray`Detected ANTHROPIC_API_KEY, using that`);
-            provider = 'anthropic';
-            apiKey = process.env.ANTHROPIC_API_KEY
-        }
-        else if (process.env.OPENROUTER_API_KEY) {
-            let useOpenRouter = await confirm({ message: 'Detected OPENROUTER_API_KEY, use Claude via OpenRouter?' });
-            if (isCancel(useOpenRouter)) {
-                useOpenRouter = false;
+        if (await getValidClaudeCodeAccessToken()) {
+            log.info(gray`Detected Claude Pro or Max subscription`);
+            provider = 'claude-code';
+        } else {
+            let useClaudeCode = await confirm({ message: 'Do you have a Claude Pro or Max subscription?' });
+            if (isCancel(useClaudeCode)) {
+                useClaudeCode = false;
             }
-            if (useOpenRouter) {
-                provider = 'openrouter';
-                apiKey = process.env.OPENROUTER_API_KEY
-            }
-        }
-        if (!provider) {
-            provider = 'anthropic';
-            const key = await text({
-                message: 'Please provide a valid ANTHROPIC_API_KEY',
-                placeholder: 'sk-ant-...',
-                validate(value) {
-                    if (value.trim().length === 0) return "API key cannot be empty";
+            if (useClaudeCode) {
+                await completeClaudeCodeAuthFlow();
+                provider = 'claude-code';
+            } else {
+                // no pro/max sub
+                if (process.env.ANTHROPIC_API_KEY) {
+                    log.info(gray`Detected ANTHROPIC_API_KEY, using that`);
+                    provider = 'anthropic';
+                    apiKey = process.env.ANTHROPIC_API_KEY
                 }
-            });
-            if (isCancel(key)) {
-                log.warn("Come back soon!");
-                process.exit(0);
+                else if (process.env.OPENROUTER_API_KEY) {
+                    let useOpenRouter = await confirm({ message: 'Detected OPENROUTER_API_KEY, use Claude via OpenRouter?' });
+                    if (isCancel(useOpenRouter)) {
+                        useOpenRouter = false;
+                    }
+                    if (useOpenRouter) {
+                        provider = 'openrouter';
+                        apiKey = process.env.OPENROUTER_API_KEY
+                    }
+                }
+                if (!provider) {
+                    provider = 'anthropic';
+                    const key = await text({
+                        message: 'Please provide a valid ANTHROPIC_API_KEY',
+                        placeholder: 'sk-ant-...',
+                        validate(value) {
+                            if (value.trim().length === 0) return "API key cannot be empty";
+                        }
+                    });
+                    if (isCancel(key)) {
+                        log.warn("Come back soon!");
+                        process.exit(0);
+                    }
+                    apiKey = key;
+                }
             }
-            apiKey = key;
         }
     } else {
         if (process.env.OPENROUTER_API_KEY) {
@@ -159,10 +175,11 @@ async function establishProjectInfo(info: Partial<ProjectInfo>): Promise<Project
     });
 
     if (isCancel(assistant)) {
-        assistant = 'none';
+        log.warn("Come back soon!");
+        process.exit(0);
     }
 
-    return { projectName, model, provider, apiKey: apiKey!, assistant };
+    return { projectName, model, provider, apiKey, assistant };
 }
 
 async function createProject(tempDir: string, projectDir: string, project: ProjectInfo) {
@@ -231,7 +248,7 @@ async function createProject(tempDir: string, projectDir: string, project: Proje
                 apiKey: process.env.ANTHROPIC_API_KEY
             }
         },`;
-    } else {
+    } else if (project.provider === 'openrouter') {
         const model = project.model === 'claude' ? 'anthropic/claude-sonnet-4' : 'qwen/qwen2.5-vl-72b-instruct';
         clientSnippet = `llm: {
             provider: 'openai-generic',
@@ -241,6 +258,15 @@ async function createProject(tempDir: string, projectDir: string, project: Proje
                 apiKey: process.env.OPENROUTER_API_KEY
             }
         },`;
+    } else {
+        // claude code
+        const model = 'claude-sonnet-4-20250514';
+        clientSnippet = `llm: {
+            provider: 'claude-code',
+            options: {
+                model: '${model}'
+            }
+        },`;
     }
     // Replace code
     const code = fs.readFileSync(path.join(tempDir, 'src', 'index.ts'), 'utf-8')
@@ -248,7 +274,15 @@ async function createProject(tempDir: string, projectDir: string, project: Proje
     fs.writeFileSync(path.join(tempDir, 'src', 'index.ts'), newCode);
 
     // Configure .env with API key
-    fs.writeFileSync(path.join(tempDir, '.env'), project.provider === 'anthropic' ? `ANTHROPIC_API_KEY=${project.apiKey}\n` : `OPENROUTER_API_KEY=${project.apiKey}\n`);
+    if (project.apiKey) {
+        if (project.provider === 'anthropic') {
+            fs.writeFileSync(path.join(tempDir, '.env'), `ANTHROPIC_API_KEY=${project.apiKey}\n`);
+        }
+        else if (project.provider === 'openrouter') {
+             fs.writeFileSync(path.join(tempDir, '.env'), `OPENROUTER_API_KEY=${project.apiKey}\n`);
+        }
+    }
+    
 
     // Finally, copy to project dir
     fs.copySync(tempDir, projectDir);

@@ -63,49 +63,10 @@ export class BrowserConnector implements AgentConnector {
 
     async onStart(): Promise<void> {
         this.logger.info("Starting...");
-
-        const dpr = process.env.DEVICE_PIXEL_RATIO ?
-            parseInt(process.env.DEVICE_PIXEL_RATIO) :
-            process.platform === 'darwin' ? 2 : 1;
-        
-        const browserContextOptions: BrowserContextOptions = {
-            viewport: { width: 1024, height: 768 },
-            deviceScaleFactor: dpr,
-            ...this.options.browser?.contextOptions
-        };
-
-        const browserOptions = this.options.browser;
         
         this.logger.info("Creating new browser context.");
 
-        this.context = await BrowserProvider.getInstance().newContext({
-            ...browserOptions,
-            contextOptions: browserContextOptions
-        });
-        // if (browserOptions) {
-        //     //let browserInstance: Browser;
-        //     if ('instance' in browserOptions) {
-        //         //browserInstance = browserOptions.instance;
-        //         this.context = await browserOptions.instance.newContext(browserContextOptions);
-        //     } else {
-        //         // todo: launch browser via browserprovider with these launch options
-        //     }
-        // } else {
-        //     //browserInstance = await BrowserProvider.getInstance();
-        //     this.context = await BrowserProvider.getInstance().newContext(browserContextOptions);
-        //     this.logger.info("Using singleton browser provider.");
-        // }
-        //browserOptions.instance
-        
-        //let browserInstance = this.options.browser?.instance;
-        
-        
-        // if (browserInstance) {
-        //     this.context = await browserInstance.newContext(browserContextOptions)
-        // } else {
-        //     this.context = await BrowserProvider.getInstance().newContext(browserContextOptions);
-        //     this.logger.info("Using singleton browser provider.");
-        // }
+        this.context = await BrowserProvider.getInstance().newContext(this.options.browser);
         
         this.harness = new WebHarness(this.context, {
             virtualScreenDimensions: this.options.virtualScreenDimensions

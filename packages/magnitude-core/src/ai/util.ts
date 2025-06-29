@@ -1,6 +1,7 @@
 import { GroundingClient, type LLMClient } from '@/ai/types';
 import { Agent, AgentOptions } from "@/agent";
 import { BrowserConnector, BrowserConnectorOptions } from "@/connectors/browserConnector";
+import { completeClaudeCodeAuthFlow } from './claudeCode';
 
 function cleanNestedObject(obj: object): object {
     // Remove null/undefined key values entirely
@@ -16,7 +17,7 @@ function cleanNestedObject(obj: object): object {
     );
 }
 
-export function convertToBamlClientOptions(client: LLMClient): Record<string, any> {
+export async function convertToBamlClientOptions(client: LLMClient): Promise<Record<string, any>> {
     // extract options compatible with https://docs.boundaryml.com/ref/llm-client-providers/overview
 
     // Default to temperature 0.0
@@ -25,11 +26,27 @@ export function convertToBamlClientOptions(client: LLMClient): Record<string, an
         (client.options.temperature ?? 0.0) : 0.0;
 
     let options: object;
-    if (client.provider === 'anthropic') {
+    if (client.provider === 'claude-code') {
+        // Special case - oauth with claude code max anthropic account
+        const oauthToken = await completeClaudeCodeAuthFlow();
+        options = {
+            model: client.options.model,
+            temperature: temp,
+            headers: {
+                'Authorization': `Bearer ${oauthToken}`,
+                'anthropic-beta': 'oauth-2025-04-20',
+                // Overrides this header from being automatically derived from ANTHROPIC_API_KEY
+                'X-API-Key': ''
+            }
+        };
+    } else if (client.provider === 'anthropic') {
         options = {
             api_key: client.options.apiKey,
             model: client.options.model,
             temperature: temp,
+            // headers: {
+            //     'X-API-Key': ''//'something-invalid'
+            // }
         };
     } else if (client.provider === 'aws-bedrock') {
         options = {
@@ -71,7 +88,11 @@ export function convertToBamlClientOptions(client: LLMClient): Record<string, an
             api_key: client.options.apiKey,
             model: client.options.model,
             temperature: temp,
-            headers: client.options.headers
+            headers: {
+                "HTTP-Referer": "https://magnitude.run",
+                "X-Title": "Magnitude",
+                ...client.options.headers
+            }
         };
     } else if (client.provider === 'azure-openai') {
         options = {

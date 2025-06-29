@@ -1,5 +1,11 @@
 # create-magnitude-app
 
+## 0.0.6
+
+### Patch Changes
+
+- claude code pro max support
+
 ## 0.0.4
 
 ### Patch Changes

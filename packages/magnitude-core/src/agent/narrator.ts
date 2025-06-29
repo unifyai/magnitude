@@ -18,18 +18,26 @@ export function narrateAgent(agent: Agent) {
     });
 
     agent.events.on('start', () => {
-        console.log(bold(blueBright(`▶ [start] agent started`)));
+        console.log(bold(blueBright(`▶ [start] agent started with ${agent.model.describeModel()}`)));
     });
 
     agent.events.on('stop', () => {
         console.log(bold(blueBright(`■ [stop] agent stopped`)));
 
-        // Show token usage and cost if available
+        console.log(`  Total usage: ` + bold`${totalInputTokens}` + ` input tokens` + ` / ` + bold`${totalOutputTokens}` + ` output tokens`);
         if (totalInputTokenCost > 0 || totalOutputTokenCost > 0) {
-            console.log(`  Total usage: ` + bold`${totalInputTokens}` + ` input tokens (` + `$${totalInputTokenCost.toFixed(3)}` + `)` + ` / ` + bold`${totalOutputTokens}` + ` output tokens (` + `$${totalOutputTokenCost.toFixed(3)}` + `)`);
-        } else {
-            console.log(`  Total usage: ` + bold`${totalInputTokens}` + ` input tokens` + ` / ` + bold`${totalOutputTokens}` + ` output tokens`);
+            if (agent.model.describeModel().startsWith('claude-code')) {
+                console.log(`  Cost: ` + cyanBright`None - using Claude Pro or Max subscription`)
+            } else {
+                console.log(`  Cost: $${(totalInputTokenCost + totalOutputTokenCost).toFixed(3)}`);
+            }
         }
+        // Show token usage and cost if available
+        // if (totalInputTokenCost > 0 || totalOutputTokenCost > 0) {
+        //     console.log(`  Total usage: ` + bold`${totalInputTokens}` + ` input tokens (` + `$${totalInputTokenCost.toFixed(3)}` + `)` + ` / ` + bold`${totalOutputTokens}` + ` output tokens (` + `$${totalOutputTokenCost.toFixed(3)}` + `)`);
+        // } else {
+        //     console.log(`  Total usage: ` + bold`${totalInputTokens}` + ` input tokens` + ` / ` + bold`${totalOutputTokens}` + ` output tokens`);
+        // }
     });
 
     agent.events.on('thought', (thought: string) => {

@@ -4,7 +4,7 @@
 // }
 
 // Approximately mirrors https://docs.boundaryml.com/ref/llm-client-providers
-export type LLMClient = AnthropicClient | BedrockClient | GoogleAIClient | GoogleVertexClient | OpenAIClient | OpenAIGenericClient | AzureOpenAIClient;
+export type LLMClient = AnthropicClient | ClaudeCodeClient | BedrockClient | GoogleAIClient | GoogleVertexClient | OpenAIClient | OpenAIGenericClient | AzureOpenAIClient;
 export type GroundingClient = MoondreamClient;
 
 export interface AnthropicClient {
@@ -12,6 +12,15 @@ export interface AnthropicClient {
     options: {
         model: string,
         apiKey?: string,
+        temperature?: number
+    }   
+}
+
+export interface ClaudeCodeClient {
+    // Claude code pro or max plan
+    provider: 'claude-code',
+    options: {
+        model: string,
         temperature?: number
     }   
 }

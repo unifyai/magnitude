@@ -106,7 +106,7 @@
         ]
     },
     "search": {
-        "prompt": "Search or ask...."
+        "prompt": "Search or ask..."
     },
     "seo": {
         "indexing": "all"

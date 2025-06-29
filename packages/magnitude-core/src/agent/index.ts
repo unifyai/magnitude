@@ -111,6 +111,10 @@ export class Agent {
         // Register telemetry if enabled - do on start instead of cons to prevent weird subclass event issues
         if (this.options.telemetry) telemetrifyAgent(this);
 
+        //console.log('setting up model')
+        await this.model.setup();
+        //console.log('done setting up model')
+
         logger.info("Agent: Starting connectors...");
         for (const connector of this.connectors) {
             if (connector.onStart) await connector.onStart(); 
