@@ -68,6 +68,7 @@ async function evalTask(taskId: string) {
 
     const agent = new Agent();
     await agent.memory.loadJSON(memJson);//.load(memoryPath);
+    // TODO: Implement eval
     const summary = await agent.query('Summarize what happened during this task', z.string());
     console.log(summary);
     //agent.query('pass fail')
@@ -93,7 +94,7 @@ async function runTask(taskToRun: Task | string) {
 
     const agent = await startBrowserAgent({
         llm: {
-            provider: 'anthropic',
+            provider: 'claude-code',
             options: {
                 model: 'claude-sonnet-4-20250514',
             }
