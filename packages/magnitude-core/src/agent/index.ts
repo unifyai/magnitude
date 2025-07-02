@@ -284,6 +284,11 @@ export class Agent {
                     description,
                     this.actions 
                 ));
+                if (actions.length === 0) {
+                    // Empty action list behavior - default wait else ... err? what if not in action space?
+                    //actions.push()
+                    throw new AgentError(`No actions generated`);
+                }
             } catch (error: unknown) {
                 logger.error(`Agent: Error creating partial recipe: ${error instanceof Error ? error.message : String(error)}`);
                 /**
@@ -331,6 +336,8 @@ export class Agent {
     }
 
     async query<T extends z.Schema>(query: string, schema: T): Promise<z.infer<T>> {
+        // Record observations in case no act() was used beforehand
+        await this._recordConnectorObservations(this.latestTaskMemory);
         const memoryContext = await this.memory.buildContext(this.connectors);
         return await this.model.query(memoryContext, query, schema);
     }

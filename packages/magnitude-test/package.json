@@ -1,6 +1,6 @@
 {
   "name": "magnitude-test",
-  "version": "0.2.16",
+  "version": "0.2.17",
   "description": "A TypeScript client for running automated UI tests through the Magnitude testing platform",
   "publishConfig": {
     "access": "public"
@@ -36,7 +36,6 @@
   "scripts": {
     "build": "tsc && pkgroll",
     "check": "tsc --noEmit",
-    "prepare": "bun run build",
     "cli": "bun src/cli.ts",
     "cli-bin": "bun dist/cli.js",
     "pubdev": "bun run build && yalc publish --force --push"
@@ -73,7 +72,7 @@
     "esbuild": "^0.25.1",
     "glob": "^11.0.1",
     "log-update": "^6.1.0",
-    "magnitude-core": "0.2.15",
+    "magnitude-core": "workspace:^",
     "pino": "^9.6.0",
     "pino-pretty": "^13.0.0",
     "playwright": "^1.51.0",

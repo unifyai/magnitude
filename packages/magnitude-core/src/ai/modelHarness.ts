@@ -156,7 +156,7 @@ export class ModelHarness {
     ): Promise<{ reasoning: string, actions: Action[] }> {
         const tb = new TypeBuilder();
 
-        tb.PartialRecipe.addProperty('actions', tb.list(convertActionDefinitionsToBaml(tb, actionVocabulary)));
+        tb.PartialRecipe.addProperty('actions', tb.list(convertActionDefinitionsToBaml(tb, actionVocabulary))).description('Always provide at least one action');
 
         const start = Date.now();
         // Assuming this.baml.CreatePartialRecipe is now typed to accept ModularMemoryContext

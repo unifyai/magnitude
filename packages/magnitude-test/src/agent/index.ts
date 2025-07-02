@@ -53,10 +53,7 @@ export class TestCaseAgent extends BrowserAgent {
         const instructions = CHECK_INSTRUCTIONS + `\n<check>${description}</check>`;
 
         this.checkEvents.emit('checkStarted', description);
-
-        // this kind of access is a bit jank (?)
-        await this._recordConnectorObservations(this.latestTaskMemory);
-
+    
         const response = await this.query(instructions, z.object({
             reasoning: z.string(),
             passed: z.boolean()

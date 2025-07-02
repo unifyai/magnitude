@@ -67,8 +67,9 @@ template_string InstructionsWithContext(memory: ModularMemoryContext, instructio
     {{ ctx.output_format }}
 
     {{ _.role("user") }}
-
+    <observations>
     {{ RenderContent(memory.observationContent) }}
+    </observations>
 "# 
 
 template_string TaskInstructions(task: string) #"

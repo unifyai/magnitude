@@ -1,5 +1,11 @@
 # magnitude-core
 
+## 0.2.16
+
+### Patch Changes
+
+- wait action, instruct no empty actions, workaround baml role bug
+
 ## 0.2.14
 
 ### Patch Changes
