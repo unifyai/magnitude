@@ -70,7 +70,7 @@ export function findConfig(searchRoot: string): string | null {
     try {
         // Use glob to find the first magnitude.config.ts file
         // Excluding node_modules and dist directories
-        const configFiles = glob.sync('**/magnitude.config.ts', {
+        const configFiles = glob.sync('**/magnitude.config.{js,ts}', {
             cwd: searchRoot,
             ignore: ['**/node_modules/**', '**/dist/**'],
             absolute: true
