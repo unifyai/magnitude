@@ -33,478 +33,485 @@ You should elaborate on how you arrived at your final evaluation and then provid
 `;
 
 interface Task {
-    web_name: string;
-    id: string;
-    ques: string;
-    web: string;
+  web_name: string;
+  id: string;
+  ques: string;
+  web: string;
 }
 
 async function findTaskById(
-    filePath: string,
-    taskId: string,
+  filePath: string,
+  taskId: string,
 ): Promise<Task | null> {
-    const fileStream = fs.createReadStream(filePath);
-    const rl = readline.createInterface({
-        input: fileStream,
-        crlfDelay: Infinity,
-    });
+  const fileStream = fs.createReadStream(filePath);
+  const rl = readline.createInterface({
+    input: fileStream,
+    crlfDelay: Infinity,
+  });
 
-    for await (const line of rl) {
-        try {
-            const task: Task = JSON.parse(line);
-            if (task.id === taskId) {
-                return task;
-            }
-        } catch (error) {
-            console.error("Error parsing JSON line:", error);
-        }
+  for await (const line of rl) {
+    try {
+      const task: Task = JSON.parse(line);
+      if (task.id === taskId) {
+        return task;
+      }
+    } catch (error) {
+      console.error("Error parsing JSON line:", error);
     }
-    return null;
+  }
+  return null;
 }
 
 async function getAllTasks(
-    filePath: string,
-    category?: string,
+  filePath: string,
+  category?: string,
 ): Promise<Task[]> {
-    const tasks: Task[] = [];
-    const fileStream = fs.createReadStream(filePath);
-    const rl = readline.createInterface({
-        input: fileStream,
-        crlfDelay: Infinity,
-    });
+  const tasks: Task[] = [];
+  const fileStream = fs.createReadStream(filePath);
+  const rl = readline.createInterface({
+    input: fileStream,
+    crlfDelay: Infinity,
+  });
 
-    for await (const line of rl) {
-        try {
-            const task: Task = JSON.parse(line);
-            if (!category || task.web_name === category) {
-                tasks.push(task);
-            }
-        } catch (error) {
-            console.error("Error parsing JSON line:", error);
-        }
+  for await (const line of rl) {
+    try {
+      const task: Task = JSON.parse(line);
+      if (!category || task.web_name === category) {
+        tasks.push(task);
+      }
+    } catch (error) {
+      console.error("Error parsing JSON line:", error);
     }
-    return tasks;
+  }
+  return tasks;
 }
 
 async function evalTask(taskId: string) {
-    const task = (await findTaskById(TASKS_PATH, taskId))!;
+  const task = (await findTaskById(TASKS_PATH, taskId))!;
 
-    const memoryPath = path.join("results", `${task.id}.json`);
-    const memJson = JSON.parse(fs.readFileSync(memoryPath, "utf-8")).memory;
+  const memoryPath = path.join("results", `${task.id}.json`);
+  const memJson = JSON.parse(fs.readFileSync(memoryPath, "utf-8")).memory;
 
-    const agent = new Agent({
-        llm: {
-            provider: "claude-code",
-            options: {
-                model: "claude-sonnet-4-20250514",
-            },
-        },
-    });
-    await agent.start();
-    await agent.memory.loadJSON(memJson); //.load(memoryPath);
+  const agent = new Agent({
+    llm: {
+      provider: "claude-code",
+      options: {
+        model: "claude-sonnet-4-20250514",
+      },
+    },
+  });
+  await agent.start();
+  await agent.memory.loadJSON(memJson); //.load(memoryPath);
 
-    // TODO: Implement eval
-    const evalResult = await agent.query(
-        EVALUATION_PROMPT,
-        z.object({
-            reasoning: z.string(),
-            result: z.enum(["SUCCESS", "NOT SUCCESS"]),
-        }),
-    );
-    console.log(evalResult);
+  // TODO: Implement eval
+  const evalResult = await agent.query(
+    EVALUATION_PROMPT,
+    z.object({
+      reasoning: z.string(),
+      result: z.enum(["SUCCESS", "NOT SUCCESS"]),
+    }),
+  );
+  console.log(evalResult);
 
-    const evalPath = path.join("results", `${task.id}.eval.json`);
-    fs.writeFileSync(evalPath, JSON.stringify(evalResult, null, 4));
-    //agent.query('pass fail')
+  const evalPath = path.join("results", `${task.id}.eval.json`);
+  fs.writeFileSync(evalPath, JSON.stringify(evalResult, null, 4));
+  //agent.query('pass fail')
 }
 
 async function findUnevaluatedTasks(): Promise<string[]> {
-    const unevaluatedTasks: string[] = [];
+  const unevaluatedTasks: string[] = [];
 
-    // Check if results directory exists
-    if (!fs.existsSync("results")) {
-        return unevaluatedTasks;
-    }
-
-    // Get all result files
-    const files = fs.readdirSync("results");
-    const resultFiles = files.filter(
-        (f) => f.endsWith(".json") && !f.endsWith(".eval.json"),
-    );
-
-    for (const resultFile of resultFiles) {
-        const taskId = resultFile.replace(".json", "");
-        const evalPath = path.join("results", `${taskId}.eval.json`);
-
-        // Check if eval file exists
-        if (!fs.existsSync(evalPath)) {
-            unevaluatedTasks.push(taskId);
-        }
-    }
-
+  // Check if results directory exists
+  if (!fs.existsSync("results")) {
     return unevaluatedTasks;
+  }
+
+  // Get all result files
+  const files = fs.readdirSync("results");
+  const resultFiles = files.filter(
+    (f) => f.endsWith(".json") && !f.endsWith(".eval.json"),
+  );
+
+  for (const resultFile of resultFiles) {
+    const taskId = resultFile.replace(".json", "");
+    const evalPath = path.join("results", `${taskId}.eval.json`);
+
+    // Check if eval file exists
+    if (!fs.existsSync(evalPath)) {
+      unevaluatedTasks.push(taskId);
+    }
+  }
+
+  return unevaluatedTasks;
 }
 
 async function evalAllUnevaluated(workers: number = 1) {
-    const unevaluatedTasks = await findUnevaluatedTasks();
+  const unevaluatedTasks = await findUnevaluatedTasks();
 
-    if (unevaluatedTasks.length === 0) {
-        console.log("No unevaluated tasks found.");
-        return;
+  if (unevaluatedTasks.length === 0) {
+    console.log("No unevaluated tasks found.");
+    return;
+  }
+
+  console.log(
+    `Found ${unevaluatedTasks.length} unevaluated task${unevaluatedTasks.length !== 1 ? "s" : ""}`,
+  );
+
+  if (workers === 1) {
+    // Evaluate tasks one at a time
+    for (let i = 0; i < unevaluatedTasks.length; i++) {
+      const taskId = unevaluatedTasks[i];
+      console.log(
+        `\n[${i + 1}/${unevaluatedTasks.length}] Evaluating task: ${taskId}`,
+      );
+      try {
+        await evalTask(taskId);
+      } catch (error) {
+        console.error(`Error evaluating task ${taskId}:`, error);
+      }
+    }
+  } else {
+    // Evaluate tasks in parallel with worker pool
+    let taskIndex = 0;
+    let completedTasks = 0;
+
+    const runWorker = async (workerId: number) => {
+      while (taskIndex < unevaluatedTasks.length) {
+        const currentIndex = taskIndex++;
+        const taskId = unevaluatedTasks[currentIndex];
+
+        console.log(
+          `\n[Worker ${workerId}] Starting evaluation ${currentIndex + 1}/${unevaluatedTasks.length}: ${taskId}`,
+        );
+
+        try {
+          await evalTask(taskId);
+          completedTasks++;
+          console.log(
+            `\n[Worker ${workerId}] Completed evaluation ${currentIndex + 1}/${unevaluatedTasks.length}: ${taskId} (${completedTasks} total completed)`,
+          );
+        } catch (error) {
+          console.error(
+            `\n[Worker ${workerId}] Error evaluating task ${taskId}:`,
+            error,
+          );
+          completedTasks++;
+        }
+      }
+    };
+
+    // Start all workers
+    const workerPromises: Promise<void>[] = [];
+    for (let i = 0; i < workers; i++) {
+      workerPromises.push(runWorker(i + 1));
     }
 
-    console.log(
-        `Found ${unevaluatedTasks.length} unevaluated task${unevaluatedTasks.length !== 1 ? "s" : ""}`,
-    );
+    // Wait for all workers to complete
+    await Promise.all(workerPromises);
+  }
 
-    if (workers === 1) {
-        // Evaluate tasks one at a time
-        for (let i = 0; i < unevaluatedTasks.length; i++) {
-            const taskId = unevaluatedTasks[i];
-            console.log(
-                `\n[${i + 1}/${unevaluatedTasks.length}] Evaluating task: ${taskId}`,
-            );
-            try {
-                await evalTask(taskId);
-            } catch (error) {
-                console.error(`Error evaluating task ${taskId}:`, error);
-            }
-        }
-    } else {
-        // Evaluate tasks in parallel with worker pool
-        let taskIndex = 0;
-        let completedTasks = 0;
-
-        const runWorker = async (workerId: number) => {
-            while (taskIndex < unevaluatedTasks.length) {
-                const currentIndex = taskIndex++;
-                const taskId = unevaluatedTasks[currentIndex];
-
-                console.log(
-                    `\n[Worker ${workerId}] Starting evaluation ${currentIndex + 1}/${unevaluatedTasks.length}: ${taskId}`,
-                );
-
-                try {
-                    await evalTask(taskId);
-                    completedTasks++;
-                    console.log(
-                        `\n[Worker ${workerId}] Completed evaluation ${currentIndex + 1}/${unevaluatedTasks.length}: ${taskId} (${completedTasks} total completed)`,
-                    );
-                } catch (error) {
-                    console.error(
-                        `\n[Worker ${workerId}] Error evaluating task ${taskId}:`,
-                        error,
-                    );
-                    completedTasks++;
-                }
-            }
-        };
-
-        // Start all workers
-        const workerPromises: Promise<void>[] = [];
-        for (let i = 0; i < workers; i++) {
-            workerPromises.push(runWorker(i + 1));
-        }
-
-        // Wait for all workers to complete
-        await Promise.all(workerPromises);
-    }
-
-    console.log(
-        `\nCompleted evaluation of ${unevaluatedTasks.length} task${unevaluatedTasks.length !== 1 ? "s" : ""}`,
-    );
+  console.log(
+    `\nCompleted evaluation of ${unevaluatedTasks.length} task${unevaluatedTasks.length !== 1 ? "s" : ""}`,
+  );
 }
 
 async function runTask(taskToRun: Task | string) {
-    let task: Task | null = null;
+  let task: Task | null = null;
 
-    if (typeof taskToRun === "string") {
-        task = await findTaskById(TASKS_PATH, taskToRun);
-    } else {
-        task = taskToRun;
-    }
+  if (typeof taskToRun === "string") {
+    task = await findTaskById(TASKS_PATH, taskToRun);
+  } else {
+    task = taskToRun;
+  }
 
-    if (!task) {
-        const id = typeof taskToRun === "string" ? taskToRun : taskToRun.id;
-        console.error(`Task with ID "${id}" not found in ${TASKS_PATH}.`);
-        return;
-    }
+  if (!task) {
+    const id = typeof taskToRun === "string" ? taskToRun : taskToRun.id;
+    console.error(`Task with ID "${id}" not found in ${TASKS_PATH}.`);
+    return;
+  }
 
-    console.log(`Running task: ${task.id} - ${task.ques}`);
-    console.log(`URL: ${task.web}`);
+  console.log(`Running task: ${task.id} - ${task.ques}`);
+  console.log(`URL: ${task.web}`);
 
-    const agent = await startBrowserAgent({
-        llm: {
-            provider: "claude-code",
-            options: {
-                model: "claude-sonnet-4-20250514",
-            },
+  const agent = await startBrowserAgent({
+    llm: {
+      provider: "claude-code",
+      options: {
+        model: "claude-sonnet-4-20250514",
+      },
+    },
+    url: task.web,
+    actions: [
+      // Instead of typical task actions, have an answer action
+      createAction({
+        name: "answer",
+        description: "Give final answer",
+        schema: z.string(),
+        resolver: async ({ input, agent }) => {
+          console.log("ANSWER GIVEN:", input);
+          await agent.queueDone();
         },
-        url: task.web,
-        actions: [
-            // Instead of typical task actions, have an answer action
-            createAction({
-                name: "answer",
-                description: "Give final answer",
-                schema: z.string(),
-                resolver: async ({ input, agent }) => {
-                    console.log("ANSWER GIVEN:", input);
-                    await agent.queueDone();
-                },
-            }),
-        ],
-        narrate: true,
-    });
+      }),
+    ],
+    narrate: true,
+  });
 
-    let startTime = Date.now();
+  let startTime = Date.now();
 
-    let totalInputTokens = 0;
-    let totalOutputTokens = 0;
-    let totalInputCost = 0.0;
-    let totalOutputCost = 0.0;
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
+  let totalInputCost = 0.0;
+  let totalOutputCost = 0.0;
 
-    agent.events.on("tokensUsed", async (usage) => {
-        totalInputTokens += usage.inputTokens;
-        totalOutputTokens += usage.outputTokens;
-        totalInputCost += usage.inputCost ?? 0.0;
-        totalOutputCost += usage.inputCost ?? 0.0;
-    });
+  agent.events.on("tokensUsed", async (usage) => {
+    totalInputTokens += usage.inputTokens;
+    totalOutputTokens += usage.outputTokens;
+    totalInputCost += usage.inputCost ?? 0.0;
+    totalOutputCost += usage.inputCost ?? 0.0;
+  });
 
-    let actionCount = 0;
-    agent.events.on("actionDone", async () => {
-        const memory = await agent.memory.toJSON();
-        //console.log('Memory:', memory);
-        actionCount += 1;
+  let actionCount = 0;
+  agent.events.on("actionDone", async () => {
+    const memory = await agent.memory.toJSON();
+    //console.log('Memory:', memory);
+    actionCount += 1;
 
-        fs.writeFileSync(
-            path.join("results", `${task.id}.json`),
-            JSON.stringify(
-                {
-                    time: Date.now() - startTime,
-                    actionCount,
-                    totalInputTokens,
-                    totalOutputTokens,
-                    totalInputCost,
-                    totalOutputCost,
-                    memory,
-                },
-                null,
-                4,
-            ),
-        );
-    });
+    fs.writeFileSync(
+      path.join("results", `${task.id}.json`),
+      JSON.stringify(
+        {
+          time: Date.now() - startTime,
+          actionCount,
+          totalInputTokens,
+          totalOutputTokens,
+          totalInputCost,
+          totalOutputCost,
+          memory,
+        },
+        null,
+        4,
+      ),
+    );
+  });
 
-    await agent.act(task.ques);
+  await agent.act(task.ques);
 
-    await agent.stop();
+  await agent.stop();
 
-    // const memory = await agent.memory.toJSON();
-    // console.log('Memory:', memory);
+  // const memory = await agent.memory.toJSON();
+  // console.log('Memory:', memory);
 
-    // fs.writeFileSync(path.join('results', task.id), memory);
+  // fs.writeFileSync(path.join('results', task.id), memory);
 
-    console.log(`Finished task: ${task.id}`);
+  console.log(`Finished task: ${task.id}`);
 }
 
 async function listCategories() {
-    console.log("Available categories:");
-    const allTasks = await getAllTasks(TASKS_PATH);
-    const categories = new Map<string, number>();
+  console.log("Available categories:");
+  const allTasks = await getAllTasks(TASKS_PATH);
+  const categories = new Map<string, number>();
 
-    for (const task of allTasks) {
-        categories.set(task.web_name, (categories.get(task.web_name) || 0) + 1);
-    }
+  for (const task of allTasks) {
+    categories.set(task.web_name, (categories.get(task.web_name) || 0) + 1);
+  }
 
-    // Keep original order from Map insertion
-    for (const [category, count] of categories) {
-        console.log(`  ${category}: ${count} tasks`);
-    }
+  // Keep original order from Map insertion
+  for (const [category, count] of categories) {
+    console.log(`  ${category}: ${count} tasks`);
+  }
 }
 
 async function runRandomTask() {
-    console.log("Running a random task...");
-    const allTasks = await getAllTasks(TASKS_PATH);
-    if (allTasks.length === 0) {
-        console.error(`No tasks found in ${TASKS_PATH}. Cannot run a random task.`);
-        return;
-    }
-    const randomIndex = Math.floor(Math.random() * allTasks.length);
-    const randomTask = allTasks[randomIndex];
-    await runTask(randomTask);
+  console.log("Running a random task...");
+  const allTasks = await getAllTasks(TASKS_PATH);
+  if (allTasks.length === 0) {
+    console.error(`No tasks found in ${TASKS_PATH}. Cannot run a random task.`);
+    return;
+  }
+  const randomIndex = Math.floor(Math.random() * allTasks.length);
+  const randomTask = allTasks[randomIndex];
+  await runTask(randomTask);
 }
 
 async function runTasksByCategory(category: string, workers: number = 1) {
-    const categoryTasks = await getAllTasks(TASKS_PATH, category);
+  const categoryTasks = await getAllTasks(TASKS_PATH, category);
 
-    if (categoryTasks.length === 0) {
-        console.error(`No tasks found for category: ${category}`);
-        return;
-    }
+  if (categoryTasks.length === 0) {
+    console.error(`No tasks found for category: ${category}`);
+    return;
+  }
 
-    p.intro(`Found ${categoryTasks.length} tasks in category: ${category}`);
+  p.intro(`Found ${categoryTasks.length} tasks in category: ${category}`);
 
-    const mode = await p.select({
-        message: "How would you like to run the tasks?",
-        options: [
-            { value: "all", label: `Run all ${categoryTasks.length} tasks` },
-            { value: "select", label: "Select specific tasks to run" },
-        ],
+  const mode = await p.select({
+    message: "How would you like to run the tasks?",
+    options: [
+      { value: "all", label: `Run all ${categoryTasks.length} tasks` },
+      { value: "select", label: "Select specific tasks to run" },
+    ],
+  });
+
+  if (p.isCancel(mode)) {
+    p.cancel("Operation cancelled");
+    return;
+  }
+
+  let tasksToRun: Task[] = [];
+
+  if (mode === "all") {
+    tasksToRun = categoryTasks;
+  } else {
+    const selectedIds = await p.multiselect({
+      message: "Select tasks to run:",
+      options: categoryTasks.map((task) => ({
+        value: task.id,
+        label: `${task.id}: ${task.ques.substring(0, 80)}${task.ques.length > 80 ? "..." : ""}`,
+      })),
+      required: true,
     });
 
-    if (p.isCancel(mode)) {
-        p.cancel("Operation cancelled");
-        return;
+    if (p.isCancel(selectedIds)) {
+      p.cancel("Operation cancelled");
+      return;
     }
 
-    let tasksToRun: Task[] = [];
+    tasksToRun = categoryTasks.filter((task) =>
+      (selectedIds as string[]).includes(task.id),
+    );
+  }
 
-    if (mode === "all") {
-        tasksToRun = categoryTasks;
-    } else {
-        const selectedIds = await p.multiselect({
-            message: "Select tasks to run:",
-            options: categoryTasks.map((task) => ({
-                value: task.id,
-                label: `${task.id}: ${task.ques.substring(0, 80)}${task.ques.length > 80 ? "..." : ""}`,
-            })),
-            required: true,
-        });
+  p.outro(
+    `Running ${tasksToRun.length} task${tasksToRun.length !== 1 ? "s" : ""} with ${workers} worker${workers !== 1 ? "s" : ""}`,
+  );
 
-        if (p.isCancel(selectedIds)) {
-            p.cancel("Operation cancelled");
-            return;
-        }
+  if (workers === 1) {
+    // Run tasks one at a time
+    for (let i = 0; i < tasksToRun.length; i++) {
+      const task = tasksToRun[i];
+      console.log(`\n[${i + 1}/${tasksToRun.length}] Running task: ${task.id}`);
+      await runTask(task);
+    }
+  } else {
+    // Run tasks in parallel with worker pool
+    let taskIndex = 0;
+    let completedTasks = 0;
 
-        tasksToRun = categoryTasks.filter((task) =>
-            (selectedIds as string[]).includes(task.id),
+    const runWorker = async (workerId: number) => {
+      while (taskIndex < tasksToRun.length) {
+        const currentIndex = taskIndex++;
+        const task = tasksToRun[currentIndex];
+
+        console.log(
+          `\n[Worker ${workerId}] Starting task ${currentIndex + 1}/${tasksToRun.length}: ${task.id}`,
         );
+
+        try {
+          await runTask(task);
+          completedTasks++;
+          console.log(
+            `\n[Worker ${workerId}] Completed task ${currentIndex + 1}/${tasksToRun.length}: ${task.id} (${completedTasks} total completed)`,
+          );
+        } catch (error) {
+          console.error(
+            `\n[Worker ${workerId}] Error in task ${task.id}:`,
+            error,
+          );
+          completedTasks++;
+        }
+      }
+    };
+
+    // Start all workers
+    const workerPromises: Promise<void>[] = [];
+    for (let i = 0; i < workers; i++) {
+      workerPromises.push(runWorker(i + 1));
     }
 
-    p.outro(
-        `Running ${tasksToRun.length} task${tasksToRun.length !== 1 ? "s" : ""} with ${workers} worker${workers !== 1 ? "s" : ""}`,
-    );
+    // Wait for all workers to complete
+    await Promise.all(workerPromises);
+  }
 
-    if (workers === 1) {
-        // Run tasks one at a time
-        for (let i = 0; i < tasksToRun.length; i++) {
-            const task = tasksToRun[i];
-            console.log(`\n[${i + 1}/${tasksToRun.length}] Running task: ${task.id}`);
-            await runTask(task);
-        }
-    } else {
-        // Run tasks in parallel with worker pool
-        let taskIndex = 0;
-        let completedTasks = 0;
-
-        const runWorker = async (workerId: number) => {
-            while (taskIndex < tasksToRun.length) {
-                const currentIndex = taskIndex++;
-                const task = tasksToRun[currentIndex];
-
-                console.log(
-                    `\n[Worker ${workerId}] Starting task ${currentIndex + 1}/${tasksToRun.length}: ${task.id}`,
-                );
-
-                try {
-                    await runTask(task);
-                    completedTasks++;
-                    console.log(
-                        `\n[Worker ${workerId}] Completed task ${currentIndex + 1}/${tasksToRun.length}: ${task.id} (${completedTasks} total completed)`,
-                    );
-                } catch (error) {
-                    console.error(
-                        `\n[Worker ${workerId}] Error in task ${task.id}:`,
-                        error,
-                    );
-                    completedTasks++;
-                }
-            }
-        };
-
-        // Start all workers
-        const workerPromises: Promise<void>[] = [];
-        for (let i = 0; i < workers; i++) {
-            workerPromises.push(runWorker(i + 1));
-        }
-
-        // Wait for all workers to complete
-        await Promise.all(workerPromises);
-    }
-
-    console.log(
-        `\nCompleted ${tasksToRun.length} task${tasksToRun.length !== 1 ? "s" : ""} in category ${category}`,
-    );
+  console.log(
+    `\nCompleted ${tasksToRun.length} task${tasksToRun.length !== 1 ? "s" : ""} in category ${category}`,
+  );
 }
 
 const program = new Command();
 
 program
-    .command("category [name]")
-    .description("Run all tasks in a specific category")
-    .option("-w, --workers <number>", "Number of parallel workers", "1")
-    .action(async (name: string | undefined, options: { workers: string }) => {
-        let category = name;
+  .command("category [name]")
+  .description("Run all tasks in a specific category")
+  .option("-w, --workers <number>", "Number of parallel workers", "1")
+  .action(async (name: string | undefined, options: { workers: string }) => {
+    let category = name;
 
-        if (!category) {
-            // Get all categories first
-            const allTasks = await getAllTasks(TASKS_PATH);
-            const categories = new Map<string, number>();
+    if (!category) {
+      // Get all categories first
+      const allTasks = await getAllTasks(TASKS_PATH);
+      const categories = new Map<string, number>();
 
-            for (const task of allTasks) {
-                categories.set(task.web_name, (categories.get(task.web_name) || 0) + 1);
-            }
+      for (const task of allTasks) {
+        categories.set(task.web_name, (categories.get(task.web_name) || 0) + 1);
+      }
 
-            const categoryOptions = Array.from(categories.entries()).map(
-                ([cat, count]) => ({
-                    value: cat,
-                    label: `${cat} (${count} tasks)`,
-                }),
-            );
+      const categoryOptions = Array.from(categories.entries()).map(
+        ([cat, count]) => ({
+          value: cat,
+          label: `${cat} (${count} tasks)`,
+        }),
+      );
 
-            const selected = await p.select({
-                message: "Select a category:",
-                options: categoryOptions,
-            });
+      const selected = await p.select({
+        message: "Select a category:",
+        options: categoryOptions,
+      });
 
-            if (p.isCancel(selected)) {
-                p.cancel("Operation cancelled");
-                return;
-            }
+      if (p.isCancel(selected)) {
+        p.cancel("Operation cancelled");
+        return;
+      }
 
-            category = selected as string;
-        }
+      category = selected as string;
+    }
 
-        await runTasksByCategory(category, parseInt(options.workers));
-    });
-
-program
-    .command("list")
-    .description("List all available categories")
-    .action(async () => {
-        await listCategories();
-    });
+    await runTasksByCategory(category, parseInt(options.workers));
+  });
 
 program
-    .command("eval [taskId]")
-    .description("Evaluate tasks that have been run")
-    .option("-w, --workers <number>", "Number of parallel workers", "1")
-    .option("--all", "Evaluate all tasks with results but no eval")
-    .action(
-        async (
-            taskId: string | undefined,
-            options: { workers: string; all: boolean },
-        ) => {
-            const workers = parseInt(options.workers);
+  .command("list")
+  .description("List all available categories")
+  .action(async () => {
+    await listCategories();
+  });
 
-            if (options.all) {
-                await evalAllUnevaluated(workers);
-            } else if (taskId) {
-                await evalTask(taskId);
-            } else {
-                console.error("Please provide a task ID or use --all flag");
-            }
-        },
-    );
+program
+  .command("run <taskId>")
+  .description("Run a specific task by ID")
+  .action(async (taskId: string) => {
+    await runTask(taskId);
+  });
+
+program
+  .command("eval [taskId]")
+  .description("Evaluate tasks that have been run")
+  .option("-w, --workers <number>", "Number of parallel workers", "1")
+  .option("--all", "Evaluate all tasks with results but no eval")
+  .action(
+    async (
+      taskId: string | undefined,
+      options: { workers: string; all: boolean },
+    ) => {
+      const workers = parseInt(options.workers);
+
+      if (options.all) {
+        await evalAllUnevaluated(workers);
+      } else if (taskId) {
+        await evalTask(taskId);
+      } else {
+        console.error("Please provide a task ID or use --all flag");
+      }
+    },
+  );
 
 // Default action when no command is provided
 // program
