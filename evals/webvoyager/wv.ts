@@ -12,6 +12,26 @@ import { Agent } from '../../packages/magnitude-core/src/agent';
 
 const TASKS_PATH = path.join(__dirname, 'data', 'patchedTasks.jsonl');
 
+// src: https://github.com/MinorJerry/WebVoyager/blob/main/evaluation/auto_eval.py
+const EVALUATION_PROMPT=`
+As an evaluator, you will be presented with three primary components to assist you in your role:
+
+1. Web Task Instruction: This is a clear and specific directive provided in natural language, detailing the online activity to be carried out. These requirements may include conducting searches, verifying information, comparing prices, checking availability, or any other action relevant to the specified web service (such as Amazon, Apple, ArXiv, BBC News, Booking etc).
+
+2. Result Screenshots: This is a visual representation of the screen showing the result or intermediate state of performing a web task. It serves as visual proof of the actions taken in response to the instruction.
+
+3. Result Response: This is a textual response obtained after the execution of the web task. It serves as textual result in response to the instruction.
+
+-- You DO NOT NEED to interact with web pages or perform actions such as booking flights or conducting searches on websites.
+-- You SHOULD NOT make assumptions based on information not presented in the screenshot when comparing it to the instructions.
+-- Your primary responsibility is to conduct a thorough assessment of the web task instruction against the outcome depicted in the screenshot and in the response, evaluating whether the actions taken align with the given instructions.
+-- NOTE that the instruction may involve more than one task, for example, locating the garage and summarizing the review. Failing to complete either task, such as not providing a summary, should be considered unsuccessful.
+-- NOTE that the screenshot is authentic, but the response provided by LLM is generated at the end of web browsing, and there may be discrepancies between the text and the screenshots.
+-- Note the difference: 1) Result response may contradict the screenshot, then the content of the screenshot prevails, 2) The content in the Result response is not mentioned on the screenshot, choose to believe the content.
+
+You should elaborate on how you arrived at your final evaluation and then provide a definitive verdict on whether the task has been successfully accomplished, either as 'SUCCESS' or 'NOT SUCCESS'.
+`
+
 interface Task {
     web_name: string;
     id: string;
@@ -66,11 +86,23 @@ async function evalTask(taskId: string) {
     const memoryPath = path.join('results', `${task.id}.json`);
     const memJson = JSON.parse(fs.readFileSync(memoryPath, 'utf-8'));
 
-    const agent = new Agent();
+    const agent = new Agent({
+        llm: {
+            provider: 'claude-code',
+            options: {
+                model: 'claude-sonnet-4-20250514',
+            }
+        },
+    });
+    await agent.start();
     await agent.memory.loadJSON(memJson);//.load(memoryPath);
+    
     // TODO: Implement eval
-    const summary = await agent.query('Summarize what happened during this task', z.string());
-    console.log(summary);
+    const evalResult = await agent.query(EVALUATION_PROMPT, z.object({ reasoning: z.string(), result: z.enum(['SUCCESS', 'NOT SUCCESS']) }));
+    console.log(evalResult);
+
+    const evalPath = path.join('results', `${task.id}.eval.json`);
+    fs.writeFileSync(evalPath, JSON.stringify(evalResult, null, 4));
     //agent.query('pass fail')
 }
 
@@ -115,11 +147,36 @@ async function runTask(taskToRun: Task | string) {
         narrate: true
     });
 
+    let startTime = Date.now();
+
+    let totalInputTokens = 0;
+    let totalOutputTokens = 0;
+    let totalInputCost = 0.0;
+    let totalOutputCost = 0.0;
+
+    agent.events.on('tokensUsed', async (usage) => {
+        totalInputTokens += usage.inputTokens;
+        totalOutputTokens += usage.outputTokens;
+        totalInputCost += usage.inputCost ?? 0.0;
+        totalOutputCost += usage.inputCost ?? 0.0;
+    });
+
+    let actionCount = 0;
     agent.events.on('actionDone', async () => {
         const memory = await agent.memory.toJSON();
         //console.log('Memory:', memory);
+        actionCount += 1;
 
-        fs.writeFileSync(path.join('results', `${task.id}.json`), JSON.stringify(memory, null, 4));
+        fs.writeFileSync(path.join('results', `${task.id}.json`), JSON.stringify({
+            time: Date.now() - startTime,
+            actionCount,
+            totalInputTokens,
+            totalOutputTokens,
+            totalInputCost,
+            totalOutputCost,
+            memory
+        } , null, 4));
+        
     });
 
     await agent.act(task.ques);
