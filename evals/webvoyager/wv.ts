@@ -84,7 +84,7 @@ async function evalTask(taskId: string) {
     const task = (await findTaskById(TASKS_PATH, taskId))!;
 
     const memoryPath = path.join('results', `${task.id}.json`);
-    const memJson = JSON.parse(fs.readFileSync(memoryPath, 'utf-8'));
+    const memJson = JSON.parse(fs.readFileSync(memoryPath, 'utf-8')).memory;
 
     const agent = new Agent({
         llm: {
