@@ -36,7 +36,7 @@ async function getTasksList(): Promise<Response> {
   try {
     const files = await readdir(resultsDir);
     const tasks = files
-      .filter(file => file.endsWith(".json"))
+      .filter(file => file.endsWith(".json") && !file.endsWith(".eval.json"))
       .map(file => file.slice(0, -5)) // Remove .json extension
       .sort();
     
@@ -54,12 +54,27 @@ async function getTasksList(): Promise<Response> {
 async function getTaskData(taskName: string): Promise<Response> {
   try {
     const filePath = join(resultsDir, `${taskName}.json`);
+    const evalFilePath = join(resultsDir, `${taskName}.eval.json`);
+    
     const data = await readFile(filePath, "utf-8");
+    const parsedData = JSON.parse(data);
     
-    // Validate JSON
-    JSON.parse(data);
+    // Try to read evaluation data if it exists
+    let evalData = null;
+    try {
+      const evalContent = await readFile(evalFilePath, "utf-8");
+      evalData = JSON.parse(evalContent);
+    } catch {
+      // Eval file doesn't exist, that's okay
+    }
     
-    return new Response(data, {
+    // Combine task data with eval data
+    const combinedData = {
+      ...parsedData,
+      evaluation: evalData
+    };
+    
+    return new Response(JSON.stringify(combinedData), {
       headers: { "content-type": "application/json" },
     });
   } catch (error: any) {

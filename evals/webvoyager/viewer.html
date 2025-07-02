@@ -124,6 +124,37 @@
             margin-bottom: 20px;
         }
         
+        .evaluation {
+            background-color: #e8f5e9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .evaluation.failed {
+            background-color: #ffebee;
+        }
+        
+        .evaluation-result {
+            font-size: 20px;
+            font-weight: bold;
+            color: #2e7d32;
+            margin-bottom: 10px;
+        }
+        
+        .evaluation.failed .evaluation-result {
+            color: #c62828;
+        }
+        
+        .evaluation-reasoning {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.5);
+            border-radius: 4px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -209,14 +240,25 @@
         }
 
         function displayTaskData() {
-            if (!currentData || !currentData.observations) {
+            if (!currentData || !currentData.memory || !currentData.memory.observations) {
                 document.getElementById('content').innerHTML = 
                     '<div class="error">No observation data found for this task.</div>';
                 return;
             }
 
-            const observations = currentData.observations;
+            const observations = currentData.memory.observations;
             let html = '';
+
+            // Evaluation section
+            if (currentData.evaluation) {
+                const isSuccess = currentData.evaluation.result === 'SUCCESS';
+                html += `<div class="evaluation ${isSuccess ? '' : 'failed'}">`;
+                html += `<div class="evaluation-result">${isSuccess ? '✅ SUCCESS' : '❌ NOT SUCCESS'}</div>`;
+                if (currentData.evaluation.reasoning) {
+                    html += `<div class="evaluation-reasoning">${currentData.evaluation.reasoning}</div>`;
+                }
+                html += '</div>';
+            }
 
             // Stats section
             html += '<div class="stats">';
@@ -226,16 +268,48 @@
                         <div class="stat-label">Total Observations</div>
                      </div>`;
             
-            const firstTime = observations[0]?.timestamp || 0;
-            const lastTime = observations[observations.length - 1]?.timestamp || 0;
-            const duration = lastTime - firstTime;
-            const durationMin = Math.floor(duration / 60000);
-            const durationSec = ((duration % 60000) / 1000).toFixed(1);
+            // Time stats
+            if (currentData.time) {
+                const timeMin = Math.floor(currentData.time / 60000);
+                const timeSec = ((currentData.time % 60000) / 1000).toFixed(1);
+                html += `<div class="stat-item">
+                            <div class="stat-value">${timeMin}m ${timeSec}s</div>
+                            <div class="stat-label">Total Time</div>
+                         </div>`;
+            }
             
-            html += `<div class="stat-item">
-                        <div class="stat-value">${durationMin}m ${durationSec}s</div>
-                        <div class="stat-label">Duration</div>
-                     </div>`;
+            // Action count
+            if (currentData.actionCount !== undefined) {
+                html += `<div class="stat-item">
+                            <div class="stat-value">${currentData.actionCount}</div>
+                            <div class="stat-label">Actions</div>
+                         </div>`;
+            }
+            
+            // Cost stats
+            if (currentData.totalInputCost !== undefined || currentData.totalOutputCost !== undefined) {
+                const totalCost = (currentData.totalInputCost || 0) + (currentData.totalOutputCost || 0);
+                html += `<div class="stat-item">
+                            <div class="stat-value">$${totalCost.toFixed(2)}</div>
+                            <div class="stat-label">Total Cost</div>
+                         </div>`;
+            }
+            
+            // Token stats
+            if (currentData.totalInputTokens !== undefined) {
+                html += `<div class="stat-item">
+                            <div class="stat-value">${currentData.totalInputTokens.toLocaleString()}</div>
+                            <div class="stat-label">Input Tokens</div>
+                         </div>`;
+            }
+            
+            if (currentData.totalOutputTokens !== undefined) {
+                html += `<div class="stat-item">
+                            <div class="stat-value">${currentData.totalOutputTokens.toLocaleString()}</div>
+                            <div class="stat-label">Output Tokens</div>
+                         </div>`;
+            }
+            
             html += '</div></div>';
 
             // Timeline section
