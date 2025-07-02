@@ -321,6 +321,153 @@ async function listCategories() {
   }
 }
 
+async function showStats(verbose: boolean = false) {
+  // Get all eval results
+  const resultsDir = "results";
+  if (!fs.existsSync(resultsDir)) {
+    console.log("No results directory found.");
+    return;
+  }
+
+  const files = fs.readdirSync(resultsDir);
+  const evalFiles = files.filter(f => f.endsWith(".eval.json"));
+
+  if (evalFiles.length === 0) {
+    console.log("No evaluation results found.");
+    return;
+  }
+
+  // Category statistics
+  const categoryStats = new Map<string, {
+    total: number;
+    success: number;
+    totalCost: number;
+    totalActions: number;
+    tasks?: Array<{
+      taskId: string;
+      success: boolean;
+      cost: number;
+      actions: number;
+      time: number;
+    }>;
+  }>();
+
+  // Process each eval file
+  for (const evalFile of evalFiles) {
+    const taskId = evalFile.replace(".eval.json", "");
+    const evalPath = path.join(resultsDir, evalFile);
+    const resultPath = path.join(resultsDir, `${taskId}.json`);
+
+    try {
+      // Read eval result
+      const evalData = JSON.parse(fs.readFileSync(evalPath, "utf-8"));
+      const isSuccess = evalData.result === "SUCCESS";
+
+      // Extract category from task ID (format: Category--number)
+      const category = taskId.split("--")[0];
+
+      // Initialize category stats if needed
+      if (!categoryStats.has(category)) {
+        categoryStats.set(category, {
+          total: 0,
+          success: 0,
+          totalCost: 0,
+          totalActions: 0,
+          tasks: verbose ? [] : undefined,
+        });
+      }
+
+      const stats = categoryStats.get(category)!;
+      stats.total += 1;
+      if (isSuccess) {
+        stats.success += 1;
+      }
+
+      // Read cost and action data from result file
+      let taskCost = 0;
+      let taskActions = 0;
+      let taskTime = 0;
+      
+      if (fs.existsSync(resultPath)) {
+        const resultData = JSON.parse(fs.readFileSync(resultPath, "utf-8"));
+        taskCost = (resultData.totalInputCost || 0) + (resultData.totalOutputCost || 0);
+        taskActions = resultData.actionCount || 0;
+        taskTime = resultData.time || 0;
+        
+        stats.totalCost += taskCost;
+        stats.totalActions += taskActions;
+      }
+
+      // Store individual task data if verbose
+      if (verbose && stats.tasks) {
+        stats.tasks.push({
+          taskId,
+          success: isSuccess,
+          cost: taskCost,
+          actions: taskActions,
+          time: taskTime,
+        });
+      }
+    } catch (error) {
+      console.error(`Error processing ${evalFile}:`, error);
+    }
+  }
+
+  // Display statistics
+  console.log("\n=== Evaluation Statistics by Category ===\n");
+  console.log("Category         | Success Rate      | Avg Cost   | Avg Actions");
+  console.log("-----------------|-------------------|------------|------------");
+
+  let totalTasks = 0;
+  let totalSuccess = 0;
+  let totalCost = 0;
+  let totalActions = 0;
+
+  for (const [category, stats] of categoryStats) {
+    const successRate = (stats.success / stats.total) * 100;
+    const avgCost = stats.totalCost / stats.total;
+    const avgActions = stats.totalActions / stats.total;
+
+    console.log(
+      `${category.padEnd(16)} | ${stats.success}/${stats.total} (${successRate.toFixed(1)}%)`.padEnd(37) +
+      ` | $${avgCost.toFixed(2).padStart(8)} | ${avgActions.toFixed(1).padStart(10)}`
+    );
+
+    // Show individual task details if verbose
+    if (verbose && stats.tasks) {
+      // Sort tasks by ID for consistent display
+      stats.tasks.sort((a, b) => a.taskId.localeCompare(b.taskId));
+      
+      for (const task of stats.tasks) {
+        const timeMin = (task.time / 1000 / 60).toFixed(1);
+        const status = task.success ? "✓" : "✗";
+        console.log(
+          `  ${status} ${task.taskId.padEnd(20)} | Cost: $${task.cost.toFixed(2).padStart(6)} | Actions: ${task.actions.toString().padStart(3)} | Time: ${timeMin.padStart(5)} min`
+        );
+      }
+      console.log(); // Empty line after each category
+    }
+
+    totalTasks += stats.total;
+    totalSuccess += stats.success;
+    totalCost += stats.totalCost;
+    totalActions += stats.totalActions;
+  }
+
+  // Display totals
+  console.log("-----------------|-------------------|------------|------------");
+  const overallSuccessRate = (totalSuccess / totalTasks) * 100;
+  const overallAvgCost = totalCost / totalTasks;
+  const overallAvgActions = totalActions / totalTasks;
+
+  console.log(
+    `${"TOTAL".padEnd(16)} | ${totalSuccess}/${totalTasks} (${overallSuccessRate.toFixed(1)}%)`.padEnd(37) +
+    ` | $${overallAvgCost.toFixed(2).padStart(8)} | ${overallAvgActions.toFixed(1).padStart(10)}`
+  );
+
+  console.log(`\nTotal evaluated tasks: ${totalTasks}`);
+}
+
 async function runRandomTask() {
   console.log("Running a random task...");
   const allTasks = await getAllTasks(TASKS_PATH);
@@ -512,6 +659,14 @@ program
       }
     },
   );
+
+program
+  .command("stats")
+  .description("Show evaluation statistics by category")
+  .option("-v, --verbose", "Show detailed stats for each task")
+  .action(async (options: { verbose?: boolean }) => {
+    await showStats(options.verbose || false);
+  });
 
 // Default action when no command is provided
 // program
