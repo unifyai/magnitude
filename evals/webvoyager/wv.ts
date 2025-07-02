@@ -480,7 +480,7 @@ async function runRandomTask() {
   await runTask(randomTask);
 }
 
-async function runTasksByCategory(category: string, workers: number = 1) {
+async function runTasksByCategory(category: string, workers: number = 1, failedOnly: boolean = false) {
   const categoryTasks = await getAllTasks(TASKS_PATH, category);
 
   if (categoryTasks.length === 0) {
@@ -488,43 +488,73 @@ async function runTasksByCategory(category: string, workers: number = 1) {
     return;
   }
 
-  p.intro(`Found ${categoryTasks.length} tasks in category: ${category}`);
-
-  const mode = await p.select({
-    message: "How would you like to run the tasks?",
-    options: [
-      { value: "all", label: `Run all ${categoryTasks.length} tasks` },
-      { value: "select", label: "Select specific tasks to run" },
-    ],
-  });
-
-  if (p.isCancel(mode)) {
-    p.cancel("Operation cancelled");
-    return;
-  }
-
   let tasksToRun: Task[] = [];
 
-  if (mode === "all") {
-    tasksToRun = categoryTasks;
+  if (failedOnly) {
+    // Filter to only non-successful tasks
+    const nonSuccessfulTasks: Task[] = [];
+    
+    for (const task of categoryTasks) {
+      const evalPath = path.join("results", `${task.id}.eval.json`);
+      let isSuccess = false;
+      
+      try {
+        const evalData = JSON.parse(fs.readFileSync(evalPath, "utf-8"));
+        isSuccess = evalData.result === "SUCCESS";
+      } catch {
+        // No eval file means task hasn't been evaluated, so include it
+        isSuccess = false;
+      }
+      
+      if (!isSuccess) {
+        nonSuccessfulTasks.push(task);
+      }
+    }
+    
+    if (nonSuccessfulTasks.length === 0) {
+      console.log(`All tasks in category ${category} are successful!`);
+      return;
+    }
+    
+    console.log(`Found ${nonSuccessfulTasks.length} non-successful tasks (out of ${categoryTasks.length} total) in category: ${category}`);
+    tasksToRun = nonSuccessfulTasks;
   } else {
-    const selectedIds = await p.multiselect({
-      message: "Select tasks to run:",
-      options: categoryTasks.map((task) => ({
-        value: task.id,
-        label: `${task.id}: ${task.ques.substring(0, 80)}${task.ques.length > 80 ? "..." : ""}`,
-      })),
-      required: true,
+    p.intro(`Found ${categoryTasks.length} tasks in category: ${category}`);
+
+    const mode = await p.select({
+      message: "How would you like to run the tasks?",
+      options: [
+        { value: "all", label: `Run all ${categoryTasks.length} tasks` },
+        { value: "select", label: "Select specific tasks to run" },
+      ],
     });
 
-    if (p.isCancel(selectedIds)) {
+    if (p.isCancel(mode)) {
       p.cancel("Operation cancelled");
       return;
     }
 
-    tasksToRun = categoryTasks.filter((task) =>
-      (selectedIds as string[]).includes(task.id),
-    );
+    if (mode === "all") {
+      tasksToRun = categoryTasks;
+    } else {
+      const selectedIds = await p.multiselect({
+        message: "Select tasks to run:",
+        options: categoryTasks.map((task) => ({
+          value: task.id,
+          label: `${task.id}: ${task.ques.substring(0, 80)}${task.ques.length > 80 ? "..." : ""}`,
+        })),
+        required: true,
+      });
+
+      if (p.isCancel(selectedIds)) {
+        p.cancel("Operation cancelled");
+        return;
+      }
+
+      tasksToRun = categoryTasks.filter((task) =>
+        (selectedIds as string[]).includes(task.id),
+      );
+    }
   }
 
   p.outro(
@@ -666,6 +696,44 @@ program
   .option("-v, --verbose", "Show detailed stats for each task")
   .action(async (options: { verbose?: boolean }) => {
     await showStats(options.verbose || false);
+  });
+
+program
+  .command("rr [category]")
+  .option("-w, --workers <number>", "Number of parallel workers", "1")
+  .action(async (category: string | undefined, options: { workers: string }) => {
+    let selectedCategory = category;
+
+    if (!selectedCategory) {
+      // Get all categories first
+      const allTasks = await getAllTasks(TASKS_PATH);
+      const categories = new Map<string, number>();
+
+      for (const task of allTasks) {
+        categories.set(task.web_name, (categories.get(task.web_name) || 0) + 1);
+      }
+
+      const categoryOptions = Array.from(categories.entries()).map(
+        ([cat, count]) => ({
+          value: cat,
+          label: `${cat} (${count} tasks)`,
+        }),
+      );
+
+      const selected = await p.select({
+        message: "Select a category:",
+        options: categoryOptions,
+      });
+
+      if (p.isCancel(selected)) {
+        p.cancel("Operation cancelled");
+        return;
+      }
+
+      selectedCategory = selected as string;
+    }
+
+    await runTasksByCategory(selectedCategory, parseInt(options.workers), true);
   });
 
 // Default action when no command is provided
