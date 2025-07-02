@@ -118,6 +118,103 @@ async function evalTask(taskId: string) {
     //agent.query('pass fail')
 }
 
+async function findUnevaluatedTasks(): Promise<string[]> {
+    const unevaluatedTasks: string[] = [];
+
+    // Check if results directory exists
+    if (!fs.existsSync("results")) {
+        return unevaluatedTasks;
+    }
+
+    // Get all result files
+    const files = fs.readdirSync("results");
+    const resultFiles = files.filter(
+        (f) => f.endsWith(".json") && !f.endsWith(".eval.json"),
+    );
+
+    for (const resultFile of resultFiles) {
+        const taskId = resultFile.replace(".json", "");
+        const evalPath = path.join("results", `${taskId}.eval.json`);
+
+        // Check if eval file exists
+        if (!fs.existsSync(evalPath)) {
+            unevaluatedTasks.push(taskId);
+        }
+    }
+
+    return unevaluatedTasks;
+}
+
+async function evalAllUnevaluated(workers: number = 1) {
+    const unevaluatedTasks = await findUnevaluatedTasks();
+
+    if (unevaluatedTasks.length === 0) {
+        console.log("No unevaluated tasks found.");
+        return;
+    }
+
+    console.log(
+        `Found ${unevaluatedTasks.length} unevaluated task${unevaluatedTasks.length !== 1 ? "s" : ""}`,
+    );
+
+    if (workers === 1) {
+        // Evaluate tasks one at a time
+        for (let i = 0; i < unevaluatedTasks.length; i++) {
+            const taskId = unevaluatedTasks[i];
+            console.log(
+                `\n[${i + 1}/${unevaluatedTasks.length}] Evaluating task: ${taskId}`,
+            );
+            try {
+                await evalTask(taskId);
+            } catch (error) {
+                console.error(`Error evaluating task ${taskId}:`, error);
+            }
+        }
+    } else {
+        // Evaluate tasks in parallel with worker pool
+        let taskIndex = 0;
+        let completedTasks = 0;
+
+        const runWorker = async (workerId: number) => {
+            while (taskIndex < unevaluatedTasks.length) {
+                const currentIndex = taskIndex++;
+                const taskId = unevaluatedTasks[currentIndex];
+
+                console.log(
+                    `\n[Worker ${workerId}] Starting evaluation ${currentIndex + 1}/${unevaluatedTasks.length}: ${taskId}`,
+                );
+
+                try {
+                    await evalTask(taskId);
+                    completedTasks++;
+                    console.log(
+                        `\n[Worker ${workerId}] Completed evaluation ${currentIndex + 1}/${unevaluatedTasks.length}: ${taskId} (${completedTasks} total completed)`,
+                    );
+                } catch (error) {
+                    console.error(
+                        `\n[Worker ${workerId}] Error evaluating task ${taskId}:`,
+                        error,
+                    );
+                    completedTasks++;
+                }
+            }
+        };
+
+        // Start all workers
+        const workerPromises: Promise<void>[] = [];
+        for (let i = 0; i < workers; i++) {
+            workerPromises.push(runWorker(i + 1));
+        }
+
+        // Wait for all workers to complete
+        await Promise.all(workerPromises);
+    }
+
+    console.log(
+        `\nCompleted evaluation of ${unevaluatedTasks.length} task${unevaluatedTasks.length !== 1 ? "s" : ""}`,
+    );
+}
+
 async function runTask(taskToRun: Task | string) {
     let task: Task | null = null;
 
@@ -388,11 +485,26 @@ program
     });
 
 program
-    .command("eval <taskId>")
+    .command("eval [taskId]")
     .description("Evaluate tasks that have been run")
-    .action(async (taskId: string) => {
-        await evalTask(taskId);
-    });
+    .option("-w, --workers <number>", "Number of parallel workers", "1")
+    .option("--all", "Evaluate all tasks with results but no eval")
+    .action(
+        async (
+            taskId: string | undefined,
+            options: { workers: string; all: boolean },
+        ) => {
+            const workers = parseInt(options.workers);
+
+            if (options.all) {
+                await evalAllUnevaluated(workers);
+            } else if (taskId) {
+                await evalTask(taskId);
+            } else {
+                console.error("Please provide a task ID or use --all flag");
+            }
+        },
+    );
 
 // Default action when no command is provided
 // program
