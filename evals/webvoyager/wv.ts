@@ -230,6 +230,13 @@ async function runTask(taskToRun: Task | string) {
     return;
   }
 
+  // Remove old evaluation file if it exists
+  const evalPath = path.join("results", `${task.id}.eval.json`);
+  if (fs.existsSync(evalPath)) {
+    fs.unlinkSync(evalPath);
+    console.log(`Removed old evaluation file: ${evalPath}`);
+  }
+
   console.log(`Running task: ${task.id} - ${task.ques}`);
   console.log(`URL: ${task.web}`);
 
