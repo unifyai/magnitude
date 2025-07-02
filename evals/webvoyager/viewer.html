@@ -8,13 +8,100 @@
         body {
             font-family: Arial, sans-serif;
             margin: 0;
-            padding: 20px;
+            padding: 0;
             background-color: #f5f5f5;
+            display: flex;
+            height: 100vh;
+        }
+        
+        .sidebar {
+            width: 350px;
+            background-color: white;
+            border-right: 1px solid #ddd;
+            overflow-y: auto;
+            padding: 20px;
+            box-shadow: 2px 0 4px rgba(0,0,0,0.1);
+        }
+        
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
         }
         
         .container {
-            max-width: 1400px;
+            max-width: 1200px;
             margin: 0 auto;
+        }
+        
+        .category {
+            margin-bottom: 20px;
+        }
+        
+        .category-header {
+            font-weight: bold;
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 8px;
+            padding: 5px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .category-header:hover {
+            background-color: #e0e0e0;
+        }
+        
+        .task-item {
+            padding: 8px 12px;
+            margin-bottom: 4px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: background-color 0.2s;
+        }
+        
+        .task-item:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .task-item.selected {
+            background-color: #e3f2fd;
+            font-weight: bold;
+        }
+        
+        .task-id {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .task-status {
+            width: 20px;
+            text-align: center;
+            margin-right: 5px;
+        }
+        
+        .task-meta {
+            display: flex;
+            gap: 10px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .task-meta-item {
+            white-space: nowrap;
+        }
+        
+        .sidebar h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            color: #333;
         }
         
         h1 {
@@ -178,44 +265,134 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>WebVoyager Results Visualizer</h1>
-        
-        <div class="task-selector">
-            <label for="taskSelect">Select Task: </label>
-            <select id="taskSelect">
-                <option value="">Loading tasks...</option>
-            </select>
+    <div class="sidebar">
+        <h2>Tasks</h2>
+        <div id="tasksList">
+            <div class="loading">Loading tasks...</div>
         </div>
-        
-        <div id="content">
-            <div class="loading">Select a task to view results</div>
+    </div>
+    
+    <div class="main-content">
+        <div class="container">
+            <h1>WebVoyager Results Visualizer</h1>
+            
+            <div id="content">
+                <div class="loading">Select a task to view results</div>
+            </div>
         </div>
     </div>
 
     <script>
         let currentData = null;
-        let tasks = [];
+        let categorizedTasks = {};
+        let selectedTask = null;
 
-        async function loadTasks() {
+        async function loadTasksSidebar() {
             try {
-                const response = await fetch('/api/tasks');
-                tasks = await response.json();
+                const response = await fetch('/api/tasks-summary');
+                categorizedTasks = await response.json();
                 
-                const select = document.getElementById('taskSelect');
-                select.innerHTML = '<option value="">Select a task...</option>';
+                const tasksList = document.getElementById('tasksList');
+                tasksList.innerHTML = '';
                 
-                tasks.forEach(task => {
-                    const option = document.createElement('option');
-                    option.value = task;
-                    option.textContent = task;
-                    select.appendChild(option);
-                });
+                // Create category sections
+                for (const [category, tasks] of Object.entries(categorizedTasks)) {
+                    const categoryDiv = document.createElement('div');
+                    categoryDiv.className = 'category';
+                    
+                    const categoryHeader = document.createElement('div');
+                    categoryHeader.className = 'category-header';
+                    const successCount = tasks.filter(t => t.success === true).length;
+                    const totalCount = tasks.length;
+                    categoryHeader.textContent = `${category} (${successCount}/${totalCount})`;
+                    categoryDiv.appendChild(categoryHeader);
+                    
+                    const tasksContainer = document.createElement('div');
+                    
+                    tasks.forEach(task => {
+                        const taskItem = document.createElement('div');
+                        taskItem.className = 'task-item';
+                        taskItem.dataset.taskId = task.id;
+                        
+                        // Status icon
+                        const statusSpan = document.createElement('span');
+                        statusSpan.className = 'task-status';
+                        if (task.success === true) {
+                            statusSpan.textContent = '✓';
+                            statusSpan.style.color = '#4caf50';
+                        } else if (task.success === false) {
+                            statusSpan.textContent = '✗';
+                            statusSpan.style.color = '#f44336';
+                        } else {
+                            statusSpan.textContent = '?';
+                            statusSpan.style.color = '#999';
+                        }
+                        
+                        // Task ID
+                        const idSpan = document.createElement('span');
+                        idSpan.className = 'task-id';
+                        idSpan.textContent = task.id;
+                        
+                        // Meta info
+                        const metaDiv = document.createElement('div');
+                        metaDiv.className = 'task-meta';
+                        
+                        if (task.time) {
+                            const timeSpan = document.createElement('span');
+                            timeSpan.className = 'task-meta-item';
+                            const timeMin = Math.floor(task.time / 60000);
+                            timeSpan.textContent = `${timeMin}m`;
+                            metaDiv.appendChild(timeSpan);
+                        }
+                        
+                        if (task.cost !== undefined) {
+                            const costSpan = document.createElement('span');
+                            costSpan.className = 'task-meta-item';
+                            costSpan.textContent = `$${task.cost.toFixed(2)}`;
+                            metaDiv.appendChild(costSpan);
+                        }
+                        
+                        if (task.tokens) {
+                            const tokensSpan = document.createElement('span');
+                            tokensSpan.className = 'task-meta-item';
+                            const tokensK = Math.round(task.tokens / 1000);
+                            tokensSpan.textContent = `${tokensK}k`;
+                            metaDiv.appendChild(tokensSpan);
+                        }
+                        
+                        taskItem.appendChild(statusSpan);
+                        taskItem.appendChild(idSpan);
+                        taskItem.appendChild(metaDiv);
+                        
+                        taskItem.addEventListener('click', () => selectTask(task.id));
+                        
+                        tasksContainer.appendChild(taskItem);
+                    });
+                    
+                    categoryDiv.appendChild(tasksContainer);
+                    tasksList.appendChild(categoryDiv);
+                    
+                    // Toggle category
+                    categoryHeader.addEventListener('click', () => {
+                        const isHidden = tasksContainer.style.display === 'none';
+                        tasksContainer.style.display = isHidden ? 'block' : 'none';
+                    });
+                }
             } catch (error) {
                 console.error('Error loading tasks:', error);
-                document.getElementById('content').innerHTML = 
-                    '<div class="error">Error loading tasks. Please refresh the page.</div>';
+                document.getElementById('tasksList').innerHTML = 
+                    '<div class="error">Error loading tasks.</div>';
             }
+        }
+        
+        function selectTask(taskId) {
+            // Update selected state
+            document.querySelectorAll('.task-item').forEach(item => {
+                item.classList.toggle('selected', item.dataset.taskId === taskId);
+            });
+            
+            selectedTask = taskId;
+            loadTaskData(taskId);
         }
 
         async function loadTaskData(taskName) {
@@ -370,13 +547,8 @@
             document.getElementById('content').innerHTML = html;
         }
 
-        // Event listeners
-        document.getElementById('taskSelect').addEventListener('change', (e) => {
-            loadTaskData(e.target.value);
-        });
-
         // Load tasks on page load
-        loadTasks();
+        loadTasksSidebar();
     </script>
 </body>
 </html>

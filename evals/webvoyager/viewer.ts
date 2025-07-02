@@ -13,6 +13,8 @@ const server = Bun.serve({
     // API endpoints
     if (path === "/api/tasks") {
       return await getTasksList();
+    } else if (path === "/api/tasks-summary") {
+      return await getTasksSummary();
     } else if (path.startsWith("/api/task/")) {
       const taskName = decodeURIComponent(path.slice(10));
       return await getTaskData(taskName);
@@ -41,6 +43,77 @@ async function getTasksList(): Promise<Response> {
       .sort();
     
     return new Response(JSON.stringify(tasks), {
+      headers: { "content-type": "application/json" },
+    });
+  } catch (error: any) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { "content-type": "application/json" },
+    });
+  }
+}
+
+async function getTasksSummary(): Promise<Response> {
+  try {
+    const files = await readdir(resultsDir);
+    const taskFiles = files.filter(file => file.endsWith(".json") && !file.endsWith(".eval.json"));
+    
+    const categorizedTasks: Record<string, Array<{
+      id: string;
+      success?: boolean;
+      time?: number;
+      cost?: number;
+      tokens?: number;
+      actions?: number;
+    }>> = {};
+    
+    for (const file of taskFiles) {
+      const taskId = file.slice(0, -5);
+      const [category] = taskId.split("--");
+      
+      if (!categorizedTasks[category]) {
+        categorizedTasks[category] = [];
+      }
+      
+      try {
+        // Read task data
+        const taskData = JSON.parse(await readFile(join(resultsDir, file), "utf-8"));
+        
+        // Try to read eval data
+        let evalData = null;
+        try {
+          const evalContent = await readFile(join(resultsDir, `${taskId}.eval.json`), "utf-8");
+          evalData = JSON.parse(evalContent);
+        } catch {
+          // No eval data
+        }
+        
+        categorizedTasks[category].push({
+          id: taskId,
+          success: evalData ? evalData.result === "SUCCESS" : undefined,
+          time: taskData.time,
+          cost: (taskData.totalInputCost || 0) + (taskData.totalOutputCost || 0),
+          tokens: (taskData.totalInputTokens || 0) + (taskData.totalOutputTokens || 0),
+          actions: taskData.actionCount
+        });
+      } catch (error) {
+        console.error(`Error processing ${taskId}:`, error);
+        categorizedTasks[category].push({
+          id: taskId
+        });
+      }
+    }
+    
+    // Sort tasks within each category by numeric suffix
+    for (const category in categorizedTasks) {
+      categorizedTasks[category].sort((a, b) => {
+        const aNum = parseInt(a.id.split("--")[1] || "0");
+        const bNum = parseInt(b.id.split("--")[1] || "0");
+        return aNum - bNum;
+      });
+    }
+    
+    return new Response(JSON.stringify(categorizedTasks), {
       headers: { "content-type": "application/json" },
     });
   } catch (error: any) {
