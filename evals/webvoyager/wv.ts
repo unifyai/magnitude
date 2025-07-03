@@ -245,6 +245,7 @@ async function runTask(taskToRun: Task | string) {
       provider: "claude-code",
       options: {
         model: "claude-sonnet-4-20250514",
+        temperature: 0.5
       },
     },
     url: task.web,
@@ -261,6 +262,7 @@ async function runTask(taskToRun: Task | string) {
       }),
     ],
     narrate: true,
+    prompt: 'Be careful to satisfy the task criteria precisely. If sequences of actions are failing, go one action at at time.'
   });
 
   let startTime = Date.now();

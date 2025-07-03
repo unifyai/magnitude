@@ -29,10 +29,135 @@
         "prev": "Find a well-reviewed hotel in Paris with available bookings suitable for a couple (2 adults) on Valentine's Day week, February 14-21, 2024, that offers free cancellation options.",
         "new": "Find a well-reviewed hotel in Paris with available bookings suitable for a couple (2 adults) on Valentine's Day week, February 14-21, 2026, that offers free cancellation options."
     },
+    "Booking--12": {
+        "reason": "The booking date 'January 5th, 2024' is explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Find a hotel in Paris with a customer review score of 8 or higher, free Wi-Fi, and available for a 5-night stay starting on January 5th, 2024.",
+        "new": "Find a hotel in Paris with a customer review score of 8 or higher, free Wi-Fi, and available for a 5-night stay starting on January 5th, 2026."
+    },
+    "Booking--15": {
+        "reason": "The booking dates 'January 10, 2024, to January 20, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Find the highest-rated luxury hotel in Rome available for booking from January 10, 2024, to January 20, 2024, for 2 adults. Include the cost, amenities offered, and customer rating.",
+        "new": "Find the highest-rated luxury hotel in Rome available for booking from January 10, 2026, to January 20, 2026, for 2 adults. Include the cost, amenities offered, and customer rating."
+    },
+    "Booking--16": {
+        "reason": "The booking date 'January 15, 2024' is explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Look for a hotel in Paris with a user rating of 9 or higher and available for a 5-night stay starting January 15, 2024. The hotel should also offer free Wi-Fi and breakfast included in the price. Provide the name, location, and price per night.",
+        "new": "Look for a hotel in Paris with a user rating of 9 or higher and available for a 5-night stay starting January 15, 2026. The hotel should also offer free Wi-Fi and breakfast included in the price. Provide the name, location, and price per night."
+    },
+    "Booking--17": {
+        "reason": "The booking date 'February 14, 2024' is explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Find a hotel in Paris with a fitness center and a rating of 8 or higher available for a 5-night stay starting from February 14, 2024, and sort the results by best reviewed.",
+        "new": "Find a hotel in Paris with a fitness center and a rating of 8 or higher available for a 5-night stay starting from February 14, 2026, and sort the results by best reviewed."
+    },
+    "Booking--18": {
+        "reason": "The booking dates 'February 14th, 2024, and February 21st, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Search a hotel in London with a user rating of 8 or higher for a stay between February 14th, 2024, and February 21st, 2024, suitable for a couple. Provide the name and a short description of the hotel.",
+        "new": "Search a hotel in London with a user rating of 8 or higher for a stay between February 14th, 2026, and February 21st, 2026, suitable for a couple. Provide the name and a short description of the hotel."
+    },
+    "Booking--19": {
+        "reason": "The booking dates 'March 18, 2024, to March 20, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Look for a hotel with customer ratings above an 8.0 in Paris, France for a weekend stay from March 18, 2024, to March 20, 2024, and list top three suggestions based on user reviews.",
+        "new": "Look for a hotel with customer ratings above an 8.0 in Paris, France for a weekend stay from March 18, 2026, to March 20, 2026, and list top three suggestions based on user reviews."
+    },
+    "Booking--20": {
+        "reason": "The booking dates 'February 28 to March 2, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Locate a hotel in Rome with a good rating (7 or above) that offers free cancellation and breakfast included, for a three-night stay from February 28 to March 2, 2024, for two adults.",
+        "new": "Locate a hotel in Rome with a good rating (7 or above) that offers free cancellation and breakfast included, for a three-night stay from February 28 to March 2, 2026, for two adults."
+    },
+    "Booking--21": {
+        "reason": "The booking date 'March 10, 2024' is explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Find a hotel in Sydney with a rating of 8 or higher, providing free Wi-Fi and parking, available for a four-night stay starting on March 10, 2024.",
+        "new": "Find a hotel in Sydney with a rating of 8 or higher, providing free Wi-Fi and parking, available for a four-night stay starting on March 10, 2026."
+    },
+    "Booking--22": {
+        "reason": "The booking dates 'March 15 to March 22, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Search for a hotel in Amsterdam with a customer review score of 9 or higher, offering bicycle rentals, for a week-long stay from March 15 to March 22, 2024, for two adults.",
+        "new": "Search for a hotel in Amsterdam with a customer review score of 9 or higher, offering bicycle rentals, for a week-long stay from March 15 to March 22, 2026, for two adults."
+    },
+    "Booking--23": {
+        "reason": "The booking date 'February 20, 2024' is explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Identify a hotel in Tokyo with a spa and wellness center, rated 9 or above, with availability for a five-night stay starting on February 20, 2024. Check if free cancellation is offered.",
+        "new": "Identify a hotel in Tokyo with a spa and wellness center, rated 9 or above, with availability for a five-night stay starting on February 20, 2026. Check if free cancellation is offered."
+    },
+    "Booking--24": {
+        "reason": "The booking dates 'February 25-28, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Find a hotel in Barcelona for a stay from February 25-28, 2024. Please sort the results by distance from the beach and make sure they offer free Wi-Fi and breakfast.",
+        "new": "Find a hotel in Barcelona for a stay from February 25-28, 2026. Please sort the results by distance from the beach and make sure they offer free Wi-Fi and breakfast."
+    },
+    "Booking--25": {
+        "reason": "The booking dates 'March 1 to March 7, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Search for a hotel in Lisbon with airport shuttle, rated 8.5 or above, available for a six-night stay from March 1 to March 7, 2024, for two adults, breakfast included.",
+        "new": "Search for a hotel in Lisbon with airport shuttle, rated 8.5 or above, available for a six-night stay from March 1 to March 7, 2026, for two adults, breakfast included."
+    },
+    "Booking--26": {
+        "reason": "The booking dates 'February 20-23, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Check Booking.com for a 3-star hotel or higher in Paris with a guest rating above 8.0 and available parking for dates February 20-23, 2024.",
+        "new": "Check Booking.com for a 3-star hotel or higher in Paris with a guest rating above 8.0 and available parking for dates February 20-23, 2026."
+    },
+    "Booking--27": {
+        "reason": "The booking dates 'February 28 to March 4, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Locate a hotel in Melbourne offering free parking and free WiFi, for a stay from February 28 to March 4, 2024.",
+        "new": "Locate a hotel in Melbourne offering free parking and free WiFi, for a stay from February 28 to March 4, 2026."
+    },
     "Booking--28": {
         "reason": "The booking date 'February 22 to February 29, 2024' is in the past. The year is updated to 2026, and the end date is adjusted to 'February 28' as 2026 is not a leap year, preserving the week-long stay.",
         "prev": "Find a hotel in Dubai with a swimming pool, for a week-long stay from February 22 to February 29, 2024.",
         "new": "Find a hotel in Dubai with a swimming pool, for a week-long stay from February 21 to February 28, 2026."
+    },
+    "Booking--29": {
+        "reason": "The booking dates 'March 5 to March 7, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Search for a hotel in Toronto with a fitness center and a rating of 8+, available for a two-night stay from March 5 to March 7, 2024.",
+        "new": "Search for a hotel in Toronto with a fitness center and a rating of 8+, available for a two-night stay from March 5 to March 7, 2026."
+    },
+    "Booking--30": {
+        "reason": "The booking dates 'March 20 to March 23, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Search for hotels in London from March 20 to March 23, 2024, on Booking. How many hotels are left after applying the Breakfast included and Fitness center filters?",
+        "new": "Search for hotels in London from March 20 to March 23, 2026, on Booking. How many hotels are left after applying the Breakfast included and Fitness center filters?"
+    },
+    "Booking--31": {
+        "reason": "The booking dates 'March 1-7, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Search for hotels in Rio de Janeiro from March 1-7, 2024, check the Brands filter to see which brand has the most hotels and which brand has the fewest.",
+        "new": "Search for hotels in Rio de Janeiro from March 1-7, 2026, check the Brands filter to see which brand has the most hotels and which brand has the fewest."
+    },
+    "Booking--32": {
+        "reason": "The booking dates 'February 24 to February 27, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Look for hotels in Sydney from February 24 to February 27, 2024, on Booking. Once the Swimming Pool and Airport Shuttle filters are applied, what is the total number of hotels available?",
+        "new": "Look for hotels in Sydney from February 24 to February 27, 2026, on Booking. Once the Swimming Pool and Airport Shuttle filters are applied, what is the total number of hotels available?"
+    },
+    "Booking--34": {
+        "reason": "The booking dates 'March 15 to March 18, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Search for a hotel in Berlin available for a three-night stay from March 15 to March 18, 2024, for one adult. Tell me the price in USD and CNY for the three-night stay.",
+        "new": "Search for a hotel in Berlin available for a three-night stay from March 15 to March 18, 2026, for one adult. Tell me the price in USD and CNY for the three-night stay."
+    },
+    "Booking--36": {
+        "reason": "The booking dates 'March 20 to March 23, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Search for a budget hotel in Rome under $100 per night for one adult from March 20 to March 23, 2024. Sort the results by price, identify if any of top three results offer breakfast.",
+        "new": "Search for a budget hotel in Rome under $100 per night for one adult from March 20 to March 23, 2026. Sort the results by price, identify if any of top three results offer breakfast."
+    },
+    "Booking--37": {
+        "reason": "The booking dates 'March 20, 2024, and March 25, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Search for a resort (not hotel) in Bali, detailing the available dates between March 20, 2024, and March 25, 2024, and checking any provided tour or cultural experiences.",
+        "new": "Search for a resort (not hotel) in Bali, detailing the available dates between March 20, 2026, and March 25, 2026, and checking any provided tour or cultural experiences."
+    },
+    "Booking--38": {
+        "reason": "The booking dates 'February 28 to March 4, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Look up Vienna hotel options with availability for a 4-night stay from February 28 to March 4, 2024, with amenities that include a Parking, breakfast included, and a rating of 8+ on Booking.com.",
+        "new": "Look up Vienna hotel options with availability for a 4-night stay from February 28 to March 4, 2026, with amenities that include a Parking, breakfast included, and a rating of 8+ on Booking.com."
+    },
+    "Booking--39": {
+        "reason": "The booking dates 'February 24-26, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Find a pet-friendly hotel with parking available in downtown Toronto for the stay of February 24-26, 2024.",
+        "new": "Find a pet-friendly hotel with parking available in downtown Toronto for the stay of February 24-26, 2026."
+    },
+    "Booking--40": {
+        "reason": "The booking dates '6 March to 8 March 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "I need to choose a hotel in Shenzhen, please select date (6 March to 8 March 2024) and click the search button. How much it costs when convert the price to Chinese Yuan on the page.",
+        "new": "I need to choose a hotel in Shenzhen, please select date (6 March to 8 March 2026) and click the search button. How much it costs when convert the price to Chinese Yuan on the page."
+    },
+    "Booking--42": {
+        "reason": "The booking dates 'March 1 to March 7, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Search for a hotel in Hokkaido for the period March 1 to March 7, 2024, with a rating of 9+, check out its user reviews, which categories are greater than 9 and which are less than 9?",
+        "new": "Search for a hotel in Hokkaido for the period March 1 to March 7, 2026, with a rating of 9+, check out its user reviews, which categories are greater than 9 and which are less than 9?"
     },
     "ESPN--17": {
         "reason": "The '2023-24' season is over. To find current-season information as intended, the season is updated to '2024-25'.",
