@@ -48,6 +48,7 @@ interface RunOptions {
 
 interface EvalOptions {
     workers: string;
+    replace?: boolean;
 }
 
 // Helper functions
@@ -419,7 +420,7 @@ async function evalTask(taskId: string) {
     await agent.memory.loadJSON(memJson);
 
     const evalResult = await agent.query(
-        EVALUATION_PROMPT,
+        EVALUATION_PROMPT + "\n\n" + `TASK: ${task.ques}`,
         z.object({
             reasoning: z.string(),
             result: z.enum(["SUCCESS", "NOT SUCCESS"]),
@@ -613,6 +614,7 @@ program
     .command("eval [input]")
     .description("Evaluate tasks by category or task ID")
     .option("-w, --workers <number>", "Number of parallel workers", "1")
+    .option("--replace", "Re-run evaluations even if they already exist")
     .action(async (input: string | undefined, options: EvalOptions) => {
         const workers = parseInt(options.workers);
         let taskIdsToEval: string[] = [];
@@ -628,10 +630,10 @@ program
                 return;
             }
             
-            // Filter to only tasks that have been run but not evaluated
+            // Filter to tasks that have been run
             for (const task of categoryTasks) {
                 const status = await getTaskStatus(task.id);
-                if (status.hasRun && !status.hasEval) {
+                if (status.hasRun && (options.replace || !status.hasEval)) {
                     taskIdsToEval.push(task.id);
                 }
             }
@@ -644,7 +646,7 @@ program
                 const categoryTasks = await getAllTasks(TASKS_PATH, category);
                 for (const task of categoryTasks) {
                     const status = await getTaskStatus(task.id);
-                    if (status.hasRun && !status.hasEval) {
+                    if (status.hasRun && (options.replace || !status.hasEval)) {
                         taskIdsToEval.push(task.id);
                     }
                 }
