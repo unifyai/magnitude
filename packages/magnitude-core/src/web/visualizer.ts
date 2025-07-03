@@ -150,22 +150,30 @@ export class ActionVisualizer {
     }
 
     async hidePointer(): Promise<void> {
-        await this.page.evaluate((id) => {
-            const element = document.getElementById(id);
-            if (element) {
-                element.style.display = 'none';
-            }
-        }, this.visualElementId);
+        try {
+            await this.page.evaluate((id) => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.style.display = 'none';
+                }
+            }, this.visualElementId);
+        } catch {
+            logger.trace(`Failed to hide pointer`);
+        }
     }
 
     async showPointer(): Promise<void> {
-        await this.page.evaluate((id) => {
-            const element = document.getElementById(id);
-            if (element) {
-                // Revert to the default display value (usually 'block' for a div)
-                element.style.display = ''; 
-            }
-        }, this.visualElementId);
+        try {
+            await this.page.evaluate((id) => {
+                const element = document.getElementById(id);
+                if (element) {
+                    // Revert to the default display value (usually 'block' for a div)
+                    element.style.display = ''; 
+                }
+            }, this.visualElementId);
+        } catch {
+            logger.trace(`Failed to show pointer`);
+        }
     }
 
     // async removeActionVisuals(): Promise<void> {
