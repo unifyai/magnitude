@@ -743,6 +743,108 @@ program
     await runTasksByCategory(selectedCategory, parseInt(options.workers), true);
   });
 
+program
+  .command("batch")
+  .description("Run all tasks in multiple selected categories")
+  .option("-w, --workers <number>", "Number of parallel workers", "1")
+  .action(async (options: { workers: string }) => {
+    const workers = parseInt(options.workers);
+    
+    // Get all categories
+    const allTasks = await getAllTasks(TASKS_PATH);
+    const categories = new Map<string, number>();
+
+    for (const task of allTasks) {
+      categories.set(task.web_name, (categories.get(task.web_name) || 0) + 1);
+    }
+
+    const categoryOptions = Array.from(categories.entries()).map(
+      ([cat, count]) => ({
+        value: cat,
+        label: `${cat} (${count} tasks)`,
+      }),
+    );
+
+    const selectedCategories = await p.multiselect({
+      message: "Select categories to run:",
+      options: categoryOptions,
+      required: true,
+    });
+
+    if (p.isCancel(selectedCategories)) {
+      p.cancel("Operation cancelled");
+      return;
+    }
+
+    const categoriesToRun = selectedCategories as string[];
+    let totalTasks = 0;
+    for (const cat of categoriesToRun) {
+      totalTasks += categories.get(cat) || 0;
+    }
+
+    p.outro(
+      `Running ${totalTasks} tasks across ${categoriesToRun.length} categories with ${workers} worker${workers !== 1 ? "s" : ""}`,
+    );
+
+    // Run tasks from all selected categories
+    const allTasksToRun: Task[] = [];
+    for (const category of categoriesToRun) {
+      const categoryTasks = await getAllTasks(TASKS_PATH, category);
+      allTasksToRun.push(...categoryTasks);
+    }
+
+    if (workers === 1) {
+      // Run tasks one at a time
+      for (let i = 0; i < allTasksToRun.length; i++) {
+        const task = allTasksToRun[i];
+        console.log(`\n[${i + 1}/${allTasksToRun.length}] Running task: ${task.id}`);
+        await runTask(task);
+      }
+    } else {
+      // Run tasks in parallel with worker pool
+      let taskIndex = 0;
+      let completedTasks = 0;
+
+      const runWorker = async (workerId: number) => {
+        while (taskIndex < allTasksToRun.length) {
+          const currentIndex = taskIndex++;
+          const task = allTasksToRun[currentIndex];
+
+          console.log(
+            `\n[Worker ${workerId}] Starting task ${currentIndex + 1}/${allTasksToRun.length}: ${task.id}`,
+          );
+
+          try {
+            await runTask(task);
+            completedTasks++;
+            console.log(
+              `\n[Worker ${workerId}] Completed task ${currentIndex + 1}/${allTasksToRun.length}: ${task.id} (${completedTasks} total completed)`,
+            );
+          } catch (error) {
+            console.error(
+              `\n[Worker ${workerId}] Error in task ${task.id}:`,
+              error,
+            );
+            completedTasks++;
+          }
+        }
+      };
+
+      // Start all workers
+      const workerPromises: Promise<void>[] = [];
+      for (let i = 0; i < workers; i++) {
+        workerPromises.push(runWorker(i + 1));
+      }
+
+      // Wait for all workers to complete
+      await Promise.all(workerPromises);
+    }
+
+    console.log(
+      `\nCompleted ${allTasksToRun.length} tasks across ${categoriesToRun.length} categories`,
+    );
+  });
+
 // Default action when no command is provided
 // program
 //     .action(async () => {
