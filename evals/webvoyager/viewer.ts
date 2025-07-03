@@ -1,8 +1,43 @@
 import { readdir, readFile } from "fs/promises";
 import { join } from "path";
+import * as readline from "readline";
+import * as fs from "fs";
 
 const port = 8000;
 const resultsDir = "./results";
+const TASKS_PATH = join(__dirname, "data", "patchedTasks.jsonl");
+
+interface Task {
+  web_name: string;
+  id: string;
+  ques: string;
+  web: string;
+}
+
+interface EvalData {
+  result: string;
+  reasoning?: string;
+}
+
+async function findTaskById(taskId: string): Promise<Task | null> {
+  const fileStream = fs.createReadStream(TASKS_PATH);
+  const rl = readline.createInterface({
+    input: fileStream,
+    crlfDelay: Infinity,
+  });
+
+  for await (const line of rl) {
+    try {
+      const task: Task = JSON.parse(line);
+      if (task.id === taskId) {
+        return task;
+      }
+    } catch (error) {
+      console.error("Error parsing JSON line:", error);
+    }
+  }
+  return null;
+}
 
 const server = Bun.serve({
   port,
@@ -80,10 +115,10 @@ async function getTasksSummary(): Promise<Response> {
         const taskData = JSON.parse(await readFile(join(resultsDir, file), "utf-8"));
         
         // Try to read eval data
-        let evalData = null;
+        let evalData: EvalData | null = null;
         try {
           const evalContent = await readFile(join(resultsDir, `${taskId}.eval.json`), "utf-8");
-          evalData = JSON.parse(evalContent);
+          evalData = JSON.parse(evalContent) as EvalData;
         } catch {
           // No eval data
         }
@@ -133,18 +168,22 @@ async function getTaskData(taskName: string): Promise<Response> {
     const parsedData = JSON.parse(data);
     
     // Try to read evaluation data if it exists
-    let evalData = null;
+    let evalData: EvalData | null = null;
     try {
       const evalContent = await readFile(evalFilePath, "utf-8");
-      evalData = JSON.parse(evalContent);
+      evalData = JSON.parse(evalContent) as EvalData;
     } catch {
       // Eval file doesn't exist, that's okay
     }
     
-    // Combine task data with eval data
+    // Get task information
+    const task = await findTaskById(taskName);
+    
+    // Combine task data with eval data and task info
     const combinedData = {
       ...parsedData,
-      evaluation: evalData
+      evaluation: evalData,
+      task: task
     };
     
     return new Response(JSON.stringify(combinedData), {
