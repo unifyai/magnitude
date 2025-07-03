@@ -131,6 +131,7 @@ export class ActionVisualizer {
                         document.body.appendChild(pointerElement);
                     }
                     
+                    //pointerElement.style.display = 'none'; 
                     
                     // Update position - adjust coordinates for scroll position so the tip of the pointer is at (x,y) relative to the document
                     // Set the top-left corner to (docX, docY) and then translate by (-1px, -3px)
@@ -146,6 +147,25 @@ export class ActionVisualizer {
             // TypeError: Failed to set the 'innerHTML' property on 'Element': This document requires 'TrustedHTML' assignment.
             logger.trace(`Failed to draw visual: ${(error as Error).message}`);
         }
+    }
+
+    async hidePointer(): Promise<void> {
+        await this.page.evaluate((id) => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.style.display = 'none';
+            }
+        }, this.visualElementId);
+    }
+
+    async showPointer(): Promise<void> {
+        await this.page.evaluate((id) => {
+            const element = document.getElementById(id);
+            if (element) {
+                // Revert to the default display value (usually 'block' for a div)
+                element.style.display = ''; 
+            }
+        }, this.visualElementId);
     }
 
     // async removeActionVisuals(): Promise<void> {

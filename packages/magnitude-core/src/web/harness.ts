@@ -162,23 +162,95 @@ export class WebHarness { // implements StateComponent
         ({ x, y } = this.transformCoordinates({ x, y }));
         // console.log("x:", x);
         // console.log("y:", y);
-        await this.visualizer.visualizeAction(x, y);
-        await this.page.mouse.click(x, y);
+        //await this.visualizer.visualizeAction(x, y);
+        //await this.page.mouse.click(x, y);
+        //await this.page.mouse.move(x, y, { steps: 20 });
+
+        //console.log('clicking:', x, y);
+
+        // const loc = this.page.getByText('Where are you going?');
+
+        // console.log('found:', loc);
+        
+        // await loc.click();
+        await this._click(x, y);
+        
+
+        
+        // await this.page.waitForTimeout(1000);
+        // await this.page.mouse.click(x, y);
+        // await this.page.waitForTimeout(1000);
+        // await this.page.mouse.click(x, y);
+        // await this.page.waitForTimeout(1000);
+        // await this.page.mouse.click(x, y);
+        // await this.page.waitForTimeout(1000);
+        // await this.page.mouse.click(x, y);
+        // await this.page.waitForTimeout(1000);
+
+
+        // await Promise.all([
+        //     this.page.mouse.move(x, y, { steps: 20 }),
+        //     this.visualizer.visualizeAction(x, y),
+        // ]);
+        // await this.page.mouse.down();
+        // await this.page.waitForTimeout(200);
+        // await this.page.mouse.up();
+
+        // await this.page.evaluate(({ x, y }) => {
+        //     // Find the topmost element at the given coordinates
+        //     const targetElement = document.elementFromPoint(x, y);
+
+        //     if (!targetElement) {
+        //         console.error('No element found at coordinates:', x, y);
+        //         return;
+        //     }
+
+        //     // Create and dispatch the events with properties that mimic a real click
+        //     const options = {
+        //         bubbles: true,
+        //         cancelable: true,
+        //         composed: true,
+        //         // We can't set isTrusted, the browser forces it to false
+        //     };
+
+        //     targetElement.dispatchEvent(new MouseEvent('mouseover', options));
+        //     targetElement.dispatchEvent(new MouseEvent('mousedown', options));
+        //     targetElement.dispatchEvent(new MouseEvent('mouseup', options));
+        //     targetElement.dispatchEvent(new MouseEvent('click', options));
+
+        // }, { x, y });
+        
+
+
+
+
         await this.waitForStability();
         //await this.visualizer.removeActionVisuals();
     }
 
+    private async _click(x: number, y: number, options?: {
+        button?: "left" | "right" | "middle";
+        clickCount?: number;
+        delay?: number;
+    }) {
+        await this.visualizer.visualizeAction(x, y);
+        await this.visualizer.hidePointer(); // hide / show pointer because no-pointer is not always consistent and visualizer can block click
+        await this.page.mouse.click(x, y);
+        await this.visualizer.showPointer();
+    }
+
     async rightClick({ x, y }: { x: number, y: number }) {
         ({ x, y } = this.transformCoordinates({ x, y }));
-        await this.visualizer.visualizeAction(x, y);
-        await this.page.mouse.click(x, y, { button: "right" });
+        await this._click(x, y, { button: "right" });
         await this.waitForStability();
     }
 
     async doubleClick({ x, y }: { x: number, y: number }) {
         ({ x, y } = this.transformCoordinates({ x, y }));
         await this.visualizer.visualizeAction(x, y);
+        await this.visualizer.hidePointer();
         await this.page.mouse.dblclick(x, y);
+        await this.visualizer.showPointer();
         await this.waitForStability();
     }
 
@@ -215,7 +287,7 @@ export class WebHarness { // implements StateComponent
         ({ x, y } = this.transformCoordinates({ x, y }));
         //console.log(`Post transform: ${x}, ${y}`);
         await this.visualizer.visualizeAction(x, y);
-        await this.page.mouse.click(x, y);
+        this._click(x, y);
         await this._type(content);
         await this.waitForStability();
     }
