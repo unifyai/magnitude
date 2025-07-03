@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 import { startBrowserAgent } from "../../packages/magnitude-core/src/agent/browserAgent";
-//import { webActions } from '../../packages/magnitude-core/src/actions/webActions';
 import * as fs from "fs";
 import * as readline from "readline";
 import * as path from "path";
@@ -39,6 +38,19 @@ interface Task {
     web: string;
 }
 
+interface RunOptions {
+    workers: string;
+    eval?: boolean;
+    failed?: boolean;
+    failedOnly?: boolean;
+    replace?: boolean;
+}
+
+interface EvalOptions {
+    workers: string;
+}
+
+// Helper functions
 async function findTaskById(
     filePath: string,
     taskId: string,
@@ -86,135 +98,165 @@ async function getAllTasks(
     return tasks;
 }
 
-async function evalTask(taskId: string) {
-    const task = (await findTaskById(TASKS_PATH, taskId))!;
+async function getCategories(): Promise<Map<string, number>> {
+    const allTasks = await getAllTasks(TASKS_PATH);
+    const categories = new Map<string, number>();
 
-    const memoryPath = path.join("results", `${task.id}.json`);
-    const memJson = JSON.parse(fs.readFileSync(memoryPath, "utf-8")).memory;
+    for (const task of allTasks) {
+        categories.set(task.web_name, (categories.get(task.web_name) || 0) + 1);
+    }
 
-    const agent = new Agent({
-        llm: {
-            provider: "claude-code",
-            options: {
-                model: "claude-sonnet-4-20250514",
-            },
-        },
+    return categories;
+}
+
+function isTaskId(input: string): boolean {
+    // Task IDs have format "Category--number"
+    return input.includes("--");
+}
+
+async function selectCategories(): Promise<string[] | null> {
+    const categories = await getCategories();
+    
+    // Calculate total tasks
+    let totalTasks = 0;
+    for (const [_, count] of categories) {
+        totalTasks += count;
+    }
+    
+    // First ask: all or specific
+    const mode = await p.select({
+        message: "Which categories would you like to run?",
+        options: [
+            { value: "all", label: `All Categories (${totalTasks} tasks total)` },
+            { value: "specific", label: "Select specific categories" },
+        ],
     });
-    await agent.start();
-    await agent.memory.loadJSON(memJson); //.load(memoryPath);
 
-    // TODO: Implement eval
-    const evalResult = await agent.query(
-        EVALUATION_PROMPT,
-        z.object({
-            reasoning: z.string(),
-            result: z.enum(["SUCCESS", "NOT SUCCESS"]),
+    if (p.isCancel(mode)) {
+        p.cancel("Operation cancelled");
+        return null;
+    }
+
+    if (mode === "all") {
+        return Array.from(categories.keys());
+    }
+
+    // User chose specific - show multiselect
+    const categoryOptions = Array.from(categories.entries()).map(
+        ([cat, count]) => ({
+            value: cat,
+            label: `${cat} (${count} tasks)`,
         }),
     );
-    console.log(evalResult);
 
-    const evalPath = path.join("results", `${task.id}.eval.json`);
-    fs.writeFileSync(evalPath, JSON.stringify(evalResult, null, 4));
-    //agent.query('pass fail')
-}
+    const selected = await p.multiselect({
+        message: "Select categories:",
+        options: categoryOptions,
+        required: true,
+    });
 
-async function findUnevaluatedTasks(): Promise<string[]> {
-    const unevaluatedTasks: string[] = [];
-
-    // Check if results directory exists
-    if (!fs.existsSync("results")) {
-        return unevaluatedTasks;
+    if (p.isCancel(selected)) {
+        p.cancel("Operation cancelled");
+        return null;
     }
 
-    // Get all result files
-    const files = fs.readdirSync("results");
-    const resultFiles = files.filter(
-        (f) => f.endsWith(".json") && !f.endsWith(".eval.json"),
+    return selected as string[];
+}
+
+async function selectTasksFromCategory(category: string): Promise<Task[] | null> {
+    const categoryTasks = await getAllTasks(TASKS_PATH, category);
+
+    const mode = await p.select({
+        message: `Found ${categoryTasks.length} tasks in ${category}. How would you like to proceed?`,
+        options: [
+            { value: "all", label: `Run all ${categoryTasks.length} tasks` },
+            { value: "select", label: "Select specific tasks" },
+        ],
+    });
+
+    if (p.isCancel(mode)) {
+        p.cancel("Operation cancelled");
+        return null;
+    }
+
+    if (mode === "all") {
+        return categoryTasks;
+    }
+
+    const selectedIds = await p.multiselect({
+        message: "Select tasks to run:",
+        options: categoryTasks.map((task) => ({
+            value: task.id,
+            label: `${task.id}: ${task.ques.substring(0, 80)}${task.ques.length > 80 ? "..." : ""}`,
+        })),
+        required: true,
+    });
+
+    if (p.isCancel(selectedIds)) {
+        p.cancel("Operation cancelled");
+        return null;
+    }
+
+    return categoryTasks.filter((task) =>
+        (selectedIds as string[]).includes(task.id),
     );
+}
 
-    for (const resultFile of resultFiles) {
-        const taskId = resultFile.replace(".json", "");
-        const evalPath = path.join("results", `${taskId}.eval.json`);
+async function getTaskStatus(taskId: string): Promise<{
+    hasRun: boolean;
+    hasEval: boolean;
+    isSuccess: boolean;
+}> {
+    const resultPath = path.join("results", `${taskId}.json`);
+    const evalPath = path.join("results", `${taskId}.eval.json`);
+    
+    const hasRun = fs.existsSync(resultPath);
+    const hasEval = fs.existsSync(evalPath);
+    let isSuccess = false;
 
-        // Check if eval file exists
-        if (!fs.existsSync(evalPath)) {
-            unevaluatedTasks.push(taskId);
+    if (hasEval) {
+        try {
+            const evalData = JSON.parse(fs.readFileSync(evalPath, "utf-8"));
+            isSuccess = evalData.result === "SUCCESS";
+        } catch {
+            // Error reading eval
         }
     }
 
-    return unevaluatedTasks;
+    return { hasRun, hasEval, isSuccess };
 }
 
-async function evalAllUnevaluated(workers: number = 1) {
-    const unevaluatedTasks = await findUnevaluatedTasks();
+async function filterTasksByOptions(tasks: Task[], options: RunOptions): Promise<Task[]> {
+    const filteredTasks: Task[] = [];
 
-    if (unevaluatedTasks.length === 0) {
-        console.log("No unevaluated tasks found.");
-        return;
-    }
+    for (const task of tasks) {
+        const status = await getTaskStatus(task.id);
 
-    console.log(
-        `Found ${unevaluatedTasks.length} unevaluated task${unevaluatedTasks.length !== 1 ? "s" : ""}`,
-    );
-
-    if (workers === 1) {
-        // Evaluate tasks one at a time
-        for (let i = 0; i < unevaluatedTasks.length; i++) {
-            const taskId = unevaluatedTasks[i];
-            console.log(
-                `\n[${i + 1}/${unevaluatedTasks.length}] Evaluating task: ${taskId}`,
-            );
-            try {
-                await evalTask(taskId);
-            } catch (error) {
-                console.error(`Error evaluating task ${taskId}:`, error);
+        if (options.replace) {
+            // Run all tasks regardless of status
+            filteredTasks.push(task);
+        } else if (options.failedOnly) {
+            // Only run failed tasks (has run but not successful)
+            if (status.hasRun && !status.isSuccess) {
+                filteredTasks.push(task);
+            }
+        } else if (options.failed) {
+            // Run failed tasks and unrun tasks
+            if (!status.hasRun || !status.isSuccess) {
+                filteredTasks.push(task);
+            }
+        } else {
+            // Default: only run tasks that haven't been run
+            if (!status.hasRun) {
+                filteredTasks.push(task);
             }
         }
-    } else {
-        // Evaluate tasks in parallel with worker pool
-        let taskIndex = 0;
-        let completedTasks = 0;
-
-        const runWorker = async (workerId: number) => {
-            while (taskIndex < unevaluatedTasks.length) {
-                const currentIndex = taskIndex++;
-                const taskId = unevaluatedTasks[currentIndex];
-
-                console.log(
-                    `\n[Worker ${workerId}] Starting evaluation ${currentIndex + 1}/${unevaluatedTasks.length}: ${taskId}`,
-                );
-
-                try {
-                    await evalTask(taskId);
-                    completedTasks++;
-                    console.log(
-                        `\n[Worker ${workerId}] Completed evaluation ${currentIndex + 1}/${unevaluatedTasks.length}: ${taskId} (${completedTasks} total completed)`,
-                    );
-                } catch (error) {
-                    console.error(
-                        `\n[Worker ${workerId}] Error evaluating task ${taskId}:`,
-                        error,
-                    );
-                    completedTasks++;
-                }
-            }
-        };
-
-        // Start all workers
-        const workerPromises: Promise<void>[] = [];
-        for (let i = 0; i < workers; i++) {
-            workerPromises.push(runWorker(i + 1));
-        }
-
-        // Wait for all workers to complete
-        await Promise.all(workerPromises);
     }
 
-    console.log(
-        `\nCompleted evaluation of ${unevaluatedTasks.length} task${unevaluatedTasks.length !== 1 ? "s" : ""}`,
-    );
+    return filteredTasks;
 }
 
+// Core task execution functions
 async function runTask(taskToRun: Task | string) {
     let task: Task | null = null;
 
@@ -257,7 +299,6 @@ async function runTask(taskToRun: Task | string) {
         },
         url: task.web,
         actions: [
-            // Instead of typical task actions, have an answer action
             createAction({
                 name: "answer",
                 description: "Give final answer",
@@ -289,7 +330,6 @@ async function runTask(taskToRun: Task | string) {
     let actionCount = 0;
     agent.events.on("actionDone", async () => {
         const memory = await agent.memory.toJSON();
-        //console.log('Memory:', memory);
         actionCount += 1;
 
         fs.writeFileSync(
@@ -316,12 +356,8 @@ async function runTask(taskToRun: Task | string) {
     let isTimedOut = false;
 
     try {
-        // Create a promise that resolves when the task completes or times out
         await Promise.race([
-            // Task execution
             agent.act(task.ques),
-            
-            // Timeout promise
             new Promise<void>((_, reject) => {
                 timeoutId = setTimeout(() => {
                     isTimedOut = true;
@@ -333,7 +369,6 @@ async function runTask(taskToRun: Task | string) {
         if (isTimedOut) {
             console.log(`\n⏱️ Task ${task.id} timed out after 15 minutes`);
             
-            // Save final state with timeout info
             const memory = await agent.memory.toJSON();
             fs.writeFileSync(
                 path.join("results", `${task.id}.json`),
@@ -354,44 +389,287 @@ async function runTask(taskToRun: Task | string) {
                 ),
             );
         } else {
-            // Re-throw if it's not a timeout error
             throw error;
         }
     } finally {
-        // Clear timeout if it hasn't fired
         if (timeoutId) {
             clearTimeout(timeoutId);
         }
-        
-        // Always stop the agent to close browser
         await agent.stop();
     }
-
-    // const memory = await agent.memory.toJSON();
-    // console.log('Memory:', memory);
-
-    // fs.writeFileSync(path.join('results', task.id), memory);
 
     console.log(`Finished task: ${task.id}`);
 }
 
-async function listCategories() {
-    console.log("Available categories:");
-    const allTasks = await getAllTasks(TASKS_PATH);
-    const categories = new Map<string, number>();
+async function evalTask(taskId: string) {
+    const task = (await findTaskById(TASKS_PATH, taskId))!;
 
-    for (const task of allTasks) {
-        categories.set(task.web_name, (categories.get(task.web_name) || 0) + 1);
-    }
+    const memoryPath = path.join("results", `${task.id}.json`);
+    const memJson = JSON.parse(fs.readFileSync(memoryPath, "utf-8")).memory;
 
-    // Keep original order from Map insertion
-    for (const [category, count] of categories) {
-        console.log(`  ${category}: ${count} tasks`);
-    }
+    const agent = new Agent({
+        llm: {
+            provider: "claude-code",
+            options: {
+                model: "claude-sonnet-4-20250514",
+            },
+        },
+    });
+    await agent.start();
+    await agent.memory.loadJSON(memJson);
+
+    const evalResult = await agent.query(
+        EVALUATION_PROMPT,
+        z.object({
+            reasoning: z.string(),
+            result: z.enum(["SUCCESS", "NOT SUCCESS"]),
+        }),
+    );
+    console.log(evalResult);
+
+    const evalPath = path.join("results", `${task.id}.eval.json`);
+    fs.writeFileSync(evalPath, JSON.stringify(evalResult, null, 4));
 }
 
+async function runTasksParallel(tasks: Task[], workers: number, runEval: boolean = false) {
+    if (workers === 1) {
+        // Run tasks one at a time
+        for (let i = 0; i < tasks.length; i++) {
+            const task = tasks[i];
+            console.log(`\n[${i + 1}/${tasks.length}] Running task: ${task.id}`);
+            await runTask(task);
+            
+            if (runEval) {
+                console.log(`Evaluating task: ${task.id}`);
+                await evalTask(task.id);
+            }
+        }
+    } else {
+        // Run tasks in parallel with worker pool
+        let taskIndex = 0;
+        let completedTasks = 0;
+
+        const runWorker = async (workerId: number) => {
+            while (taskIndex < tasks.length) {
+                const currentIndex = taskIndex++;
+                const task = tasks[currentIndex];
+
+                console.log(
+                    `\n[Worker ${workerId}] Starting task ${currentIndex + 1}/${tasks.length}: ${task.id}`,
+                );
+
+                try {
+                    await runTask(task);
+                    
+                    if (runEval) {
+                        console.log(`[Worker ${workerId}] Evaluating task: ${task.id}`);
+                        await evalTask(task.id);
+                    }
+                    
+                    completedTasks++;
+                    console.log(
+                        `\n[Worker ${workerId}] Completed task ${currentIndex + 1}/${tasks.length}: ${task.id} (${completedTasks} total completed)`,
+                    );
+                } catch (error) {
+                    console.error(
+                        `\n[Worker ${workerId}] Error in task ${task.id}:`,
+                        error,
+                    );
+                    completedTasks++;
+                }
+            }
+        };
+
+        const workerPromises: Promise<void>[] = [];
+        for (let i = 0; i < workers; i++) {
+            workerPromises.push(runWorker(i + 1));
+        }
+
+        await Promise.all(workerPromises);
+    }
+
+    console.log(`\nCompleted ${tasks.length} task${tasks.length !== 1 ? "s" : ""}`);
+}
+
+async function evalTasksParallel(taskIds: string[], workers: number) {
+    if (workers === 1) {
+        for (let i = 0; i < taskIds.length; i++) {
+            const taskId = taskIds[i];
+            console.log(`\n[${i + 1}/${taskIds.length}] Evaluating task: ${taskId}`);
+            try {
+                await evalTask(taskId);
+            } catch (error) {
+                console.error(`Error evaluating task ${taskId}:`, error);
+            }
+        }
+    } else {
+        let taskIndex = 0;
+        let completedTasks = 0;
+
+        const runWorker = async (workerId: number) => {
+            while (taskIndex < taskIds.length) {
+                const currentIndex = taskIndex++;
+                const taskId = taskIds[currentIndex];
+
+                console.log(
+                    `\n[Worker ${workerId}] Starting evaluation ${currentIndex + 1}/${taskIds.length}: ${taskId}`,
+                );
+
+                try {
+                    await evalTask(taskId);
+                    completedTasks++;
+                    console.log(
+                        `\n[Worker ${workerId}] Completed evaluation ${currentIndex + 1}/${taskIds.length}: ${taskId} (${completedTasks} total completed)`,
+                    );
+                } catch (error) {
+                    console.error(
+                        `\n[Worker ${workerId}] Error evaluating task ${taskId}:`,
+                        error,
+                    );
+                    completedTasks++;
+                }
+            }
+        };
+
+        const workerPromises: Promise<void>[] = [];
+        for (let i = 0; i < workers; i++) {
+            workerPromises.push(runWorker(i + 1));
+        }
+
+        await Promise.all(workerPromises);
+    }
+
+    console.log(`\nCompleted evaluation of ${taskIds.length} task${taskIds.length !== 1 ? "s" : ""}`);
+}
+
+// Commands
+const program = new Command();
+
+program
+    .command("run [input]")
+    .description("Run tasks by category or task ID")
+    .option("-w, --workers <number>", "Number of parallel workers", "1")
+    .option("--eval", "Automatically run evaluation after each task")
+    .option("--failed", "Include failed tasks (default: only unrun tasks)")
+    .option("--failed-only", "Only run failed tasks")
+    .option("--replace", "Run all tasks regardless of status")
+    .action(async (input: string | undefined, options: RunOptions) => {
+        const workers = parseInt(options.workers);
+        let tasksToRun: Task[] = [];
+
+        if (input && isTaskId(input)) {
+            // Single task ID provided
+            const task = await findTaskById(TASKS_PATH, input);
+            if (!task) {
+                console.error(`Task ${input} not found`);
+                return;
+            }
+            tasksToRun = [task];
+        } else if (input) {
+            // Category name provided
+            const categoryTasks = await getAllTasks(TASKS_PATH, input);
+            if (categoryTasks.length === 0) {
+                console.error(`No tasks found for category: ${input}`);
+                return;
+            }
+            
+            // Ask for task selection
+            const selectedTasks = await selectTasksFromCategory(input);
+            if (!selectedTasks) return;
+            
+            tasksToRun = await filterTasksByOptions(selectedTasks, options);
+        } else {
+            // No input - ask for categories
+            const selectedCategories = await selectCategories();
+            if (!selectedCategories) return;
+
+            if (selectedCategories.length === 1) {
+                // Single category - ask for task selection
+                const selectedTasks = await selectTasksFromCategory(selectedCategories[0]);
+                if (!selectedTasks) return;
+                
+                tasksToRun = await filterTasksByOptions(selectedTasks, options);
+            } else {
+                // Multiple categories - run all tasks in each
+                for (const category of selectedCategories) {
+                    const categoryTasks = await getAllTasks(TASKS_PATH, category);
+                    const filteredTasks = await filterTasksByOptions(categoryTasks, options);
+                    tasksToRun.push(...filteredTasks);
+                }
+            }
+        }
+
+        if (tasksToRun.length === 0) {
+            console.log("No tasks match the criteria");
+            return;
+        }
+
+        p.outro(`Running ${tasksToRun.length} task${tasksToRun.length !== 1 ? "s" : ""} with ${workers} worker${workers !== 1 ? "s" : ""}`);
+        
+        await runTasksParallel(tasksToRun, workers, options.eval || false);
+    });
+
+program
+    .command("eval [input]")
+    .description("Evaluate tasks by category or task ID")
+    .option("-w, --workers <number>", "Number of parallel workers", "1")
+    .action(async (input: string | undefined, options: EvalOptions) => {
+        const workers = parseInt(options.workers);
+        let taskIdsToEval: string[] = [];
+
+        if (input && isTaskId(input)) {
+            // Single task ID provided
+            taskIdsToEval = [input];
+        } else if (input) {
+            // Category name provided
+            const categoryTasks = await getAllTasks(TASKS_PATH, input);
+            if (categoryTasks.length === 0) {
+                console.error(`No tasks found for category: ${input}`);
+                return;
+            }
+            
+            // Filter to only tasks that have been run but not evaluated
+            for (const task of categoryTasks) {
+                const status = await getTaskStatus(task.id);
+                if (status.hasRun && !status.hasEval) {
+                    taskIdsToEval.push(task.id);
+                }
+            }
+        } else {
+            // No input - ask for categories
+            const selectedCategories = await selectCategories();
+            if (!selectedCategories) return;
+
+            for (const category of selectedCategories) {
+                const categoryTasks = await getAllTasks(TASKS_PATH, category);
+                for (const task of categoryTasks) {
+                    const status = await getTaskStatus(task.id);
+                    if (status.hasRun && !status.hasEval) {
+                        taskIdsToEval.push(task.id);
+                    }
+                }
+            }
+        }
+
+        if (taskIdsToEval.length === 0) {
+            console.log("No tasks need evaluation");
+            return;
+        }
+
+        p.outro(`Evaluating ${taskIdsToEval.length} task${taskIdsToEval.length !== 1 ? "s" : ""} with ${workers} worker${workers !== 1 ? "s" : ""}`);
+        
+        await evalTasksParallel(taskIdsToEval, workers);
+    });
+
+program
+    .command("stats")
+    .description("Show evaluation statistics")
+    .option("-v, --verbose", "Show detailed stats for each task")
+    .action(async (options: { verbose?: boolean }) => {
+        await showStats(options.verbose || false);
+    });
+
 async function showStats(verbose: boolean = false) {
-    // Get all eval results
     const resultsDir = "results";
     if (!fs.existsSync(resultsDir)) {
         console.log("No results directory found.");
@@ -406,7 +684,6 @@ async function showStats(verbose: boolean = false) {
         return;
     }
 
-    // Category statistics
     const categoryStats = new Map<string, {
         total: number;
         success: number;
@@ -421,21 +698,17 @@ async function showStats(verbose: boolean = false) {
         }>;
     }>();
 
-    // Process each eval file
     for (const evalFile of evalFiles) {
         const taskId = evalFile.replace(".eval.json", "");
         const evalPath = path.join(resultsDir, evalFile);
         const resultPath = path.join(resultsDir, `${taskId}.json`);
 
         try {
-            // Read eval result
             const evalData = JSON.parse(fs.readFileSync(evalPath, "utf-8"));
             const isSuccess = evalData.result === "SUCCESS";
 
-            // Extract category from task ID (format: Category--number)
             const category = taskId.split("--")[0];
 
-            // Initialize category stats if needed
             if (!categoryStats.has(category)) {
                 categoryStats.set(category, {
                     total: 0,
@@ -452,7 +725,6 @@ async function showStats(verbose: boolean = false) {
                 stats.success += 1;
             }
 
-            // Read cost and action data from result file
             let taskCost = 0;
             let taskActions = 0;
             let taskTime = 0;
@@ -467,7 +739,6 @@ async function showStats(verbose: boolean = false) {
                 stats.totalActions += taskActions;
             }
 
-            // Store individual task data if verbose
             if (verbose && stats.tasks) {
                 stats.tasks.push({
                     taskId,
@@ -482,7 +753,6 @@ async function showStats(verbose: boolean = false) {
         }
     }
 
-    // Display statistics
     console.log("\n=== Evaluation Statistics by Category ===\n");
     console.log("Category         | Success Rate      | Avg Cost   | Avg Actions");
     console.log("-----------------|-------------------|------------|------------");
@@ -502,9 +772,7 @@ async function showStats(verbose: boolean = false) {
             ` | $${avgCost.toFixed(2).padStart(8)} | ${avgActions.toFixed(1).padStart(10)}`
         );
 
-        // Show individual task details if verbose
         if (verbose && stats.tasks) {
-            // Sort tasks by ID for consistent display
             stats.tasks.sort((a, b) => a.taskId.localeCompare(b.taskId));
 
             for (const task of stats.tasks) {
@@ -514,7 +782,7 @@ async function showStats(verbose: boolean = false) {
                     `  ${status} ${task.taskId.padEnd(20)} | Cost: $${task.cost.toFixed(2).padStart(6)} | Actions: ${task.actions.toString().padStart(3)} | Time: ${timeMin.padStart(5)} min`
                 );
             }
-            console.log(); // Empty line after each category
+            console.log();
         }
 
         totalTasks += stats.total;
@@ -523,7 +791,6 @@ async function showStats(verbose: boolean = false) {
         totalActions += stats.totalActions;
     }
 
-    // Display totals
     console.log("-----------------|-------------------|------------|------------");
     const overallSuccessRate = (totalSuccess / totalTasks) * 100;
     const overallAvgCost = totalCost / totalTasks;
@@ -536,418 +803,5 @@ async function showStats(verbose: boolean = false) {
 
     console.log(`\nTotal evaluated tasks: ${totalTasks}`);
 }
-
-async function runRandomTask() {
-    console.log("Running a random task...");
-    const allTasks = await getAllTasks(TASKS_PATH);
-    if (allTasks.length === 0) {
-        console.error(`No tasks found in ${TASKS_PATH}. Cannot run a random task.`);
-        return;
-    }
-    const randomIndex = Math.floor(Math.random() * allTasks.length);
-    const randomTask = allTasks[randomIndex];
-    await runTask(randomTask);
-}
-
-async function runTasksByCategory(category: string, workers: number = 1, failedOnly: boolean = false) {
-    const categoryTasks = await getAllTasks(TASKS_PATH, category);
-
-    if (categoryTasks.length === 0) {
-        console.error(`No tasks found for category: ${category}`);
-        return;
-    }
-
-    let tasksToRun: Task[] = [];
-
-    if (failedOnly) {
-        // Filter to only non-successful tasks
-        const nonSuccessfulTasks: Task[] = [];
-
-        for (const task of categoryTasks) {
-            const evalPath = path.join("results", `${task.id}.eval.json`);
-            let isSuccess = false;
-
-            try {
-                const evalData = JSON.parse(fs.readFileSync(evalPath, "utf-8"));
-                isSuccess = evalData.result === "SUCCESS";
-            } catch {
-                // No eval file means task hasn't been evaluated, so include it
-                isSuccess = false;
-            }
-
-            if (!isSuccess) {
-                nonSuccessfulTasks.push(task);
-            }
-        }
-
-        if (nonSuccessfulTasks.length === 0) {
-            console.log(`All tasks in category ${category} are successful!`);
-            return;
-        }
-
-        console.log(`Found ${nonSuccessfulTasks.length} non-successful tasks (out of ${categoryTasks.length} total) in category: ${category}`);
-        tasksToRun = nonSuccessfulTasks;
-    } else {
-        p.intro(`Found ${categoryTasks.length} tasks in category: ${category}`);
-
-        const mode = await p.select({
-            message: "How would you like to run the tasks?",
-            options: [
-                { value: "all", label: `Run all ${categoryTasks.length} tasks` },
-                { value: "unrun-failed", label: "Run un-run and failed tasks" },
-                { value: "select", label: "Select specific tasks to run" },
-            ],
-        });
-
-        if (p.isCancel(mode)) {
-            p.cancel("Operation cancelled");
-            return;
-        }
-
-        if (mode === "all") {
-            tasksToRun = categoryTasks;
-        } else if (mode === "unrun-failed") {
-            // Filter to only un-run or failed tasks
-            const unrunFailedTasks: Task[] = [];
-
-            for (const task of categoryTasks) {
-                const resultPath = path.join("results", `${task.id}.json`);
-                const evalPath = path.join("results", `${task.id}.eval.json`);
-
-                // Check if task has been run
-                if (!fs.existsSync(resultPath)) {
-                    // Task hasn't been run
-                    unrunFailedTasks.push(task);
-                } else if (fs.existsSync(evalPath)) {
-                    // Task has been evaluated, check if it failed
-                    try {
-                        const evalData = JSON.parse(fs.readFileSync(evalPath, "utf-8"));
-                        if (evalData.result !== "SUCCESS") {
-                            unrunFailedTasks.push(task);
-                        }
-                    } catch {
-                        // Error reading eval, include the task
-                        unrunFailedTasks.push(task);
-                    }
-                } else {
-                    // Task has been run but not evaluated, include it
-                    unrunFailedTasks.push(task);
-                }
-            }
-
-            if (unrunFailedTasks.length === 0) {
-                console.log(`No un-run or failed tasks found in category ${category}`);
-                return;
-            }
-
-            console.log(`Found ${unrunFailedTasks.length} un-run or failed tasks (out of ${categoryTasks.length} total) in category: ${category}`);
-            tasksToRun = unrunFailedTasks;
-        } else {
-            const selectedIds = await p.multiselect({
-                message: "Select tasks to run:",
-                options: categoryTasks.map((task) => ({
-                    value: task.id,
-                    label: `${task.id}: ${task.ques.substring(0, 80)}${task.ques.length > 80 ? "..." : ""}`,
-                })),
-                required: true,
-            });
-
-            if (p.isCancel(selectedIds)) {
-                p.cancel("Operation cancelled");
-                return;
-            }
-
-            tasksToRun = categoryTasks.filter((task) =>
-                (selectedIds as string[]).includes(task.id),
-            );
-        }
-    }
-
-    p.outro(
-        `Running ${tasksToRun.length} task${tasksToRun.length !== 1 ? "s" : ""} with ${workers} worker${workers !== 1 ? "s" : ""}`,
-    );
-
-    if (workers === 1) {
-        // Run tasks one at a time
-        for (let i = 0; i < tasksToRun.length; i++) {
-            const task = tasksToRun[i];
-            console.log(`\n[${i + 1}/${tasksToRun.length}] Running task: ${task.id}`);
-            await runTask(task);
-        }
-    } else {
-        // Run tasks in parallel with worker pool
-        let taskIndex = 0;
-        let completedTasks = 0;
-
-        const runWorker = async (workerId: number) => {
-            while (taskIndex < tasksToRun.length) {
-                const currentIndex = taskIndex++;
-                const task = tasksToRun[currentIndex];
-
-                console.log(
-                    `\n[Worker ${workerId}] Starting task ${currentIndex + 1}/${tasksToRun.length}: ${task.id}`,
-                );
-
-                try {
-                    await runTask(task);
-                    completedTasks++;
-                    console.log(
-                        `\n[Worker ${workerId}] Completed task ${currentIndex + 1}/${tasksToRun.length}: ${task.id} (${completedTasks} total completed)`,
-                    );
-                } catch (error) {
-                    console.error(
-                        `\n[Worker ${workerId}] Error in task ${task.id}:`,
-                        error,
-                    );
-                    completedTasks++;
-                }
-            }
-        };
-
-        // Start all workers
-        const workerPromises: Promise<void>[] = [];
-        for (let i = 0; i < workers; i++) {
-            workerPromises.push(runWorker(i + 1));
-        }
-
-        // Wait for all workers to complete
-        await Promise.all(workerPromises);
-    }
-
-    console.log(
-        `\nCompleted ${tasksToRun.length} task${tasksToRun.length !== 1 ? "s" : ""} in category ${category}`,
-    );
-}
-
-const program = new Command();
-
-program
-    .command("category [name]")
-    .description("Run all tasks in a specific category")
-    .option("-w, --workers <number>", "Number of parallel workers", "1")
-    .action(async (name: string | undefined, options: { workers: string }) => {
-        let category = name;
-
-        if (!category) {
-            // Get all categories first
-            const allTasks = await getAllTasks(TASKS_PATH);
-            const categories = new Map<string, number>();
-
-            for (const task of allTasks) {
-                categories.set(task.web_name, (categories.get(task.web_name) || 0) + 1);
-            }
-
-            const categoryOptions = Array.from(categories.entries()).map(
-                ([cat, count]) => ({
-                    value: cat,
-                    label: `${cat} (${count} tasks)`,
-                }),
-            );
-
-            const selected = await p.select({
-                message: "Select a category:",
-                options: categoryOptions,
-            });
-
-            if (p.isCancel(selected)) {
-                p.cancel("Operation cancelled");
-                return;
-            }
-
-            category = selected as string;
-        }
-
-        await runTasksByCategory(category, parseInt(options.workers));
-    });
-
-program
-    .command("list")
-    .description("List all available categories")
-    .action(async () => {
-        await listCategories();
-    });
-
-program
-    .command("run <taskId>")
-    .description("Run a specific task by ID")
-    .action(async (taskId: string) => {
-        await runTask(taskId);
-    });
-
-program
-    .command("eval [taskId]")
-    .description("Evaluate tasks that have been run")
-    .option("-w, --workers <number>", "Number of parallel workers", "1")
-    .option("--all", "Evaluate all tasks with results but no eval")
-    .action(
-        async (
-            taskId: string | undefined,
-            options: { workers: string; all: boolean },
-        ) => {
-            const workers = parseInt(options.workers);
-
-            if (options.all) {
-                await evalAllUnevaluated(workers);
-            } else if (taskId) {
-                await evalTask(taskId);
-            } else {
-                console.error("Please provide a task ID or use --all flag");
-            }
-        },
-    );
-
-program
-    .command("stats")
-    .description("Show evaluation statistics by category")
-    .option("-v, --verbose", "Show detailed stats for each task")
-    .action(async (options: { verbose?: boolean }) => {
-        await showStats(options.verbose || false);
-    });
-
-program
-    .command("rr [category]")
-    .option("-w, --workers <number>", "Number of parallel workers", "1")
-    .action(async (category: string | undefined, options: { workers: string }) => {
-        let selectedCategory = category;
-
-        if (!selectedCategory) {
-            // Get all categories first
-            const allTasks = await getAllTasks(TASKS_PATH);
-            const categories = new Map<string, number>();
-
-            for (const task of allTasks) {
-                categories.set(task.web_name, (categories.get(task.web_name) || 0) + 1);
-            }
-
-            const categoryOptions = Array.from(categories.entries()).map(
-                ([cat, count]) => ({
-                    value: cat,
-                    label: `${cat} (${count} tasks)`,
-                }),
-            );
-
-            const selected = await p.select({
-                message: "Select a category:",
-                options: categoryOptions,
-            });
-
-            if (p.isCancel(selected)) {
-                p.cancel("Operation cancelled");
-                return;
-            }
-
-            selectedCategory = selected as string;
-        }
-
-        await runTasksByCategory(selectedCategory, parseInt(options.workers), true);
-    });
-
-program
-    .command("batch")
-    .description("Run all tasks in multiple selected categories")
-    .option("-w, --workers <number>", "Number of parallel workers", "1")
-    .action(async (options: { workers: string }) => {
-        const workers = parseInt(options.workers);
-
-        // Get all categories
-        const allTasks = await getAllTasks(TASKS_PATH);
-        const categories = new Map<string, number>();
-
-        for (const task of allTasks) {
-            categories.set(task.web_name, (categories.get(task.web_name) || 0) + 1);
-        }
-
-        const categoryOptions = Array.from(categories.entries()).map(
-            ([cat, count]) => ({
-                value: cat,
-                label: `${cat} (${count} tasks)`,
-            }),
-        );
-
-        const selectedCategories = await p.multiselect({
-            message: "Select categories to run:",
-            options: categoryOptions,
-            required: true,
-        });
-
-        if (p.isCancel(selectedCategories)) {
-            p.cancel("Operation cancelled");
-            return;
-        }
-
-        const categoriesToRun = selectedCategories as string[];
-        let totalTasks = 0;
-        for (const cat of categoriesToRun) {
-            totalTasks += categories.get(cat) || 0;
-        }
-
-        p.outro(
-            `Running ${totalTasks} tasks across ${categoriesToRun.length} categories with ${workers} worker${workers !== 1 ? "s" : ""}`,
-        );
-
-        // Run tasks from all selected categories
-        const allTasksToRun: Task[] = [];
-        for (const category of categoriesToRun) {
-            const categoryTasks = await getAllTasks(TASKS_PATH, category);
-            allTasksToRun.push(...categoryTasks);
-        }
-
-        if (workers === 1) {
-            // Run tasks one at a time
-            for (let i = 0; i < allTasksToRun.length; i++) {
-                const task = allTasksToRun[i];
-                console.log(`\n[${i + 1}/${allTasksToRun.length}] Running task: ${task.id}`);
-                await runTask(task);
-            }
-        } else {
-            // Run tasks in parallel with worker pool
-            let taskIndex = 0;
-            let completedTasks = 0;
-
-            const runWorker = async (workerId: number) => {
-                while (taskIndex < allTasksToRun.length) {
-                    const currentIndex = taskIndex++;
-                    const task = allTasksToRun[currentIndex];
-
-                    console.log(
-                        `\n[Worker ${workerId}] Starting task ${currentIndex + 1}/${allTasksToRun.length}: ${task.id}`,
-                    );
-
-                    try {
-                        await runTask(task);
-                        completedTasks++;
-                        console.log(
-                            `\n[Worker ${workerId}] Completed task ${currentIndex + 1}/${allTasksToRun.length}: ${task.id} (${completedTasks} total completed)`,
-                        );
-                    } catch (error) {
-                        console.error(
-                            `\n[Worker ${workerId}] Error in task ${task.id}:`,
-                            error,
-                        );
-                        completedTasks++;
-                    }
-                }
-            };
-
-            // Start all workers
-            const workerPromises: Promise<void>[] = [];
-            for (let i = 0; i < workers; i++) {
-                workerPromises.push(runWorker(i + 1));
-            }
-
-            // Wait for all workers to complete
-            await Promise.all(workerPromises);
-        }
-
-        console.log(
-            `\nCompleted ${allTasksToRun.length} tasks across ${categoriesToRun.length} categories`,
-        );
-    });
-
-// Default action when no command is provided
-// program
-//     .action(async () => {
-//         await runRandomTask();
-//     });
 
 program.parseAsync().catch(console.error);
