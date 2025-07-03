@@ -310,9 +310,62 @@ async function runTask(taskToRun: Task | string) {
         );
     });
 
-    await agent.act(task.ques);
+    // Set up 15-minute timeout
+    const TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
+    let timeoutId: NodeJS.Timeout | null = null;
+    let isTimedOut = false;
 
-    await agent.stop();
+    try {
+        // Create a promise that resolves when the task completes or times out
+        await Promise.race([
+            // Task execution
+            agent.act(task.ques),
+            
+            // Timeout promise
+            new Promise<void>((_, reject) => {
+                timeoutId = setTimeout(() => {
+                    isTimedOut = true;
+                    reject(new Error(`Task timed out after 15 minutes`));
+                }, TIMEOUT_MS);
+            })
+        ]);
+    } catch (error) {
+        if (isTimedOut) {
+            console.log(`\n⏱️ Task ${task.id} timed out after 15 minutes`);
+            
+            // Save final state with timeout info
+            const memory = await agent.memory.toJSON();
+            fs.writeFileSync(
+                path.join("results", `${task.id}.json`),
+                JSON.stringify(
+                    {
+                        time: Date.now() - startTime,
+                        actionCount,
+                        totalInputTokens,
+                        totalOutputTokens,
+                        totalInputCost,
+                        totalOutputCost,
+                        memory,
+                        timedOut: true,
+                        timeoutAt: TIMEOUT_MS
+                    },
+                    null,
+                    4,
+                ),
+            );
+        } else {
+            // Re-throw if it's not a timeout error
+            throw error;
+        }
+    } finally {
+        // Clear timeout if it hasn't fired
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+        }
+        
+        // Always stop the agent to close browser
+        await agent.stop();
+    }
 
     // const memory = await agent.memory.toJSON();
     // console.log('Memory:', memory);

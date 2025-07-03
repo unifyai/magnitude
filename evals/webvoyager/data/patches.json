@@ -184,10 +184,155 @@
         "prev": "Show me the list of one-way flights today (February 17, 2024) from Chicago to Paris.",
         "new": "Show me the list of one-way flights on February 17, 2026 from Chicago to Paris."
     },
+    "Google Flights--10": {
+        "reason": "The flight dates 'January 25, 2024, and returning on February 15, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Locate the cheapest round-trip flights from New York to Tokyo leaving on January 25, 2024, and returning on February 15, 2024.",
+        "new": "Locate the cheapest round-trip flights from New York to Tokyo leaving on January 25, 2026, and returning on February 15, 2026."
+    },
+    "Google Flights--11": {
+        "reason": "The flight dates 'February 10, 2024, and a return on February 24, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Compare the prices for round-trip flights from New York to Tokyo for a departure on February 10, 2024, and a return on February 24, 2024, and select the option with the least number of stops.",
+        "new": "Compare the prices for round-trip flights from New York to Tokyo for a departure on February 10, 2026, and a return on February 24, 2026, and select the option with the least number of stops."
+    },
     "Google Flights--12": {
         "reason": "The flight dates 'December 25, 2023' and 'January 5, 2024' are explicitly in the past. The years are updated to make the task feasible.",
         "prev": "Find the best-priced round-trip flight from New York to London leaving on December 25, 2023, and returning on January 5, 2024, with one stop or fewer.",
         "new": "Find the best-priced round-trip flight from New York to London leaving on December 25, 2025, and returning on January 5, 2026, with one stop or fewer."
+    },
+    "Google Flights--13": {
+        "reason": "The flight dates 'January 10, 2024, and a return on January 24, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Find the cheapest round-trip flight option from New York City to Tokyo for a departure on January 10, 2024, and a return on January 24, 2024.",
+        "new": "Find the cheapest round-trip flight option from New York City to Tokyo for a departure on January 10, 2026, and a return on January 24, 2026."
+    },
+    "Google Flights--14": {
+        "reason": "The flight dates 'January 10, 2024, and returning on January 17, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Compare flight options and find the lowest round trip fare from New York to London departing on January 10, 2024, and returning on January 17, 2024.",
+        "new": "Compare flight options and find the lowest round trip fare from New York to London departing on January 10, 2026, and returning on January 17, 2026."
+    },
+    "Google Flights--15": {
+        "reason": "The flight dates 'February 12th, 2024, and returning on February 26th, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Compare the prices and total duration of non-stop flights from New York to Tokyo Narita Airport departing on February 12th, 2024, and returning on February 26th, 2024.",
+        "new": "Compare the prices and total duration of non-stop flights from New York to Tokyo Narita Airport departing on February 12th, 2026, and returning on February 26th, 2026."
+    },
+    "Google Flights--16": {
+        "reason": "The flight date 'January 15, 2024' is explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Find the cheapest one-way flight from New York to Tokyo departing on January 15, 2024, and provide the airline and total flight duration.",
+        "new": "Find the cheapest one-way flight from New York to Tokyo departing on January 15, 2026, and provide the airline and total flight duration."
+    },
+    "Google Flights--17": {
+        "reason": "The flight dates 'December 27, 2023, and returning on January 10, 2024' are explicitly in the past. The years are updated to make the task feasible.",
+        "prev": "Find the cheapest round-trip flight from New York to Paris leaving on December 27, 2023, and returning on January 10, 2024.",
+        "new": "Find the cheapest round-trip flight from New York to Paris leaving on December 27, 2025, and returning on January 10, 2026."
+    },
+    "Google Flights--18": {
+        "reason": "The flight dates 'January 25, 2024, and returning on February 15, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Compare flight options from New York to Tokyo for a round trip leaving on January 25, 2024, and returning on February 15, 2024, for one adult. Prioritize the comparisons by the shortest travel time.",
+        "new": "Compare flight options from New York to Tokyo for a round trip leaving on January 25, 2026, and returning on February 15, 2026, for one adult. Prioritize the comparisons by the shortest travel time."
+    },
+    "Google Flights--19": {
+        "reason": "The flight date 'January 25, 2024' is explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Find the cheapest one-way flight from London to Paris, departing on January 25, 2024. Include the airline, total travel time, and layovers for the chosen flight.",
+        "new": "Find the cheapest one-way flight from London to Paris, departing on January 25, 2026. Include the airline, total travel time, and layovers for the chosen flight."
+    },
+    "Google Flights--21": {
+        "reason": "The flight date 'February 25, 2024' is explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Locate the lowest-priced one-way flight from Tokyo to Sydney for an adult, departing on February 25, 2024, and include the flight duration and number of layovers.",
+        "new": "Locate the lowest-priced one-way flight from Tokyo to Sydney for an adult, departing on February 25, 2026, and include the flight duration and number of layovers."
+    },
+    "Google Flights--22": {
+        "reason": "The flight dates 'March 15, 2024, and returning on March 22, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Find a round-trip flight from Rio de Janeiro to Los Angeles, leaving on March 15, 2024, and returning on March 22, 2024, and select the option with the least carbon dioxide emissions.",
+        "new": "Find a round-trip flight from Rio de Janeiro to Los Angeles, leaving on March 15, 2026, and returning on March 22, 2026, and select the option with the least carbon dioxide emissions."
+    },
+    "Google Flights--23": {
+        "reason": "The flight date 'February 28, 2024' is explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Search for a one-way flight from Mumbai to Vancouver on February 28, 2024, filtering the results to show only 1-stop flights.",
+        "new": "Search for a one-way flight from Mumbai to Vancouver on February 28, 2026, filtering the results to show only 1-stop flights."
+    },
+    "Google Flights--24": {
+        "reason": "The flight dates 'March 1, 2024, and returning on March 8, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Compare prices for economy class round-trip flights from Dubai to Rome, departing on March 1, 2024, and returning on March 8, 2024, and select the option with the fewest stops.",
+        "new": "Compare prices for economy class round-trip flights from Dubai to Rome, departing on March 1, 2026, and returning on March 8, 2026, and select the option with the fewest stops."
+    },
+    "Google Flights--25": {
+        "reason": "The flight date 'March 10, 2024' is explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Find a one-way business class flight from Buenos Aires to Amsterdam on March 10, 2024, and provide the details of the flight with the shortest duration.",
+        "new": "Find a one-way business class flight from Buenos Aires to Amsterdam on March 10, 2026, and provide the details of the flight with the shortest duration."
+    },
+    "Google Flights--26": {
+        "reason": "The flight dates 'February 26, 2024, and returning on February 28, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Search for the cheapest round-trip flights from Bangkok to Madrid, leaving on February 26, 2024, and returning on February 28, 2024, and provide options under $1000.",
+        "new": "Search for the cheapest round-trip flights from Bangkok to Madrid, leaving on February 26, 2026, and returning on February 28, 2026, and provide options under $1000."
+    },
+    "Google Flights--27": {
+        "reason": "The flight date 'March 30, 2024' is explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Locate a one-way flight from Johannesburg to Toronto on March 30, 2024, for one adult, and analyze the price trends for the following month.",
+        "new": "Locate a one-way flight from Johannesburg to Toronto on March 30, 2026, for one adult, and analyze the price trends for the following month."
+    },
+    "Google Flights--28": {
+        "reason": "The flight dates 'February 27, 2024, and returning on March 1, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Find the best-priced round-trip flight from Seattle to Paris, departing on February 27, 2024, and returning on March 1, 2024, with a maximum of one stop.",
+        "new": "Find the best-priced round-trip flight from Seattle to Paris, departing on February 27, 2026, and returning on March 1, 2026, with a maximum of one stop."
+    },
+    "Google Flights--29": {
+        "reason": "The flight dates 'March 5, 2024, and returning on March 15, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Compare the prices and total travel time of non-stop flights from Mexico City to Frankfurt, departing on March 5, 2024, and returning on March 15, 2024.",
+        "new": "Compare the prices and total travel time of non-stop flights from Mexico City to Frankfurt, departing on March 5, 2026, and returning on March 15, 2026."
+    },
+    "Google Flights--30": {
+        "reason": "The flight date 'March 20, 2024' is explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Find the most affordable one-way flight from Cape Town to Singapore, departing on March 20, 2024, and include the airline and total number of layovers.",
+        "new": "Find the most affordable one-way flight from Cape Town to Singapore, departing on March 20, 2026, and include the airline and total number of layovers."
+    },
+    "Google Flights--31": {
+        "reason": "The flight date 'March 25, 2024' is explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Find a one-way economy flight from Auckland to Honolulu on March 25, 2024, browse the full page and display a flight option with the most stops.",
+        "new": "Find a one-way economy flight from Auckland to Honolulu on March 25, 2026, browse the full page and display a flight option with the most stops."
+    },
+    "Google Flights--32": {
+        "reason": "The flight dates 'March 3, 2024, and returning on March 10, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Search for round-trip flights from Stockholm to Toronto, departing on March 3, 2024, and returning on March 10, 2024, and sort the results to find the shortest total travel time.",
+        "new": "Search for round-trip flights from Stockholm to Toronto, departing on March 3, 2026, and returning on March 10, 2026, and sort the results to find the shortest total travel time."
+    },
+    "Google Flights--33": {
+        "reason": "The flight date 'February 27, 2024' is explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Find a one-way flight from Shanghai to Vancouver on February 27, 2024, and compare the options based on carbon dioxide emissions.",
+        "new": "Find a one-way flight from Shanghai to Vancouver on February 27, 2026, and compare the options based on carbon dioxide emissions."
+    },
+    "Google Flights--34": {
+        "reason": "The flight date 'March 15, 2024' is explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Compare business class flight options from Lisbon to Singapore for a one-way trip on March 15, 2024, select one of the flights and see which websites offer its booking options. Which one is the cheapest.",
+        "new": "Compare business class flight options from Lisbon to Singapore for a one-way trip on March 15, 2026, select one of the flights and see which websites offer its booking options. Which one is the cheapest."
+    },
+    "Google Flights--35": {
+        "reason": "The flight date 'February 21, 2024' is explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Find the lowest-priced one-way flight from Cairo to Montreal on February 21, 2024, including the total travel time and number of stops.",
+        "new": "Find the lowest-priced one-way flight from Cairo to Montreal on February 21, 2026, including the total travel time and number of stops."
+    },
+    "Google Flights--36": {
+        "reason": "The flight dates 'March 28, 2024, and returning on April 4, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Search for round-trip flights from Helsinki to New Delhi, departing on March 28, 2024, and returning on April 4, 2024, and filter the results to show only flights under $1000.",
+        "new": "Search for round-trip flights from Helsinki to New Delhi, departing on March 28, 2026, and returning on April 4, 2026, and filter the results to show only flights under $1000."
+    },
+    "Google Flights--37": {
+        "reason": "The flight dates 'February 28, 2024, and returning on March 3, 2024' are explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Locate a round-trip flight from Buenos Aires to Beijing, leaving on February 28, 2024, and returning on March 3, 2024, check out one of the options and tell me if the airline for my return flight is the same as my departure flight.",
+        "new": "Locate a round-trip flight from Buenos Aires to Beijing, leaving on February 28, 2026, and returning on March 3, 2026, check out one of the options and tell me if the airline for my return flight is the same as my departure flight."
+    },
+    "Google Flights--38": {
+        "reason": "The flight date 'March 8, 2024' is explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Compare the prices and flight durations for economy class flights from Oslo to Dubai, departing on March 8, 2024, and show the options with no more than two layovers.",
+        "new": "Compare the prices and flight durations for economy class flights from Oslo to Dubai, departing on March 8, 2026, and show the options with no more than two layovers."
+    },
+    "Google Flights--39": {
+        "reason": "The flight date 'March 20, 2024' is explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Find a one-way flight from Prague to a city in Japan on March 20, 2024, which city in Japan is cheaper to go to, Tokyo or a certain city in Hokkaido?",
+        "new": "Find a one-way flight from Prague to a city in Japan on March 20, 2026, which city in Japan is cheaper to go to, Tokyo or a certain city in Hokkaido?"
+    },
+    "Google Flights--41": {
+        "reason": "The flight date '8 March 2024' is explicitly in the past. The year is updated to make the task feasible.",
+        "prev": "Choose one way business class ticket from Hong Kong to Glacier National Park on 8 March 2024, offering a 1 stop ticket.",
+        "new": "Choose one way business class ticket from Hong Kong to Glacier National Park on 8 March 2026, offering a 1 stop ticket."
     },
     "Google Search--39": {
         "reason": "Asking for '2024' travel trends is a historical query in mid-2025. The year is updated to '2025' to preserve the original intent of finding current/future trends.",
