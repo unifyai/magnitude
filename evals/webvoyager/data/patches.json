@@ -193,5 +193,225 @@
         "reason": "Asking for '2024' travel trends is a historical query in mid-2025. The year is updated to '2025' to preserve the original intent of finding current/future trends.",
         "prev": "Identify the top-10 trending travel destination for 2024 through a blog, how many of them are in Asian.",
         "new": "Identify the top-10 trending travel destination for 2025 through a blog, how many of them are in Asian."
+    },
+    "Allrecipes--16": {
+        "reason": "",
+        "remove": true
+    },
+    "Allrecipes--19": {
+        "reason": "",
+        "remove": true
+    },
+    "Allrecipes--23": {
+        "reason": "",
+        "remove": true
+    },
+    "Allrecipes--3": {
+        "reason": "",
+        "remove": true
+    },
+    "Allrecipes--30": {
+        "reason": "",
+        "remove": true
+    },
+    "Allrecipes--7": {
+        "reason": "",
+        "remove": true
+    },
+    "Amazon--16": {
+        "reason": "",
+        "remove": true
+    },
+    "Amazon--19": {
+        "reason": "",
+        "remove": true
+    },
+    "Amazon--4": {
+        "reason": "",
+        "remove": true
+    },
+    "Apple--1": {
+        "reason": "",
+        "remove": true
+    },
+    "Apple--14": {
+        "reason": "",
+        "remove": true
+    },
+    "Apple--16": {
+        "reason": "",
+        "remove": true
+    },
+    "Apple--2": {
+        "reason": "",
+        "remove": true
+    },
+    "Apple--20": {
+        "reason": "",
+        "remove": true
+    },
+    "Apple--37": {
+        "reason": "",
+        "remove": true
+    },
+    "Apple--41": {
+        "reason": "",
+        "remove": true
+    },
+    "Apple--42": {
+        "reason": "",
+        "remove": true
+    },
+    "Apple--7": {
+        "reason": "",
+        "remove": true
+    },
+    "Apple--9": {
+        "reason": "",
+        "remove": true
+    },
+    "ArXiv--11": {
+        "reason": "",
+        "remove": true
+    },
+    "BBC News--14": {
+        "reason": "",
+        "remove": true
+    },
+    "BBC News--16": {
+        "reason": "",
+        "remove": true
+    },
+    "BBC News--18": {
+        "reason": "",
+        "remove": true
+    },
+    "BBC News--2": {
+        "reason": "",
+        "remove": true
+    },
+    "BBC News--21": {
+        "reason": "",
+        "remove": true
+    },
+    "BBC News--33": {
+        "reason": "",
+        "remove": true
+    },
+    "BBC News--37": {
+        "reason": "",
+        "remove": true
+    },
+    "Booking--11": {
+        "reason": "",
+        "remove": true
+    },
+    "Booking--13": {
+        "reason": "",
+        "remove": true
+    },
+    "Booking--14": {
+        "reason": "",
+        "remove": true
+    },
+    "Booking--6": {
+        "reason": "",
+        "remove": true
+    },
+    "Coursera--17": {
+        "reason": "",
+        "remove": true
+    },
+    "Coursera--28": {
+        "reason": "",
+        "remove": true
+    },
+    "ESPN--19": {
+        "reason": "",
+        "remove": true
+    },
+    "ESPN--2": {
+        "reason": "",
+        "remove": true
+    },
+    "ESPN--21": {
+        "reason": "",
+        "remove": true
+    },
+    "ESPN--26": {
+        "reason": "",
+        "remove": true
+    },
+    "GitHub--22": {
+        "reason": "",
+        "remove": true
+    },
+    "Google Flights--0": {
+        "reason": "",
+        "remove": true
+    },
+    "Google Flights--20": {
+        "reason": "",
+        "remove": true
+    },
+    "Google Flights--7": {
+        "reason": "",
+        "remove": true
+    },
+    "Google Map--13": {
+        "reason": "",
+        "remove": true
+    },
+    "Google Map--18": {
+        "reason": "",
+        "remove": true
+    },
+    "Google Map--26": {
+        "reason": "",
+        "remove": true
+    },
+    "Google Search--15": {
+        "reason": "",
+        "remove": true
+    },
+    "Google Search--16": {
+        "reason": "",
+        "remove": true
+    },
+    "Google Search--22": {
+        "reason": "",
+        "remove": true
+    },
+    "Huggingface--1": {
+        "reason": "",
+        "remove": true
+    },
+    "Huggingface--10": {
+        "reason": "",
+        "remove": true
+    },
+    "Huggingface--20": {
+        "reason": "",
+        "remove": true
+    },
+    "Huggingface--21": {
+        "reason": "",
+        "remove": true
+    },
+    "Huggingface--22": {
+        "reason": "",
+        "remove": true
+    },
+    "Huggingface--23": {
+        "reason": "",
+        "remove": true
+    },
+    "Huggingface--32": {
+        "reason": "",
+        "remove": true
+    },
+    "Huggingface--6": {
+        "reason": "",
+        "remove": true
     }
 }
