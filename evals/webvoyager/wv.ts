@@ -248,8 +248,33 @@ async function filterTasksByOptions(tasks: Task[], options: RunOptions): Promise
                 filteredTasks.push(task);
             }
         } else {
-            // Default: only run tasks that haven't been run
-            if (!status.hasRun) {
+            // Default: run tasks that haven't been run yet or any tasks which crashed due to browser/machine issues
+            const resultPath = path.join("results", `${task.id}.json`);
+            let hasAnswer = false;
+            let hasTimedOut = false;
+            
+            if (fs.existsSync(resultPath)) {
+                try {
+                    const resultData = JSON.parse(fs.readFileSync(resultPath, "utf-8"));
+                    
+                    // Check if task timed out
+                    if (resultData.timedOut === true) {
+                        hasTimedOut = true;
+                    }
+                    
+                    // Check if memory.observations contains an answer
+                    if (resultData.memory && resultData.memory.observations) {
+                        hasAnswer = resultData.memory.observations.some((obs: any) => 
+                            obs.source === "action:taken:answer"
+                        );
+                    }
+                } catch {
+                    // Error reading file, treat as no answer
+                }
+            }
+            
+            // Only run if: file doesn't exist, OR (has no answer AND didn't timeout)
+            if (!fs.existsSync(resultPath) || (!hasAnswer && !hasTimedOut)) {
                 filteredTasks.push(task);
             }
         }
@@ -291,12 +316,12 @@ async function runTask(taskToRun: Task | string) {
         year: 'numeric'
     });
 
-    // const context = await chromium.launchPersistentContext("", {
-    //     channel: "chrome",
-    //     headless: false,
-    //     viewport: { width: 1024, height: 768 },
-    //     deviceScaleFactor: process.platform === 'darwin' ? 2 : 1
-    // });
+    const context = await chromium.launchPersistentContext("", {
+        channel: "chrome",
+        headless: false,
+        viewport: { width: 1024, height: 768 },
+        deviceScaleFactor: process.platform === 'darwin' ? 2 : 1
+    });
 
     // const browser = await chromium.launch({
     //     executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -306,7 +331,7 @@ async function runTask(taskToRun: Task | string) {
 
     const agent = await startBrowserAgent({
         //browser: { instance: browser },
-        //browser: { context: context },
+        browser: { context: context },
         llm: {
             provider: "claude-code",
             options: {
@@ -368,7 +393,7 @@ async function runTask(taskToRun: Task | string) {
     });
 
     // Set up 15-minute timeout
-    const TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
+    const TIMEOUT_MS = 30 * 60 * 1000; // 15 minutes
     let timeoutId: NodeJS.Timeout | null = null;
     let isTimedOut = false;
 
@@ -413,6 +438,7 @@ async function runTask(taskToRun: Task | string) {
             clearTimeout(timeoutId);
         }
         await agent.stop();
+        await context.close();
         //await browser.close();
     }
 
