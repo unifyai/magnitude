@@ -23,13 +23,16 @@ import { GroundingService, moondreamTargetingInstructions } from "@/ai/grounding
 
 // }
 
+const DEFAULT_SCREENSHOT_MEMORY_LIMIT = 3;
+
 export interface BrowserConnectorOptions {
     //browser?: Browser
     browser?: BrowserOptions
     url?: string
     //browserContextOptions?: BrowserContextOptions
     grounding?: GroundingClient
-    virtualScreenDimensions?: { width: number, height: number }
+    virtualScreenDimensions?: { width: number, height: number },
+    screenshotMemoryLimit?: number,
 }
 
 export interface BrowserConnectorStateData {
@@ -164,7 +167,7 @@ export class BrowserConnector implements AgentConnector {
             Observation.fromConnector(
                 this.id,
                 await this.transformScreenshot(currentState.screenshot),
-                { type: 'screenshot', limit: 3, dedupe: true }
+                { type: 'screenshot', limit: this.options.screenshotMemoryLimit ?? DEFAULT_SCREENSHOT_MEMORY_LIMIT, dedupe: true }
             )
         );
         observations.push(
