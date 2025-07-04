@@ -26,9 +26,13 @@ export interface SerializedAgentMemory {
     }[];
 }
 
+export interface AgentMemoryOptions {
+    thoughtLimit?: number, // TTL for thoughts
+}
+
 export class AgentMemory {
     //public readonly events: EventEmitter<AgentMemoryEvents> = new EventEmitter();
-    //private options: Required<MemoryOptions>;
+    private options: Required<AgentMemoryOptions>;
     //private history: StoredHistoryEntry[] = [];
 
     // Custom instructions relating to this memory instance (e.g. agent-level and/or task-level instructions)
@@ -37,8 +41,11 @@ export class AgentMemory {
     private observations: Observation[] = [];
     //private tasks: { task: string, observations: Observation[] }[] = [];
 
-    constructor(instructions?: string) {
+    constructor(instructions?: string, options?: AgentMemoryOptions) {
         this.instructions = instructions ?? null;
+        this.options = {
+            thoughtLimit: options?.thoughtLimit ?? 20
+        };
     }
 
     // get observations(): Observation[] {
@@ -58,7 +65,7 @@ export class AgentMemory {
 
     public recordThought(content: string): void {
         this.observations.push(
-            Observation.fromThought(content)
+            Observation.fromThought(content, { type: 'thought', limit: this.options.thoughtLimit })
         );
         //this.events.emit('thought', content);
     }
