@@ -4,6 +4,7 @@
 {"web_name": "Allrecipes", "id": "Allrecipes--4", "ques": "Find a recipe for Baked Salmon that takes less than 30 minutes to prepare and has at least a 4 star rating based on user reviews.", "web": "https://www.allrecipes.com/"}
 {"web_name": "Allrecipes", "id": "Allrecipes--5", "ques": "Search for a popular Pasta Sauce with more than 1000 reviews and a rating above 4 stars. Create a shopping list of ingredients for this recipe.", "web": "https://www.allrecipes.com/"}
 {"web_name": "Allrecipes", "id": "Allrecipes--6", "ques": "Search for a vegetarian lasagna recipe that has at least a four-star rating and over 500 reviews.", "web": "https://www.allrecipes.com/"}
+{"web_name": "Allrecipes", "id": "Allrecipes--7", "ques": "Find a popular recipe for a chocolate chip cookie and list the ingredients and preparation steps.", "web": "https://www.allrecipes.com/"}
 {"web_name": "Allrecipes", "id": "Allrecipes--8", "ques": "Search for a recipe for Beef Wellington on Allrecipes that has at least 200 reviews and an average rating of 4.5 stars or higher. List the main ingredients required for the dish.", "web": "https://www.allrecipes.com/"}
 {"web_name": "Allrecipes", "id": "Allrecipes--9", "ques": "Find a high-rated recipe for vegetarian lasagna, list the key ingredients required, and include the total preparation and cook time stated on the recipe.", "web": "https://www.allrecipes.com/"}
 {"web_name": "Allrecipes", "id": "Allrecipes--10", "ques": "Find The Most Popular Recipes of the 1960s, noting the recipe name, preparation time and total time of the second recipe in this collection.", "web": "https://www.allrecipes.com/"}
@@ -52,6 +53,7 @@
 {"web_name": "Amazon", "id": "Amazon--13", "ques": "Browse best selling black hoodies in mens size Big and Tall that is between $25 and $50 on Amazon.", "web": "https://www.amazon.com/"}
 {"web_name": "Amazon", "id": "Amazon--14", "ques": "Find the new surge protector on Amazon with 6 to 8 outlets under 25 dollars with customer reviews above 4+ stars.", "web": "https://www.amazon.com/"}
 {"web_name": "Amazon", "id": "Amazon--15", "ques": "Find a pair of mens running shoes in black, size 7, 4+ stars and under $50 and add them to my cart on Amazon.", "web": "https://www.amazon.com/"}
+{"web_name": "Amazon", "id": "Amazon--16", "ques": "Find the Return Policy for Mens Rhinestone Skull Graphic Shirt on Amazon. Color: Black, Size: XX-Large. If Free return is avaliable, tell me how to return this item.", "web": "https://www.amazon.com/"}
 {"web_name": "Amazon", "id": "Amazon--17", "ques": "Show me the list of baby products that are on sale and under 10 dollars on Amazon. Provide at least 2 on sale products", "web": "https://www.amazon.com/"}
 {"web_name": "Amazon", "id": "Amazon--18", "ques": "Open Amazon's home page and tell me what the deal is that is going on at the moment, list the names of at least 2 items that are on offer and tell me what percent off they are.", "web": "https://www.amazon.com/"}
 {"web_name": "Amazon", "id": "Amazon--20", "ques": "Search for a wireless ergonomic keyboard with backlighting and a rating of at least 4 stars. The price should be between $40 to $60. Save the product with the 500+ customer reviews.", "web": "https://www.amazon.com/"}
@@ -105,6 +107,7 @@
 {"web_name": "Apple", "id": "Apple--34", "ques": "Identify the size and weight for the Apple TV 4K and list the Siri Remote features introduced.", "web": "https://www.apple.com/"}
 {"web_name": "Apple", "id": "Apple--35", "ques": "How many types of Apple Pencil are currently available on the Apple's website? Which one supports Wireless pairing and charging.", "web": "https://www.apple.com/"}
 {"web_name": "Apple", "id": "Apple--36", "ques": "Browse Apple Music on the entertainment section of the Apple's website, and see which singers' names are included in the pictures on this page.", "web": "https://www.apple.com/"}
+{"web_name": "Apple", "id": "Apple--37", "ques": "Compare the color options of iPhone 13 Pro, iPhone 14 Pro and iPhone 15 Pro.", "web": "https://www.apple.com/"}
 {"web_name": "Apple", "id": "Apple--38", "ques": "Explore accessories for Apple Vision Pro, list at least three accessories.", "web": "https://www.apple.com/"}
 {"web_name": "Apple", "id": "Apple--39", "ques": "Find solutions on Apple's website if you forgot your Apple ID password.", "web": "https://www.apple.com/"}
 {"web_name": "Apple", "id": "Apple--40", "ques": "Find information on Apple website, and tell me the device weight of Apple Vision Pro and list 5 Built-in Apps it supports.", "web": "https://www.apple.com/"}
@@ -191,6 +194,7 @@
 {"web_name": "Booking", "id": "Booking--3", "ques": "Find a hotel with 4 star and above rating in Los Angeles for 3 days from Dec 18th.", "web": "https://www.booking.com/"}
 {"web_name": "Booking", "id": "Booking--4", "ques": "Search for the cheapest Hotel near Kashi Vishwanath Temple that offer breakfast from Dec 25th - Dec 26th.", "web": "https://www.booking.com/"}
 {"web_name": "Booking", "id": "Booking--5", "ques": "Search a hotel with free WiFi and air conditioning in Bali from Jan 1 to Jan 4, 2026.", "web": "https://www.booking.com/"}
+{"web_name": "Booking", "id": "Booking--6", "ques": "Book one room which provides breakfast, and airport shuttle from Jan 22 to 25 in Los Angeles.", "web": "https://www.booking.com/"}
 {"web_name": "Booking", "id": "Booking--7", "ques": "Find a hotel room on January 3-6 that is closest to National University of Singapore and costs less than $500", "web": "https://www.booking.com/"}
 {"web_name": "Booking", "id": "Booking--8", "ques": "Get the hotel with highest review score and free cancelation in Chennai for 20/12/2025 - 21/12/2025.", "web": "https://www.booking.com/"}
 {"web_name": "Booking", "id": "Booking--9", "ques": "Find hotels for 2 adults in London with a price less than 250 dollars for four days starting from December 25. You must browse the page and offer at least 3 options.", "web": "https://www.booking.com/"}
@@ -326,6 +330,7 @@
 {"web_name": "ESPN", "id": "ESPN--16", "ques": "Check the schedule for the NBA game on December 25, 2023, and provide the teams that are playing and their current standings in their respective conferences.", "web": "https://www.espn.com/"}
 {"web_name": "ESPN", "id": "ESPN--17", "ques": "Check out the NBA Basketball Power Index 2024-25 to see which teams are in first place and which are in last place.", "web": "https://www.espn.com/"}
 {"web_name": "ESPN", "id": "ESPN--18", "ques": "How many sports leagues can you choose from on the ESPN home page?", "web": "https://www.espn.com/"}
+{"web_name": "ESPN", "id": "ESPN--19", "ques": "Who has the highest salary in Boston Celtics Roster 2023-24?", "web": "https://www.espn.com/"}
 {"web_name": "ESPN", "id": "ESPN--20", "ques": "Look up the current leaders in rebounds and assists in the NBA Western Conference on ESPN.", "web": "https://www.espn.com/"}
 {"web_name": "ESPN", "id": "ESPN--22", "ques": "Find the latest Team transactions in the NBA within the past week.", "web": "https://www.espn.com/"}
 {"web_name": "ESPN", "id": "ESPN--23", "ques": "Find the result of the latest basketball game between the Miami Heat and the New York Knicks, including the final score and top rebounder from the match.", "web": "https://www.espn.com/"}
@@ -480,6 +485,7 @@
 {"web_name": "Google Search", "id": "Google Search--12", "ques": "Find the year that Tom Brady had the most touchdowns in a single seasson.", "web": "https://www.google.com/"}
 {"web_name": "Google Search", "id": "Google Search--13", "ques": "What are Jerry Trainor's upcoming projects?", "web": "https://www.google.com/"}
 {"web_name": "Google Search", "id": "Google Search--14", "ques": "Find the retired players the year before last named James Smith and tell me which club he has been a member of from 2020\u20132021.", "web": "https://www.google.com/"}
+{"web_name": "Google Search", "id": "Google Search--16", "ques": "How many members are there in the OpenAI community on Reddit, and what is the hottest news right now?", "web": "https://www.google.com/"}
 {"web_name": "Google Search", "id": "Google Search--17", "ques": "Tell me the names of Trump's kids", "web": "https://www.google.com/"}
 {"web_name": "Google Search", "id": "Google Search--18", "ques": "When and where the most recent World Cup was held, and which team was the winner?", "web": "https://www.google.com/"}
 {"web_name": "Google Search", "id": "Google Search--19", "ques": "What are the first 7 bits of the SHA of the Bert's latest commit on GitHub, and what exactly was changed in that commit.", "web": "https://www.google.com/"}
@@ -506,6 +512,7 @@
 {"web_name": "Google Search", "id": "Google Search--41", "ques": "Look up the current statistics of air pollution level in Los Angeles using Google Search.", "web": "https://www.google.com/"}
 {"web_name": "Google Search", "id": "Google Search--42", "ques": " Use Google Search to find an article that explains the major differences between American English and British English.", "web": "https://www.google.com/"}
 {"web_name": "Huggingface", "id": "Huggingface--0", "ques": "Find a pre-trained natural language processing model on Hugging Face that can perform sentiment analysis, and make sure the model's last update is within March 2023.", "web": "https://huggingface.co/"}
+{"web_name": "Huggingface", "id": "Huggingface--1", "ques": "Use the Huggingface Inference API to generate a short story about a dragon and a wizard.", "web": "https://huggingface.co/"}
 {"web_name": "Huggingface", "id": "Huggingface--2", "ques": "Discover three new and popular open-source NLP models for language translation released in the past month on Huggingface.", "web": "https://huggingface.co/"}
 {"web_name": "Huggingface", "id": "Huggingface--3", "ques": "Look up a model with a license of cc-by-sa-4.0 with the most likes on Hugging face.", "web": "https://huggingface.co/"}
 {"web_name": "Huggingface", "id": "Huggingface--4", "ques": "Locate an open-source conversational AI model on Hugging Face, trained in English and list its main features and applications.", "web": "https://huggingface.co/"}

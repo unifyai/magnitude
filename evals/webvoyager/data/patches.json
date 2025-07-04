@@ -339,224 +339,197 @@
         "prev": "Identify the top-10 trending travel destination for 2024 through a blog, how many of them are in Asian.",
         "new": "Identify the top-10 trending travel destination for 2025 through a blog, how many of them are in Asian."
     },
+
     "Allrecipes--16": {
-        "reason": "",
+        "reason": "DNE",
         "remove": true
     },
     "Allrecipes--19": {
-        "reason": "",
+        "reason": "DNE",
         "remove": true
     },
     "Allrecipes--23": {
-        "reason": "",
+        "reason": "DNE",
         "remove": true
     },
     "Allrecipes--3": {
-        "reason": "",
+        "reason": "DNE",
         "remove": true
     },
     "Allrecipes--30": {
-        "reason": "",
-        "remove": true
-    },
-    "Allrecipes--7": {
-        "reason": "",
-        "remove": true
-    },
-    "Amazon--16": {
-        "reason": "",
+        "reason": "DNE",
         "remove": true
     },
     "Amazon--19": {
-        "reason": "",
+        "reason": "No books on this topic being released within a month",
         "remove": true
     },
     "Amazon--4": {
-        "reason": "",
+        "reason": "Can't filter by 'Used - Good' from the search results page, only once you click into a specific item",
         "remove": true
     },
     "Apple--1": {
-        "reason": "",
+        "reason": "No reasonable way to find this information, no search queries on support page even return it",
         "remove": true
     },
     "Apple--14": {
-        "reason": "",
+        "reason": "Ambiguous task, multiple M4 chip models exist, and also no concept of 'base' model on the site",
         "remove": true
     },
     "Apple--16": {
-        "reason": "",
+        "reason": "3rd generation airpods are buried in the compare page and don't even list price",
         "remove": true
     },
     "Apple--2": {
-        "reason": "",
+        "reason": "These phones are no longer sold and don't have prices listed anymore, can't even compare 15 pro to 16 pro to modernize the example",
         "remove": true
     },
     "Apple--20": {
-        "reason": "",
-        "remove": true
-    },
-    "Apple--37": {
-        "reason": "",
+        "reason": "This phone is no longer sold",
         "remove": true
     },
     "Apple--41": {
-        "reason": "",
+        "reason": "These are no longer sold with 64GB of storage, 128 GB is the minimum",
         "remove": true
     },
     "Apple--42": {
-        "reason": "",
+        "reason": "It's very ambiguous what 'updates' means here",
         "remove": true
     },
     "Apple--7": {
-        "reason": "",
+        "reason": "It's already released",
         "remove": true
     },
     "Apple--9": {
-        "reason": "",
+        "reason": "Cannot schedule actual, in-store pickup",
         "remove": true
     },
     "ArXiv--11": {
-        "reason": "",
+        "reason": "No way to specifically filter for non-english submissions, even in advanced search",
         "remove": true
     },
     "BBC News--14": {
-        "reason": "",
+        "reason": "There are no recent tech industry layoffs in the news",
         "remove": true
     },
     "BBC News--16": {
-        "reason": "",
+        "reason": "Brexit already happened, it's not in the news",
         "remove": true
     },
     "BBC News--18": {
-        "reason": "",
+        "reason": "There's no way to get the 'best' podcasts of the year",
         "remove": true
     },
     "BBC News--2": {
-        "reason": "",
+        "reason": "There are no articles regarding the environmental impacts of deforestation published within the last two days",
         "remove": true
     },
     "BBC News--21": {
-        "reason": "",
+        "reason": "There no longer seems to be an explicit 'World News' section",
         "remove": true
     },
     "BBC News--33": {
-        "reason": "",
+        "reason": "There no longer seems to be an explicit 'World News' section",
         "remove": true
     },
     "BBC News--37": {
-        "reason": "",
+        "reason": "There are no book reviews featured in the Culture section",
         "remove": true
     },
     "Booking--11": {
-        "reason": "",
+        "reason": "Cannot actually reserve a hotel",
         "remove": true
     },
     "Booking--13": {
-        "reason": "",
+        "reason": "Cannot actually reserve a hotel",
         "remove": true
     },
     "Booking--14": {
-        "reason": "",
-        "remove": true
-    },
-    "Booking--6": {
-        "reason": "",
+        "reason": "Cannot actually reserve a hotel",
         "remove": true
     },
     "Coursera--17": {
-        "reason": "",
+        "reason": "There’s no 'Credit Eligible' filter",
         "remove": true
     },
     "Coursera--28": {
-        "reason": "",
-        "remove": true
-    },
-    "ESPN--19": {
-        "reason": "",
+        "reason": "There are no 'guided projects' related to 'astrophysics'",
         "remove": true
     },
     "ESPN--2": {
-        "reason": "",
+        "reason": "It is not the NBA season, there is no Bucks game in the last 2 days",
         "remove": true
     },
     "ESPN--21": {
-        "reason": "",
+        "reason": "It is not the NBA season, there is no Nuggets game in the last 3 days",
         "remove": true
     },
     "ESPN--26": {
-        "reason": "",
+        "reason": "It is not the NBA season, there were no matchups yesterday (also what the heck is a loser high and a winner high)",
         "remove": true
     },
     "GitHub--22": {
-        "reason": "",
+        "reason": "There are no repos that are focused on natural language processing in Ruby updated within the last week",
         "remove": true
     },
     "Google Flights--0": {
-        "reason": "",
+        "reason": "Cannot book an actual flight",
         "remove": true
     },
     "Google Flights--20": {
-        "reason": "",
+        "reason": "Cannot book an actual flight",
         "remove": true
     },
     "Google Flights--7": {
-        "reason": "",
+        "reason": "There are no flights from Phoenix to Miami (Dec. 25th - Dec. 28th) that have first class tickets for under $1320",
         "remove": true
     },
     "Google Map--13": {
-        "reason": "",
+        "reason": "Cannot book a ride",
         "remove": true
     },
     "Google Map--18": {
-        "reason": "",
+        "reason": "Cannot actually print something",
         "remove": true
     },
     "Google Map--26": {
-        "reason": "",
+        "reason": "Cannot actually print something",
         "remove": true
     },
     "Google Search--15": {
-        "reason": "",
-        "remove": true
-    },
-    "Google Search--16": {
-        "reason": "",
+        "reason": "Wtf",
         "remove": true
     },
     "Google Search--22": {
-        "reason": "",
-        "remove": true
-    },
-    "Huggingface--1": {
-        "reason": "",
+        "reason": "How are you supposed to discern what the 'top three trending topics this month in New York City' are from a google search",
         "remove": true
     },
     "Huggingface--10": {
-        "reason": "",
+        "reason": "argilla/notux-chat-ui no longer exists",
         "remove": true
     },
     "Huggingface--20": {
-        "reason": "",
+        "reason": "No NER model last updated in 2022 with 1M+ downloads",
         "remove": true
     },
     "Huggingface--21": {
-        "reason": "",
+        "reason": "No longer exists in docs",
         "remove": true
     },
     "Huggingface--22": {
-        "reason": "",
+        "reason": "Does not exist in docs",
         "remove": true
     },
     "Huggingface--23": {
-        "reason": "",
+        "reason": "Extremely vague and hard to judge",
         "remove": true
     },
     "Huggingface--32": {
-        "reason": "",
+        "reason": "No settings area",
         "remove": true
     },
     "Huggingface--6": {
-        "reason": "",
+        "reason": "Need at least 3 sentences to try the inference demo",
         "remove": true
     }
 }
