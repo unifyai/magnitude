@@ -68,10 +68,10 @@ export class BrowserConnector implements AgentConnector {
 
         this.context = await BrowserProvider.getInstance().newContext(this.options.browser);
 
-        const contextOptions = this.options.browser && 'contextOptions' in this.options.browser ? this.options.browser.contextOptions : {};
+        //const contextOptions = this.options.browser && 'contextOptions' in this.options.browser ? this.options.browser.contextOptions : {};
         
         this.harness = new WebHarness(this.context, {
-            fallbackViewportDimensions: contextOptions?.viewport ?? { width: 1024, height: 768 },
+            //fallbackViewportDimensions: contextOptions?.viewport ?? { width: 1024, height: 768 },
             virtualScreenDimensions: this.options.virtualScreenDimensions
         });
         await this.harness.start();
