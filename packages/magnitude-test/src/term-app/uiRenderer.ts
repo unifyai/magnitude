@@ -1,3 +1,4 @@
+import { setImmediate } from "node:timers";
 import logUpdate from 'log-update';
 import { RegisteredTest } from '@/discovery/types';
 import { TestFailure, TestState as RunnerTestState, StepDescriptor as RunnerStepDescriptor, CheckDescriptor as RunnerCheckDescriptor } from '@/runner/state';

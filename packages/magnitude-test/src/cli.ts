@@ -15,7 +15,7 @@ import { logger as coreLogger } from 'magnitude-core';
 import logger from '@/logger';
 import { describeModel } from './util';
 import * as dotenv from 'dotenv';
-import { execSync } from 'child_process';
+import { execSync } from 'node:child_process';
 // Removed React import
 // Removed App import
 // Removed render import

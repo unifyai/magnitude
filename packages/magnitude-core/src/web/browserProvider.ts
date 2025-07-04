@@ -148,9 +148,18 @@ export class BrowserProvider {
         
         if ('cdp' in options) {
             const browser = await chromium.connectOverCDP(options.cdp);
-            return browser.newContext(options.contextOptions);
+            if (browser.contexts().length > 0) {
+                return browser.contexts()[0];
+            } else {
+                return browser.newContext(options.contextOptions);
+            }
         } else if ('instance' in options) {
-            return await options.instance.newContext(options.contextOptions);
+            const browser = options.instance;
+            if (browser.contexts().length > 0) {
+                return browser.contexts()[0];
+            } else {
+                return browser.newContext(options.contextOptions);
+            }
         } else if ('launchOptions' in options) {
             this.logger.trace('Creating context with custom launch options');
             return await this._createAndTrackContext(options);

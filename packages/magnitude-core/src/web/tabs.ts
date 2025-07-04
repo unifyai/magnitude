@@ -41,7 +41,7 @@ export class TabManager {
         this.setActivePage(page);
     }
 
-    private setActivePage(page: Page) {
+    public setActivePage(page: Page) {
         this.activePage = page;
         this.events.emit('tabChanged', page);
     }

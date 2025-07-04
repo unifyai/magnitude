@@ -12,6 +12,7 @@
     "postinstall": "turbo run build"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "^0.5.1",
     "@changesets/cli": "^2.28.1",
     "prettier": "^3.5.3",
     "turbo": "^2.4.4",
