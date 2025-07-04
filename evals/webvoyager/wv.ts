@@ -291,12 +291,12 @@ async function runTask(taskToRun: Task | string) {
         year: 'numeric'
     });
 
-    const context = await chromium.launchPersistentContext("", {
-        channel: "chrome",
-        headless: false,
-        viewport: { width: 1024, height: 768 },
-        deviceScaleFactor: process.platform === 'darwin' ? 2 : 1
-    });
+    // const context = await chromium.launchPersistentContext("", {
+    //     channel: "chrome",
+    //     headless: false,
+    //     viewport: { width: 1024, height: 768 },
+    //     deviceScaleFactor: process.platform === 'darwin' ? 2 : 1
+    // });
 
     // const browser = await chromium.launch({
     //     executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -306,7 +306,7 @@ async function runTask(taskToRun: Task | string) {
 
     const agent = await startBrowserAgent({
         //browser: { instance: browser },
-        browser: { context: context },
+        //browser: { context: context },
         llm: {
             provider: "claude-code",
             options: {
