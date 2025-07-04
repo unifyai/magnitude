@@ -36,6 +36,7 @@
   ],
   "license": "Apache-2.0",
   "dependencies": {
-    "@paralleldrive/cuid2": "^2.2.2"
+    "@paralleldrive/cuid2": "^2.2.2",
+    "patchright": "^1.52.5"
   }
 }

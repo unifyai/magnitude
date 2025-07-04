@@ -8,6 +8,7 @@ import z from "zod";
 import { Command } from "commander";
 import * as p from "@clack/prompts";
 import { Agent } from "../../packages/magnitude-core/src/agent";
+import { chromium } from "patchright";
 
 const TASKS_PATH = path.join(__dirname, "data", "patchedTasks.jsonl");
 
@@ -290,7 +291,22 @@ async function runTask(taskToRun: Task | string) {
         year: 'numeric'
     });
 
+    const context = await chromium.launchPersistentContext("", {
+        channel: "chrome",
+        headless: false,
+        viewport: { width: 1024, height: 768 },
+        deviceScaleFactor: process.platform === 'darwin' ? 2 : 1
+    });
+
+    // const browser = await chromium.launch({
+    //     executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    //     headless: false,
+    //     args: []
+    // });
+
     const agent = await startBrowserAgent({
+        //browser: { instance: browser },
+        browser: { context: context },
         llm: {
             provider: "claude-code",
             options: {
@@ -397,6 +413,7 @@ async function runTask(taskToRun: Task | string) {
             clearTimeout(timeoutId);
         }
         await agent.stop();
+        //await browser.close();
     }
 
     console.log(`Finished task: ${task.id}`);

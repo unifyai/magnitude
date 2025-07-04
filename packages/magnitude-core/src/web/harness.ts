@@ -11,6 +11,7 @@ import { Image } from '@/memory/image';
 
 
 export interface WebHarnessOptions {
+    fallbackViewportDimensions?: { width: number, height: number}
     // Some LLM operate best on certain screen dims
     virtualScreenDimensions?: { width: number, height: number }
 }
@@ -150,8 +151,13 @@ export class WebHarness { // implements StateComponent
         if (!virtual) {
             return { x, y };
         }
-        const vp = this.page.viewportSize();
-        if (!vp) throw new Error("Could not get viewport dimensions to transform coordinates");
+        let vp = this.page.viewportSize();// ?? this.options.fallbackViewportDimensions;
+        if (!vp && this.options.fallbackViewportDimensions) {
+            logger.warn('Using fallback viewport dimensions');
+            vp = this.options.fallbackViewportDimensions;
+        } else if (!vp) {
+            throw new Error("Could not get viewport dimensions to transform coordinates");
+        }
         return {
             x: x * (vp.width / virtual.width),
             y: y * (vp.height / virtual.height),
