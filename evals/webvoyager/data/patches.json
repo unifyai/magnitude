@@ -436,6 +436,10 @@
         "reason": "There are no book reviews featured in the Culture section",
         "remove": true
     },
+    "Booking--6": {
+        "reason": "Cannot actually reserve a hotel",
+        "remove": true
+    },
     "Booking--11": {
         "reason": "Cannot actually reserve a hotel",
         "remove": true
