@@ -360,6 +360,10 @@
         "reason": "DNE",
         "remove": true
     },
+    "Amazon--6": {
+        "reason": "No stroller meeting all requirements exists",
+        "remove": true
+    },
     "Amazon--19": {
         "reason": "No books on this topic being released within a month",
         "remove": true
