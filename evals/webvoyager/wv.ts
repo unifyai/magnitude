@@ -312,7 +312,6 @@ async function runTask(taskToRun: Task | string) {
     let startTime = Date.now();
     let context: any = null;
     let agent: any = null;
-    let browserProcess: any = null;
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
     let totalInputCost = 0.0;
@@ -333,10 +332,6 @@ async function runTask(taskToRun: Task | string) {
             viewport: { width: 1024, height: 768 },
             deviceScaleFactor: process.platform === 'darwin' ? 2 : 1
         });
-        
-        // Store the browser process for force cleanup
-        const browser = context.browser();
-        browserProcess = browser?.process();
 
         agent = await startBrowserAgent({
             browser: { context: context },
@@ -404,12 +399,6 @@ async function runTask(taskToRun: Task | string) {
                 new Promise<void>((_, reject) => {
                     timeoutId = setTimeout(async () => {
                         isTimedOut = true;
-                        // Try to stop the agent before rejecting
-                        try {
-                            await agent.stop();
-                        } catch (stopError) {
-                            console.error("Failed to stop agent on timeout:", stopError);
-                        }
                         reject(new Error(`Task timed out after 15 minutes`));
                     }, TIMEOUT_MS);
                 })
@@ -449,55 +438,17 @@ async function runTask(taskToRun: Task | string) {
         // Re-throw error to let runTasksParallel handle crash retries
         throw error;
     } finally {
-        // Clean up resources with timeout
-        const cleanupTimeout = 5000; // 5 seconds max for cleanup
-        
-        // First, try to close all pages immediately
-        if (context) {
-            try {
-                const pages = context.pages();
-                await Promise.all(pages.map(page => 
-                    Promise.race([
-                        page.close(),
-                        new Promise(resolve => setTimeout(resolve, 1000))
-                    ]).catch(() => {})
-                ));
-            } catch (e) {
-                // Ignore page close errors
-            }
+        // Clean up resources
+        try {
+            if (agent) await agent.stop();
+        } catch (e) {
+            console.error("Error stopping agent:", e);
         }
         
-        // Don't wait for agent cleanup - just nullify it
-        if (agent) {
-            // Fire and forget - don't await
-            agent.stop().catch(e => 
-                console.error("Error stopping agent (ignored):", e)
-            );
-            agent = null;
-        }
-        
-        // Close context but don't block on it
-        if (context) {
-            // Give it 2 seconds max, then move on
-            const closed = await Promise.race([
-                context.close().then(() => true).catch(e => {
-                    console.error("Error closing context:", e);
-                    return false;
-                }),
-                new Promise<false>(resolve => setTimeout(() => resolve(false), 2000))
-            ]);
-            
-            // If context didn't close cleanly, force kill the browser process
-            if (!closed && browserProcess) {
-                try {
-                    console.warn(`Force killing browser process for task ${task.id}`);
-                    browserProcess.kill('SIGKILL');
-                } catch (killError) {
-                    console.error("Failed to kill browser process:", killError);
-                }
-            }
-            
-            context = null;
+        try {
+            if (context) await context.close();
+        } catch (e) {
+            console.error("Error closing context:", e);
         }
     }
 
@@ -534,48 +485,61 @@ async function evalTask(taskId: string) {
     fs.writeFileSync(evalPath, JSON.stringify(evalResult, null, 4));
 }
 
+async function runTaskWithWorker(task: Task, runEval: boolean): Promise<boolean> {
+    return new Promise((resolve) => {
+        const worker = new Worker(path.join(__dirname, 'wv-worker.ts'));
+
+        const timeout = setTimeout(() => {
+            console.error(`Worker timeout for task ${task.id}, terminating worker`);
+            worker.terminate();
+            resolve(false);
+        }, 25 * 60 * 1000); // 25 minutes total timeout
+
+        worker.onmessage = (event: MessageEvent) => {
+            clearTimeout(timeout);
+            const msg = event.data;
+            if (msg.type === 'complete') {
+                console.log(`Worker completed task ${task.id}: ${msg.result.success ? 'success' : 'failed'}`);
+                worker.terminate();
+                resolve(msg.result.success);
+            } else if (msg.type === 'error') {
+                console.error(`Worker error for task ${task.id}: ${msg.error}`);
+                worker.terminate();
+                resolve(false);
+            }
+        };
+
+        worker.onerror = (err: ErrorEvent) => {
+            clearTimeout(timeout);
+            console.error(`Worker crashed for task ${task.id}:`, err);
+            worker.terminate();
+            resolve(false);
+        };
+
+        // Send the task to the worker
+        worker.postMessage({ task, runEval });
+    });
+}
+
 async function runTasksParallel(tasks: Task[], workers: number, runEval: boolean = false) {
-    const MAX_CRASH_RETRIES = 3; // Maximum number of retry attempts for crashed tasks only (not timeouts)
-    
     if (workers === 1) {
-        // Run tasks one at a time
+        // Run tasks one at a time using worker threads
         for (let i = 0; i < tasks.length; i++) {
             const task = tasks[i];
             console.log(`\n[${i + 1}/${tasks.length}] Running task: ${task.id}`);
             
-            let crashAttempts = 0;
-            let succeededWithoutCrash = false;
+            const success = await runTaskWithWorker(task, runEval);
             
-            while (crashAttempts < MAX_CRASH_RETRIES && !succeededWithoutCrash) {
-                try {
-                    await runTask(task);
-                    succeededWithoutCrash = true;
-                    
-                    if (runEval) {
-                        console.log(`Evaluating task: ${task.id}`);
-                        await evalTask(task.id);
-                    }
-                } catch (error) {
-                    crashAttempts++;
-                    if (crashAttempts < MAX_CRASH_RETRIES) {
-                        console.log(`\n🔄 Retrying crashed task ${task.id} (crash attempt ${crashAttempts + 1}/${MAX_CRASH_RETRIES})...`);
-                        // Small delay before retrying after crash
-                        await new Promise(resolve => setTimeout(resolve, 2000));
-                    } else {
-                        console.error(`\n❌ Task ${task.id} crashed ${MAX_CRASH_RETRIES} times, giving up`);
-                    }
-                }
+            if (!success) {
+                console.error(`\n❌ Task ${task.id} failed`);
             }
         }
     } else {
-        // Run tasks in parallel with worker pool
+        // Run tasks in parallel with worker threads
         let taskIndex = 0;
         let completedTasks = 0;
 
         const runWorker = async (workerId: number) => {
-            let lastActivity = Date.now();
-            const WORKER_TIMEOUT = 30 * 60 * 1000; // 30 minutes max per task
-            
             while (taskIndex < tasks.length) {
                 const currentIndex = taskIndex++;
                 const task = tasks[currentIndex];
@@ -584,67 +548,18 @@ async function runTasksParallel(tasks: Task[], workers: number, runEval: boolean
                     `\n[Worker ${workerId}] Starting task ${currentIndex + 1}/${tasks.length}: ${task.id}`,
                 );
 
-                let crashAttempts = 0;
-                let succeededWithoutCrash = false;
+                const success = await runTaskWithWorker(task, runEval);
                 
-                while (crashAttempts < MAX_CRASH_RETRIES && !succeededWithoutCrash) {
-                    try {
-                        lastActivity = Date.now();
-                        
-                        // Add worker-level timeout
-                        const taskPromise = runTask(task);
-                        const timeoutPromise = new Promise<never>((_, reject) => {
-                            setTimeout(() => {
-                                reject(new Error(`Worker ${workerId} timed out on task ${task.id}`));
-                            }, WORKER_TIMEOUT);
-                        });
-                        
-                        await Promise.race([taskPromise, timeoutPromise]);
-                        
-                        succeededWithoutCrash = true;
-                        
-                        if (runEval) {
-                            console.log(`[Worker ${workerId}] Evaluating task: ${task.id}`);
-                            await evalTask(task.id);
-                        }
-                        
-                        completedTasks++;
-                        console.log(
-                            `\n[Worker ${workerId}] Completed task ${currentIndex + 1}/${tasks.length}: ${task.id} (${completedTasks} total completed)`,
-                        );
-                    } catch (error) {
-                        if ((error as Error).message.includes('net::ERR_ABORTED') || (error as Error).message.includes('Target page, context or browser has been closed')) {
-                            // Network error or browser crash - not agent's fault
-                            crashAttempts++;
-                            if (crashAttempts < MAX_CRASH_RETRIES) {
-                                console.log(`\n[Worker ${workerId}] 🔄 Retrying crashed task ${task.id} (crash attempt ${crashAttempts + 1}/${MAX_CRASH_RETRIES})...`);
-                                // Small delay before retrying after crash
-                                await new Promise(resolve => setTimeout(resolve, 2000));
-                            } else {
-                                console.error(
-                                    `\n[Worker ${workerId}] ❌ Task ${task.id} crashed ${MAX_CRASH_RETRIES} times, giving up:`,
-                                    error,
-                                );
-                                completedTasks++;
-                            }
-                        } else if ((error as Error).message.includes('Worker') && (error as Error).message.includes('timed out')) {
-                            // Worker timeout - treat as crash and retry
-                            console.error(`\n[Worker ${workerId}] Worker timeout detected for task ${task.id}`);
-                            crashAttempts++;
-                            if (crashAttempts < MAX_CRASH_RETRIES) {
-                                console.log(`\n[Worker ${workerId}] 🔄 Retrying after worker timeout (attempt ${crashAttempts + 1}/${MAX_CRASH_RETRIES})...`);
-                                await new Promise(resolve => setTimeout(resolve, 2000));
-                            } else {
-                                console.error(`\n[Worker ${workerId}] ❌ Task ${task.id} failed after ${MAX_CRASH_RETRIES} attempts`);
-                                completedTasks++;
-                            }
-                        } else {
-                            // Some other error - break and fail task
-                            console.error(`\n[Worker ${workerId}] Got unexpected non-crash error: ${(error as Error).message}`);
-                            crashAttempts = MAX_CRASH_RETRIES;
-                            completedTasks++;
-                        }
-                    }
+                if (success) {
+                    completedTasks++;
+                    console.log(
+                        `\n[Worker ${workerId}] Completed task ${currentIndex + 1}/${tasks.length}: ${task.id} (${completedTasks} total completed)`,
+                    );
+                } else {
+                    completedTasks++;
+                    console.error(
+                        `\n[Worker ${workerId}] Failed task ${currentIndex + 1}/${tasks.length}: ${task.id}`,
+                    );
                 }
             }
         };
