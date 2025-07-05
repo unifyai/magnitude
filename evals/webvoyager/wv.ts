@@ -9,6 +9,7 @@ import { Command } from "commander";
 import * as p from "@clack/prompts";
 import { Agent } from "../../packages/magnitude-core/src/agent";
 import { chromium } from "patchright";
+import { spawn } from "node:child_process";
 
 const TASKS_PATH = path.join(__dirname, "data", "patchedTasks.jsonl");
 
@@ -485,53 +486,58 @@ async function evalTask(taskId: string) {
     fs.writeFileSync(evalPath, JSON.stringify(evalResult, null, 4));
 }
 
-async function runTaskWithWorker(task: Task, runEval: boolean): Promise<boolean> {
+async function runTaskAsProcess(task: Task, runEval: boolean): Promise<boolean> {
     return new Promise((resolve) => {
-        const worker = new Worker(path.join(__dirname, 'wv-worker.ts'));
+        const child = spawn('bun', [
+            path.join(__dirname, 'wv-runner.ts'),
+            JSON.stringify(task),
+            String(runEval)
+        ], {
+            stdio: 'inherit',
+            env: process.env
+        });
 
         const timeout = setTimeout(() => {
-            console.error(`Worker timeout for task ${task.id}, terminating worker`);
-            worker.terminate();
+            console.error(`Process timeout for task ${task.id}, killing process`);
+            child.kill('SIGKILL');
             resolve(false);
         }, 25 * 60 * 1000); // 25 minutes total timeout
 
-        worker.onmessage = (event: MessageEvent) => {
+        child.on('exit', (code) => {
             clearTimeout(timeout);
-            const msg = event.data;
-            if (msg.type === 'complete') {
-                console.log(`Worker completed task ${task.id}: ${msg.result.success ? 'success' : 'failed'}`);
-                worker.terminate();
-                resolve(msg.result.success);
-            } else if (msg.type === 'error') {
-                console.error(`Worker error for task ${task.id}: ${msg.error}`);
-                worker.terminate();
+            if (code === 0) {
+                console.log(`Process completed task ${task.id} successfully`);
+                resolve(true);
+            } else {
+                console.error(`Process failed task ${task.id} with code ${code}`);
                 resolve(false);
             }
-        };
+        });
 
-        worker.onerror = (err: ErrorEvent) => {
+        child.on('error', (err) => {
             clearTimeout(timeout);
-            console.error(`Worker crashed for task ${task.id}:`, err);
-            worker.terminate();
+            console.error(`Process error for task ${task.id}:`, err);
             resolve(false);
-        };
-
-        // Send the task to the worker
-        worker.postMessage({ task, runEval });
+        });
     });
 }
 
+
 async function runTasksParallel(tasks: Task[], workers: number, runEval: boolean = false) {
     if (workers === 1) {
-        // Run tasks one at a time using worker threads
+        // Run tasks one at a time (without workers for now)
         for (let i = 0; i < tasks.length; i++) {
             const task = tasks[i];
             console.log(`\n[${i + 1}/${tasks.length}] Running task: ${task.id}`);
             
-            const success = await runTaskWithWorker(task, runEval);
-            
-            if (!success) {
-                console.error(`\n❌ Task ${task.id} failed`);
+            try {
+                await runTask(task);
+                if (runEval) {
+                    console.log(`Evaluating task: ${task.id}`);
+                    await evalTask(task.id);
+                }
+            } catch (error) {
+                console.error(`\n❌ Task ${task.id} failed:`, error);
             }
         }
     } else {
@@ -548,7 +554,7 @@ async function runTasksParallel(tasks: Task[], workers: number, runEval: boolean
                     `\n[Worker ${workerId}] Starting task ${currentIndex + 1}/${tasks.length}: ${task.id}`,
                 );
 
-                const success = await runTaskWithWorker(task, runEval);
+                const success = await runTaskAsProcess(task, runEval);
                 
                 if (success) {
                     completedTasks++;
@@ -634,7 +640,7 @@ program
     .description("Run tasks by category or task ID")
     .option("-w, --workers <number>", "Number of parallel workers", "1")
     .option("--eval", "Automatically run evaluation after each task")
-    .option("--failed", "Include failed tasks (default: only unrun tasks)")
+    .option("--failed", "Include failed tasks (default: only incomplete tasks) - useful for pass@N")
     .option("--failed-only", "Only run failed tasks")
     .option("--replace", "Run all tasks regardless of status")
     .action(async (input: string | undefined, options: RunOptions) => {

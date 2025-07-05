@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+// Single task runner - run as a separate process
 import { startBrowserAgent } from "../../packages/magnitude-core/src/agent/browserAgent";
 import * as fs from "fs";
 import * as path from "path";
@@ -13,13 +14,22 @@ interface Task {
     web: string;
 }
 
-async function runTaskInWorker(task: Task, runEval: boolean) {
+async function main() {
+    const taskJson = process.argv[2];
+    const runEval = process.argv[3] === 'true';
+    
+    if (!taskJson) {
+        console.error("No task provided");
+        process.exit(1);
+    }
+    
+    const task: Task = JSON.parse(taskJson);
     const MAX_CRASH_RETRIES = 3;
     let crashAttempts = 0;
     
     while (crashAttempts < MAX_CRASH_RETRIES) {
-        console.log(`[Worker] Running task: ${task.id} - ${task.ques}`);
-        console.log(`[Worker] URL: ${task.web}`);
+        console.log(`[Runner] Running task: ${task.id} - ${task.ques}`);
+        console.log(`[Runner] URL: ${task.web}`);
 
         let startTime = Date.now();
         let context: any = null;
@@ -111,28 +121,29 @@ async function runTaskInWorker(task: Task, runEval: boolean) {
             })
         ]);
 
-            console.log(`[Worker] Finished task: ${task.id}`);
-            return { success: true, taskId: task.id };
+            console.log(`[Runner] Finished task: ${task.id}`);
+            process.exit(0); // Success!
 
         } catch (error) {
             const errorMessage = (error as Error).message;
-            console.error(`[Worker] Error in task ${task.id}:`, error);
+            console.error(`[Runner] Error in task ${task.id}:`, error);
             
             // Check if it's a recoverable crash
             const isRecoverableCrash = errorMessage.includes('net::ERR_ABORTED') || 
                                       errorMessage.includes('Target page, context or browser has been closed') ||
                                       errorMessage.includes('Failed to connect') ||
-                                      errorMessage.includes('ENOENT');
+                                      errorMessage.includes('ENOENT') ||
+                                      errorMessage.includes('ECONNREFUSED');
             
             if (isRecoverableCrash && crashAttempts < MAX_CRASH_RETRIES - 1) {
                 crashAttempts++;
-                console.log(`[Worker] 🔄 Retrying crashed task ${task.id} (crash attempt ${crashAttempts}/${MAX_CRASH_RETRIES})...`);
+                console.log(`[Runner] 🔄 Retrying crashed task ${task.id} (crash attempt ${crashAttempts}/${MAX_CRASH_RETRIES})...`);
                 // Small delay before retrying
                 await new Promise(resolve => setTimeout(resolve, 2000));
                 continue; // Retry the task
             }
             
-            // Save error state
+            // Save error state before failing
             const memory = agent ? await agent.memory.toJSON() : null;
             fs.writeFileSync(
                 path.join("results", `${task.id}.json`),
@@ -154,40 +165,28 @@ async function runTaskInWorker(task: Task, runEval: boolean) {
                 ),
             );
             
-            return { success: false, taskId: task.id, error: errorMessage };
+            process.exit(1); // Failed after retries
         } finally {
             // Cleanup
             try {
                 if (agent) await agent.stop();
             } catch (e) {
-                console.error("[Worker] Error stopping agent:", e);
+                console.error("[Runner] Error stopping agent:", e);
             }
             
             try {
                 if (context) await context.close();
             } catch (e) {
-                console.error("[Worker] Error closing context:", e);
+                console.error("[Runner] Error closing context:", e);
             }
         }
     }
     
     // Should never reach here
-    return { success: false, taskId: task.id, error: 'Max retries exceeded' };
+    process.exit(1);
 }
 
-// Bun worker message handler
-self.onmessage = async (event: MessageEvent) => {
-    const { task, runEval } = event.data;
-    
-    try {
-        const result = await runTaskInWorker(task, runEval);
-        self.postMessage({ type: 'complete', result });
-        
-        // Force garbage collection before worker exits
-        if (global.gc) {
-            global.gc();
-        }
-    } catch (error) {
-        self.postMessage({ type: 'error', error: (error as Error).message });
-    }
-};
+main().catch(err => {
+    console.error("Fatal error:", err);
+    process.exit(1);
+});
