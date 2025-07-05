@@ -312,6 +312,7 @@ async function runTask(taskToRun: Task | string) {
     let startTime = Date.now();
     let context: any = null;
     let agent: any = null;
+    let browserProcess: any = null;
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
     let totalInputCost = 0.0;
@@ -332,6 +333,10 @@ async function runTask(taskToRun: Task | string) {
             viewport: { width: 1024, height: 768 },
             deviceScaleFactor: process.platform === 'darwin' ? 2 : 1
         });
+        
+        // Store the browser process for force cleanup
+        const browser = context.browser();
+        browserProcess = browser?.process();
 
         agent = await startBrowserAgent({
             browser: { context: context },
@@ -397,8 +402,14 @@ async function runTask(taskToRun: Task | string) {
             await Promise.race([
                 agent.act(task.ques),
                 new Promise<void>((_, reject) => {
-                    timeoutId = setTimeout(() => {
+                    timeoutId = setTimeout(async () => {
                         isTimedOut = true;
+                        // Try to stop the agent before rejecting
+                        try {
+                            await agent.stop();
+                        } catch (stopError) {
+                            console.error("Failed to stop agent on timeout:", stopError);
+                        }
                         reject(new Error(`Task timed out after 15 minutes`));
                     }, TIMEOUT_MS);
                 })
@@ -438,17 +449,55 @@ async function runTask(taskToRun: Task | string) {
         // Re-throw error to let runTasksParallel handle crash retries
         throw error;
     } finally {
-        // Clean up resources
-        try {
-            if (agent) await agent.stop();
-        } catch (e) {
-            console.error("Error stopping agent:", e);
+        // Clean up resources with timeout
+        const cleanupTimeout = 5000; // 5 seconds max for cleanup
+        
+        // First, try to close all pages immediately
+        if (context) {
+            try {
+                const pages = context.pages();
+                await Promise.all(pages.map(page => 
+                    Promise.race([
+                        page.close(),
+                        new Promise(resolve => setTimeout(resolve, 1000))
+                    ]).catch(() => {})
+                ));
+            } catch (e) {
+                // Ignore page close errors
+            }
         }
         
-        try {
-            if (context) await context.close();
-        } catch (e) {
-            console.error("Error closing context:", e);
+        // Don't wait for agent cleanup - just nullify it
+        if (agent) {
+            // Fire and forget - don't await
+            agent.stop().catch(e => 
+                console.error("Error stopping agent (ignored):", e)
+            );
+            agent = null;
+        }
+        
+        // Close context but don't block on it
+        if (context) {
+            // Give it 2 seconds max, then move on
+            const closed = await Promise.race([
+                context.close().then(() => true).catch(e => {
+                    console.error("Error closing context:", e);
+                    return false;
+                }),
+                new Promise<false>(resolve => setTimeout(() => resolve(false), 2000))
+            ]);
+            
+            // If context didn't close cleanly, force kill the browser process
+            if (!closed && browserProcess) {
+                try {
+                    console.warn(`Force killing browser process for task ${task.id}`);
+                    browserProcess.kill('SIGKILL');
+                } catch (killError) {
+                    console.error("Failed to kill browser process:", killError);
+                }
+            }
+            
+            context = null;
         }
     }
 
@@ -524,6 +573,9 @@ async function runTasksParallel(tasks: Task[], workers: number, runEval: boolean
         let completedTasks = 0;
 
         const runWorker = async (workerId: number) => {
+            let lastActivity = Date.now();
+            const WORKER_TIMEOUT = 30 * 60 * 1000; // 30 minutes max per task
+            
             while (taskIndex < tasks.length) {
                 const currentIndex = taskIndex++;
                 const task = tasks[currentIndex];
@@ -537,7 +589,18 @@ async function runTasksParallel(tasks: Task[], workers: number, runEval: boolean
                 
                 while (crashAttempts < MAX_CRASH_RETRIES && !succeededWithoutCrash) {
                     try {
-                        await runTask(task);
+                        lastActivity = Date.now();
+                        
+                        // Add worker-level timeout
+                        const taskPromise = runTask(task);
+                        const timeoutPromise = new Promise<never>((_, reject) => {
+                            setTimeout(() => {
+                                reject(new Error(`Worker ${workerId} timed out on task ${task.id}`));
+                            }, WORKER_TIMEOUT);
+                        });
+                        
+                        await Promise.race([taskPromise, timeoutPromise]);
+                        
                         succeededWithoutCrash = true;
                         
                         if (runEval) {
@@ -564,10 +627,22 @@ async function runTasksParallel(tasks: Task[], workers: number, runEval: boolean
                                 );
                                 completedTasks++;
                             }
+                        } else if ((error as Error).message.includes('Worker') && (error as Error).message.includes('timed out')) {
+                            // Worker timeout - treat as crash and retry
+                            console.error(`\n[Worker ${workerId}] Worker timeout detected for task ${task.id}`);
+                            crashAttempts++;
+                            if (crashAttempts < MAX_CRASH_RETRIES) {
+                                console.log(`\n[Worker ${workerId}] 🔄 Retrying after worker timeout (attempt ${crashAttempts + 1}/${MAX_CRASH_RETRIES})...`);
+                                await new Promise(resolve => setTimeout(resolve, 2000));
+                            } else {
+                                console.error(`\n[Worker ${workerId}] ❌ Task ${task.id} failed after ${MAX_CRASH_RETRIES} attempts`);
+                                completedTasks++;
+                            }
                         } else {
                             // Some other error - break and fail task
                             console.error(`\n[Worker ${workerId}] Got unexpected non-crash error: ${(error as Error).message}`);
                             crashAttempts = MAX_CRASH_RETRIES;
+                            completedTasks++;
                         }
                     }
                 }
