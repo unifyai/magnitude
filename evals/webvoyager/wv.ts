@@ -23,11 +23,11 @@ As an evaluator, you will be presented with three primary components to assist y
 3. Result Response: This is a textual response obtained after the execution of the web task. It serves as textual result in response to the instruction.
 
 -- You DO NOT NEED to interact with web pages or perform actions such as booking flights or conducting searches on websites.
--- You SHOULD NOT make assumptions based on information not presented in the screenshot when comparing it to the instructions.
--- Your primary responsibility is to conduct a thorough assessment of the web task instruction against the outcome depicted in the screenshot and in the response, evaluating whether the actions taken align with the given instructions.
+-- You SHOULD NOT make assumptions based on information not presented in the screenshots when comparing it to the instructions.
+-- Your primary responsibility is to conduct a thorough assessment of the web task instruction against the outcome depicted in the screenshots and in the response, evaluating whether the actions taken align with the given instructions.
 -- NOTE that the instruction may involve more than one task, for example, locating the garage and summarizing the review. Failing to complete either task, such as not providing a summary, should be considered unsuccessful.
--- NOTE that the screenshot is authentic, but the response provided by LLM is generated at the end of web browsing, and there may be discrepancies between the text and the screenshots.
--- Note the difference: 1) Result response may contradict the screenshot, then the content of the screenshot prevails, 2) The content in the Result response is not mentioned on the screenshot, choose to believe the content.
+-- NOTE that the screenshots are authentic, but the response provided by LLM is generated at the end of web browsing, and there may be discrepancies between the text and the screenshots.
+-- Note the difference: 1) Result response may contradict the screenshots, then the content of the screenshots prevails, 2) The content in the Result response is not mentioned on the screenshots, choose to believe the content.
 
 You should elaborate on how you arrived at your final evaluation and then provide a definitive verdict on whether the task has been successfully accomplished, either as 'SUCCESS' or 'NOT SUCCESS'.
 `;
@@ -248,7 +248,7 @@ async function filterTasksByOptions(tasks: Task[], options: RunOptions): Promise
                 filteredTasks.push(task);
             }
         } else {
-            // Default: run tasks that haven't been run yet or any tasks which crashed due to browser/machine issues
+            // Default: only run tasks that haven't been run OR haven't provided an answer (excludes timed out tasks)
             const resultPath = path.join("results", `${task.id}.json`);
             let hasAnswer = false;
             let hasTimedOut = false;
@@ -309,109 +309,67 @@ async function runTask(taskToRun: Task | string) {
     console.log(`Running task: ${task.id} - ${task.ques}`);
     console.log(`URL: ${task.web}`);
 
-    const date = new Date();
-    const formattedDate = date.toLocaleDateString('en-US', {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric'
-    });
-
-    const context = await chromium.launchPersistentContext("", {
-        channel: "chrome",
-        headless: false,
-        viewport: { width: 1024, height: 768 },
-        deviceScaleFactor: process.platform === 'darwin' ? 2 : 1
-    });
-
-    // const browser = await chromium.launch({
-    //     executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    //     headless: false,
-    //     args: []
-    // });
-
-    const agent = await startBrowserAgent({
-        //browser: { instance: browser },
-        browser: { context: context },
-        llm: {
-            provider: "claude-code",
-            options: {
-                model: "claude-sonnet-4-20250514",
-                temperature: 0.5
-            },
-        },
-        url: task.web,
-        actions: [
-            createAction({
-                name: "answer",
-                description: "Give final answer",
-                schema: z.string(),
-                resolver: async ({ input, agent }) => {
-                    console.log("ANSWER GIVEN:", input);
-                    await agent.queueDone();
-                },
-            }),
-        ],
-        narrate: true,
-        prompt: `Be careful to satisfy the task criteria precisely. If sequences of actions are failing, go one action at at time.\nConsider that today is ${formattedDate}.`
-    });
-
     let startTime = Date.now();
-
+    let context: any = null;
+    let agent: any = null;
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
     let totalInputCost = 0.0;
     let totalOutputCost = 0.0;
-
-    agent.events.on("tokensUsed", async (usage) => {
-        totalInputTokens += usage.inputTokens;
-        totalOutputTokens += usage.outputTokens;
-        totalInputCost += usage.inputCost ?? 0.0;
-        totalOutputCost += usage.inputCost ?? 0.0;
-    });
-
     let actionCount = 0;
-    agent.events.on("actionDone", async () => {
-        const memory = await agent.memory.toJSON();
-        actionCount += 1;
-
-        fs.writeFileSync(
-            path.join("results", `${task.id}.json`),
-            JSON.stringify(
-                {
-                    time: Date.now() - startTime,
-                    actionCount,
-                    totalInputTokens,
-                    totalOutputTokens,
-                    totalInputCost,
-                    totalOutputCost,
-                    memory,
-                },
-                null,
-                4,
-            ),
-        );
-    });
-
-    // Set up 15-minute timeout
-    const TIMEOUT_MS = 30 * 60 * 1000; // 15 minutes
-    let timeoutId: NodeJS.Timeout | null = null;
-    let isTimedOut = false;
 
     try {
-        await Promise.race([
-            agent.act(task.ques),
-            new Promise<void>((_, reject) => {
-                timeoutId = setTimeout(() => {
-                    isTimedOut = true;
-                    reject(new Error(`Task timed out after 15 minutes`));
-                }, TIMEOUT_MS);
-            })
-        ]);
-    } catch (error) {
-        if (isTimedOut) {
-            console.log(`\n⏱️ Task ${task.id} timed out after 15 minutes`);
-            
+        const date = new Date();
+        const formattedDate = date.toLocaleDateString('en-US', {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric'
+        });
+
+        context = await chromium.launchPersistentContext("", {
+            channel: "chrome",
+            headless: false,
+            viewport: { width: 1024, height: 768 },
+            deviceScaleFactor: process.platform === 'darwin' ? 2 : 1
+        });
+
+        agent = await startBrowserAgent({
+            browser: { context: context },
+            llm: {
+                provider: "claude-code",
+                options: {
+                    model: "claude-sonnet-4-20250514",
+                    temperature: 0.5
+                },
+            },
+            url: task.web,
+            actions: [
+                createAction({
+                    name: "answer",
+                    description: "Give final answer",
+                    schema: z.string(),
+                    resolver: async ({ input, agent }) => {
+                        console.log("ANSWER GIVEN:", input);
+                        await agent.queueDone();
+                    },
+                }),
+            ],
+            narrate: true,
+            prompt: `Be careful to satisfy the task criteria precisely. If sequences of actions are failing, go one action at at time.\nConsider that today is ${formattedDate}.`,
+            screenshotMemoryLimit: 3,
+        });
+
+        agent.events.on("tokensUsed", async (usage) => {
+            totalInputTokens += usage.inputTokens;
+            totalOutputTokens += usage.outputTokens;
+            totalInputCost += usage.inputCost ?? 0.0;
+            totalOutputCost += usage.inputCost ?? 0.0;
+        });
+
+        agent.events.on("actionDone", async () => {
             const memory = await agent.memory.toJSON();
+            actionCount += 1;
+
             fs.writeFileSync(
                 path.join("results", `${task.id}.json`),
                 JSON.stringify(
@@ -423,23 +381,75 @@ async function runTask(taskToRun: Task | string) {
                         totalInputCost,
                         totalOutputCost,
                         memory,
-                        timedOut: true,
-                        timeoutAt: TIMEOUT_MS
                     },
                     null,
                     4,
                 ),
             );
-        } else {
-            throw error;
+        });
+
+        // Set up 15-minute timeout
+        const TIMEOUT_MS = 20 * 60 * 1000; // 15 minutes
+        let timeoutId: NodeJS.Timeout | null = null;
+        let isTimedOut = false;
+
+        try {
+            await Promise.race([
+                agent.act(task.ques),
+                new Promise<void>((_, reject) => {
+                    timeoutId = setTimeout(() => {
+                        isTimedOut = true;
+                        reject(new Error(`Task timed out after 15 minutes`));
+                    }, TIMEOUT_MS);
+                })
+            ]);
+        } catch (error) {
+            if (isTimedOut) {
+                console.log(`\n⏱️ Task ${task.id} timed out after 15 minutes`);
+                
+                const memory = await agent.memory.toJSON();
+                fs.writeFileSync(
+                    path.join("results", `${task.id}.json`),
+                    JSON.stringify(
+                        {
+                            time: Date.now() - startTime,
+                            actionCount,
+                            totalInputTokens,
+                            totalOutputTokens,
+                            totalInputCost,
+                            totalOutputCost,
+                            memory,
+                            timedOut: true,
+                            timeoutAt: TIMEOUT_MS
+                        },
+                        null,
+                        4,
+                    ),
+                );
+            } else {
+                throw error;
+            }
+        } finally {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
         }
+    } catch (error) {
+        // Re-throw error to let runTasksParallel handle crash retries
+        throw error;
     } finally {
-        if (timeoutId) {
-            clearTimeout(timeoutId);
+        // Clean up resources
+        try {
+            if (agent) await agent.stop();
+        } catch (e) {
+            console.error("Error stopping agent:", e);
         }
-        await agent.stop();
-        await context.close();
-        //await browser.close();
+        
+        try {
+            if (context) await context.close();
+        } catch (e) {
+            console.error("Error closing context:", e);
+        }
     }
 
     console.log(`Finished task: ${task.id}`);
@@ -476,16 +486,36 @@ async function evalTask(taskId: string) {
 }
 
 async function runTasksParallel(tasks: Task[], workers: number, runEval: boolean = false) {
+    const MAX_CRASH_RETRIES = 3; // Maximum number of retry attempts for crashed tasks only (not timeouts)
+    
     if (workers === 1) {
         // Run tasks one at a time
         for (let i = 0; i < tasks.length; i++) {
             const task = tasks[i];
             console.log(`\n[${i + 1}/${tasks.length}] Running task: ${task.id}`);
-            await runTask(task);
             
-            if (runEval) {
-                console.log(`Evaluating task: ${task.id}`);
-                await evalTask(task.id);
+            let crashAttempts = 0;
+            let succeededWithoutCrash = false;
+            
+            while (crashAttempts < MAX_CRASH_RETRIES && !succeededWithoutCrash) {
+                try {
+                    await runTask(task);
+                    succeededWithoutCrash = true;
+                    
+                    if (runEval) {
+                        console.log(`Evaluating task: ${task.id}`);
+                        await evalTask(task.id);
+                    }
+                } catch (error) {
+                    crashAttempts++;
+                    if (crashAttempts < MAX_CRASH_RETRIES) {
+                        console.log(`\n🔄 Retrying crashed task ${task.id} (crash attempt ${crashAttempts + 1}/${MAX_CRASH_RETRIES})...`);
+                        // Small delay before retrying after crash
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                    } else {
+                        console.error(`\n❌ Task ${task.id} crashed ${MAX_CRASH_RETRIES} times, giving up`);
+                    }
+                }
             }
         }
     } else {
@@ -502,24 +532,44 @@ async function runTasksParallel(tasks: Task[], workers: number, runEval: boolean
                     `\n[Worker ${workerId}] Starting task ${currentIndex + 1}/${tasks.length}: ${task.id}`,
                 );
 
-                try {
-                    await runTask(task);
-                    
-                    if (runEval) {
-                        console.log(`[Worker ${workerId}] Evaluating task: ${task.id}`);
-                        await evalTask(task.id);
+                let crashAttempts = 0;
+                let succeededWithoutCrash = false;
+                
+                while (crashAttempts < MAX_CRASH_RETRIES && !succeededWithoutCrash) {
+                    try {
+                        await runTask(task);
+                        succeededWithoutCrash = true;
+                        
+                        if (runEval) {
+                            console.log(`[Worker ${workerId}] Evaluating task: ${task.id}`);
+                            await evalTask(task.id);
+                        }
+                        
+                        completedTasks++;
+                        console.log(
+                            `\n[Worker ${workerId}] Completed task ${currentIndex + 1}/${tasks.length}: ${task.id} (${completedTasks} total completed)`,
+                        );
+                    } catch (error) {
+                        if ((error as Error).message.includes('net::ERR_ABORTED') || (error as Error).message.includes('Target page, context or browser has been closed')) {
+                            // Network error or browser crash - not agent's fault
+                            crashAttempts++;
+                            if (crashAttempts < MAX_CRASH_RETRIES) {
+                                console.log(`\n[Worker ${workerId}] 🔄 Retrying crashed task ${task.id} (crash attempt ${crashAttempts + 1}/${MAX_CRASH_RETRIES})...`);
+                                // Small delay before retrying after crash
+                                await new Promise(resolve => setTimeout(resolve, 2000));
+                            } else {
+                                console.error(
+                                    `\n[Worker ${workerId}] ❌ Task ${task.id} crashed ${MAX_CRASH_RETRIES} times, giving up:`,
+                                    error,
+                                );
+                                completedTasks++;
+                            }
+                        } else {
+                            // Some other error - break and fail task
+                            console.error(`\n[Worker ${workerId}] Got unexpected non-crash error: ${(error as Error).message}`);
+                            crashAttempts = MAX_CRASH_RETRIES;
+                        }
                     }
-                    
-                    completedTasks++;
-                    console.log(
-                        `\n[Worker ${workerId}] Completed task ${currentIndex + 1}/${tasks.length}: ${task.id} (${completedTasks} total completed)`,
-                    );
-                } catch (error) {
-                    console.error(
-                        `\n[Worker ${workerId}] Error in task ${task.id}:`,
-                        error,
-                    );
-                    completedTasks++;
                 }
             }
         };
