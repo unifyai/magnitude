@@ -27,6 +27,13 @@ async function main() {
     const MAX_CRASH_RETRIES = 3;
     let crashAttempts = 0;
     
+    // Remove old evaluation file if it exists
+    const evalPath = path.join("results", `${task.id}.eval.json`);
+    if (fs.existsSync(evalPath)) {
+        fs.unlinkSync(evalPath);
+        console.log(`[Runner] Removed old evaluation file: ${evalPath}`);
+    }
+    
     while (crashAttempts < MAX_CRASH_RETRIES) {
         console.log(`[Runner] Running task: ${task.id} - ${task.ques}`);
         console.log(`[Runner] URL: ${task.web}`);
@@ -122,6 +129,8 @@ async function main() {
         ]);
 
             console.log(`[Runner] Finished task: ${task.id}`);
+            // Give event handlers time to complete
+            await new Promise(resolve => setTimeout(resolve, 500));
             process.exit(0); // Success!
 
         } catch (error) {
