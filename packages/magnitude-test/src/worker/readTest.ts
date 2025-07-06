@@ -1,5 +1,5 @@
 import { pathToFileURL } from 'node:url';
-import { getTestWorkerData, postToParent } from './util';
+import { getTestWorkerData, postToParent } from './util.js';
 
 const workerData = getTestWorkerData();
 
