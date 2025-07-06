@@ -129,9 +129,29 @@ async function main() {
         ]);
 
             console.log(`[Runner] Finished task: ${task.id}`);
-            // Give event handlers time to complete
-            await new Promise(resolve => setTimeout(resolve, 500));
-            process.exit(0); // Success!
+            
+            // Explicitly save final state before exit - ensure answer gets written out
+            const finalMemory = await agent.memory.toJSON();
+            fs.writeFileSync(
+                path.join("results", `${task.id}.json`),
+                JSON.stringify(
+                    {
+                        time: Date.now() - startTime,
+                        actionCount,
+                        totalInputTokens,
+                        totalOutputTokens,
+                        totalInputCost,
+                        totalOutputCost,
+                        memory: finalMemory,
+                    },
+                    null,
+                    4,
+                ),
+            );
+            
+            // Delay to ensure file write completes
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            process.exit(0);
 
         } catch (error) {
             const errorMessage = (error as Error).message;
