@@ -79,7 +79,12 @@ export class TestSuiteRunner {
     public async loadTestFile(absoluteFilePath: string, relativeFilePath: string): Promise<void> {
         try {
             const worker = new Worker(
-                new URL('./worker/readTest.js', import.meta.url),
+                new URL(
+                    import.meta.url.endsWith(".ts")
+                        ? '../worker/readTest.ts'
+                        : './worker/readTest.js',
+                    import.meta.url
+                ),
                 {
                     workerData: {
                         filePath: absoluteFilePath,

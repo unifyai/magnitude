@@ -87,7 +87,12 @@ export function findConfig(searchRoot: string): string | null {
 export function readConfig(configPath: string): Promise<any> {
     return new Promise((resolve, reject) => {
         const worker = new Worker(
-            new URL('./worker/readConfig.js', import.meta.url),
+            new URL(
+                import.meta.url.endsWith(".ts")
+                    ? '../worker/readConfig.ts'
+                    : './worker/readConfig.js',
+                import.meta.url
+            ),
             {
                 env: { NODE_ENV: 'test', ...process.env, },
                 execArgv: !(isBun || isDeno) ? ["--import=jiti/register"] : []
