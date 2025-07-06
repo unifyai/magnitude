@@ -284,178 +284,6 @@ async function filterTasksByOptions(tasks: Task[], options: RunOptions): Promise
     return filteredTasks;
 }
 
-// Core task execution functions
-async function runTask(taskToRun: Task | string) {
-    let task: Task | null = null;
-
-    if (typeof taskToRun === "string") {
-        task = await findTaskById(TASKS_PATH, taskToRun);
-    } else {
-        task = taskToRun;
-    }
-
-    if (!task) {
-        const id = typeof taskToRun === "string" ? taskToRun : taskToRun.id;
-        console.error(`Task with ID "${id}" not found in ${TASKS_PATH}.`);
-        return;
-    }
-
-    // Remove old evaluation file if it exists
-    const evalPath = path.join("results", `${task.id}.eval.json`);
-    if (fs.existsSync(evalPath)) {
-        fs.unlinkSync(evalPath);
-        console.log(`Removed old evaluation file: ${evalPath}`);
-    }
-
-    console.log(`Running task: ${task.id} - ${task.ques}`);
-    console.log(`URL: ${task.web}`);
-
-    let startTime = Date.now();
-    let context: any = null;
-    let agent: any = null;
-    let totalInputTokens = 0;
-    let totalOutputTokens = 0;
-    let totalInputCost = 0.0;
-    let totalOutputCost = 0.0;
-    let actionCount = 0;
-
-    try {
-        const date = new Date();
-        const formattedDate = date.toLocaleDateString('en-US', {
-            month: 'long',
-            day: 'numeric',
-            year: 'numeric'
-        });
-
-        context = await chromium.launchPersistentContext("", {
-            channel: "chrome",
-            headless: false,
-            viewport: { width: 1024, height: 768 },
-            deviceScaleFactor: process.platform === 'darwin' ? 2 : 1
-        });
-
-        agent = await startBrowserAgent({
-            browser: { context: context },
-            llm: {
-                provider: "claude-code",
-                options: {
-                    model: "claude-sonnet-4-20250514",
-                    temperature: 0.5
-                },
-            },
-            url: task.web,
-            actions: [
-                createAction({
-                    name: "answer",
-                    description: "Give final answer",
-                    schema: z.string(),
-                    resolver: async ({ input, agent }) => {
-                        console.log("ANSWER GIVEN:", input);
-                        await agent.queueDone();
-                    },
-                }),
-            ],
-            narrate: true,
-            prompt: `Be careful to satisfy the task criteria precisely. If sequences of actions are failing, go one action at at time.\nConsider that today is ${formattedDate}.`,
-            screenshotMemoryLimit: 3,
-        });
-
-        agent.events.on("tokensUsed", async (usage) => {
-            totalInputTokens += usage.inputTokens;
-            totalOutputTokens += usage.outputTokens;
-            totalInputCost += usage.inputCost ?? 0.0;
-            totalOutputCost += usage.inputCost ?? 0.0;
-        });
-
-        agent.events.on("actionDone", async () => {
-            const memory = await agent.memory.toJSON();
-            actionCount += 1;
-
-            fs.writeFileSync(
-                path.join("results", `${task.id}.json`),
-                JSON.stringify(
-                    {
-                        time: Date.now() - startTime,
-                        actionCount,
-                        totalInputTokens,
-                        totalOutputTokens,
-                        totalInputCost,
-                        totalOutputCost,
-                        memory,
-                    },
-                    null,
-                    4,
-                ),
-            );
-        });
-
-        // Set up 15-minute timeout
-        const TIMEOUT_MS = 20 * 60 * 1000; // 15 minutes
-        let timeoutId: NodeJS.Timeout | null = null;
-        let isTimedOut = false;
-
-        try {
-            await Promise.race([
-                agent.act(task.ques),
-                new Promise<void>((_, reject) => {
-                    timeoutId = setTimeout(async () => {
-                        isTimedOut = true;
-                        reject(new Error(`Task timed out after 15 minutes`));
-                    }, TIMEOUT_MS);
-                })
-            ]);
-        } catch (error) {
-            if (isTimedOut) {
-                console.log(`\n⏱️ Task ${task.id} timed out after 15 minutes`);
-                
-                const memory = await agent.memory.toJSON();
-                fs.writeFileSync(
-                    path.join("results", `${task.id}.json`),
-                    JSON.stringify(
-                        {
-                            time: Date.now() - startTime,
-                            actionCount,
-                            totalInputTokens,
-                            totalOutputTokens,
-                            totalInputCost,
-                            totalOutputCost,
-                            memory,
-                            timedOut: true,
-                            timeoutAt: TIMEOUT_MS
-                        },
-                        null,
-                        4,
-                    ),
-                );
-            } else {
-                throw error;
-            }
-        } finally {
-            if (timeoutId) {
-                clearTimeout(timeoutId);
-            }
-        }
-    } catch (error) {
-        // Re-throw error to let runTasksParallel handle crash retries
-        throw error;
-    } finally {
-        // Clean up resources
-        try {
-            if (agent) await agent.stop();
-        } catch (e) {
-            console.error("Error stopping agent:", e);
-        }
-        
-        try {
-            if (context) await context.close();
-        } catch (e) {
-            console.error("Error closing context:", e);
-        }
-    }
-
-    console.log(`Finished task: ${task.id}`);
-}
-
 async function evalTask(taskId: string) {
     const task = (await findTaskById(TASKS_PATH, taskId))!;
 
@@ -524,110 +352,80 @@ async function runTaskAsProcess(task: Task, runEval: boolean): Promise<boolean> 
 
 
 async function runTasksParallel(tasks: Task[], workers: number, runEval: boolean = false) {
-    if (workers === 1) {
-        // Run tasks one at a time (without workers for now)
-        for (let i = 0; i < tasks.length; i++) {
-            const task = tasks[i];
-            console.log(`\n[${i + 1}/${tasks.length}] Running task: ${task.id}`);
+    // Run tasks in parallel with worker processes
+    let taskIndex = 0;
+    let completedTasks = 0;
+
+    const runWorker = async (workerId: number) => {
+        while (taskIndex < tasks.length) {
+            const currentIndex = taskIndex++;
+            const task = tasks[currentIndex];
+
+            console.log(
+                `\n[Worker ${workerId}] Starting task ${currentIndex + 1}/${tasks.length}: ${task.id}`,
+            );
+
+            const success = await runTaskAsProcess(task, runEval);
             
-            try {
-                await runTask(task);
-                if (runEval) {
-                    console.log(`Evaluating task: ${task.id}`);
-                    await evalTask(task.id);
-                }
-            } catch (error) {
-                console.error(`\n❌ Task ${task.id} failed:`, error);
-            }
-        }
-    } else {
-        // Run tasks in parallel with worker threads
-        let taskIndex = 0;
-        let completedTasks = 0;
-
-        const runWorker = async (workerId: number) => {
-            while (taskIndex < tasks.length) {
-                const currentIndex = taskIndex++;
-                const task = tasks[currentIndex];
-
+            if (success) {
+                completedTasks++;
                 console.log(
-                    `\n[Worker ${workerId}] Starting task ${currentIndex + 1}/${tasks.length}: ${task.id}`,
+                    `\n[Worker ${workerId}] Completed task ${currentIndex + 1}/${tasks.length}: ${task.id} (${completedTasks} total completed)`,
                 );
-
-                const success = await runTaskAsProcess(task, runEval);
-                
-                if (success) {
-                    completedTasks++;
-                    console.log(
-                        `\n[Worker ${workerId}] Completed task ${currentIndex + 1}/${tasks.length}: ${task.id} (${completedTasks} total completed)`,
-                    );
-                } else {
-                    completedTasks++;
-                    console.error(
-                        `\n[Worker ${workerId}] Failed task ${currentIndex + 1}/${tasks.length}: ${task.id}`,
-                    );
-                }
+            } else {
+                completedTasks++;
+                console.error(
+                    `\n[Worker ${workerId}] Failed task ${currentIndex + 1}/${tasks.length}: ${task.id}`,
+                );
             }
-        };
-
-        const workerPromises: Promise<void>[] = [];
-        for (let i = 0; i < workers; i++) {
-            workerPromises.push(runWorker(i + 1));
         }
+    };
 
-        await Promise.all(workerPromises);
+    const workerPromises: Promise<void>[] = [];
+    for (let i = 0; i < workers; i++) {
+        workerPromises.push(runWorker(i + 1));
     }
+
+    await Promise.all(workerPromises);
 
     console.log(`\nCompleted ${tasks.length} task${tasks.length !== 1 ? "s" : ""}`);
 }
 
 async function evalTasksParallel(taskIds: string[], workers: number) {
-    if (workers === 1) {
-        for (let i = 0; i < taskIds.length; i++) {
-            const taskId = taskIds[i];
-            console.log(`\n[${i + 1}/${taskIds.length}] Evaluating task: ${taskId}`);
+    let taskIndex = 0;
+    let completedTasks = 0;
+
+    const runWorker = async (workerId: number) => {
+        while (taskIndex < taskIds.length) {
+            const currentIndex = taskIndex++;
+            const taskId = taskIds[currentIndex];
+
+            console.log(
+                `\n[Worker ${workerId}] Starting evaluation ${currentIndex + 1}/${taskIds.length}: ${taskId}`,
+            );
+
             try {
                 await evalTask(taskId);
-            } catch (error) {
-                console.error(`Error evaluating task ${taskId}:`, error);
-            }
-        }
-    } else {
-        let taskIndex = 0;
-        let completedTasks = 0;
-
-        const runWorker = async (workerId: number) => {
-            while (taskIndex < taskIds.length) {
-                const currentIndex = taskIndex++;
-                const taskId = taskIds[currentIndex];
-
+                completedTasks++;
                 console.log(
-                    `\n[Worker ${workerId}] Starting evaluation ${currentIndex + 1}/${taskIds.length}: ${taskId}`,
+                    `\n[Worker ${workerId}] Completed evaluation ${currentIndex + 1}/${taskIds.length}: ${taskId} (${completedTasks} total completed)`,
                 );
-
-                try {
-                    await evalTask(taskId);
-                    completedTasks++;
-                    console.log(
-                        `\n[Worker ${workerId}] Completed evaluation ${currentIndex + 1}/${taskIds.length}: ${taskId} (${completedTasks} total completed)`,
-                    );
-                } catch (error) {
-                    console.error(
-                        `\n[Worker ${workerId}] Error evaluating task ${taskId}:`,
-                        error,
-                    );
-                    completedTasks++;
-                }
+            } catch (error) {
+                console.error(
+                    `\n[Worker ${workerId}] Error evaluating task ${taskId}:`,
+                    error,
+                );
+                completedTasks++;
             }
-        };
-
-        const workerPromises: Promise<void>[] = [];
-        for (let i = 0; i < workers; i++) {
-            workerPromises.push(runWorker(i + 1));
         }
+    };
 
-        await Promise.all(workerPromises);
+    const workerPromises: Promise<void>[] = [];
+    for (let i = 0; i < workers; i++) {
+        workerPromises.push(runWorker(i + 1));
     }
+
+    await Promise.all(workerPromises);
 
     console.log(`\nCompleted evaluation of ${taskIds.length} task${taskIds.length !== 1 ? "s" : ""}`);
 }
