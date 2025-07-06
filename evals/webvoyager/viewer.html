@@ -268,9 +268,25 @@
         
         .agent-answer-text {
             font-size: 16px;
-            line-height: 1.5;
+            line-height: 1.6;
             color: #333;
-            white-space: pre-wrap;
+        }
+        
+        .agent-answer-text p {
+            margin: 0 0 0.8em 0;
+        }
+        
+        .agent-answer-text p:last-child {
+            margin-bottom: 0;
+        }
+        
+        .agent-answer-text strong {
+            font-weight: 600;
+            color: #1976d2;
+        }
+        
+        .agent-answer-text em {
+            font-style: italic;
         }
         
         .agent-answer.no-answer .agent-answer-text {
@@ -511,30 +527,35 @@
             // Agent's answer section
             const answerObservation = observations.find(obs => obs.source === 'action:taken:answer');
             if (answerObservation && answerObservation.data) {
-                // Extract the answer text - it might be in different places depending on the data structure
+                
+                // Get the answer text
                 let answerText = '';
-                if (typeof answerObservation.data === 'string') {
-                    answerText = answerObservation.data;
-                } else if (answerObservation.data.text) {
-                    answerText = answerObservation.data.text;
-                } else if (answerObservation.data.value) {
-                    answerText = answerObservation.data.value;
-                } else if (answerObservation.data.answer) {
-                    answerText = answerObservation.data.answer;
-                } else {
-                    // Try to find any string value in the data object
-                    for (const key in answerObservation.data) {
-                        if (typeof answerObservation.data[key] === 'string' && 
-                            key !== 'type' && key !== 'storage' && key !== 'format') {
-                            answerText = answerObservation.data[key];
-                            break;
-                        }
+                
+                // It's in data.content as a JSON string
+                if (answerObservation.data.content) {
+                    try {
+                        const parsed = JSON.parse(answerObservation.data.content);
+                        answerText = parsed.input || answerObservation.data.content;
+                    } catch {
+                        answerText = answerObservation.data.content;
+                    }
+                } else if (typeof answerObservation.data === 'string') {
+                    try {
+                        const parsed = JSON.parse(answerObservation.data);
+                        answerText = parsed.input || answerObservation.data;
+                    } catch {
+                        answerText = answerObservation.data;
                     }
                 }
                 
+                // Convert to string and format
+                answerText = String(answerText)
+                    .replace(/\n\n/g, '</p><p>')
+                    .replace(/\n/g, '<br>');
+                
                 html += '<div class="agent-answer">';
                 html += '<div class="agent-answer-label">Agent\'s Answer:</div>';
-                html += `<div class="agent-answer-text">${answerText || 'Answer data found but text could not be extracted'}</div>`;
+                html += `<div class="agent-answer-text"><p>${answerText}</p></div>`;
                 html += '</div>';
             } else {
                 html += '<div class="agent-answer no-answer">';
