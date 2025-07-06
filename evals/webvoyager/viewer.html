@@ -550,6 +550,7 @@
                 
                 // Convert to string and format
                 answerText = String(answerText)
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                     .replace(/\n\n/g, '</p><p>')
                     .replace(/\n/g, '<br>');
                 
