@@ -19,6 +19,7 @@ import EventEmitter from "eventemitter3";
 
 interface ModelHarnessOptions {
     llm: LLMClient;
+    promptCaching?: boolean;
 }
 
 // export interface ModelUsage {
@@ -38,7 +39,7 @@ export class ModelHarness {
      * Strong reasoning agent for high level strategy and planning.
      */
     public readonly events: EventEmitter<ModelHarnessEvents> = new EventEmitter();
-    private options: ModelHarnessOptions;
+    private options: Required<ModelHarnessOptions>;
     private collector!: Collector;
     private cr!: ClientRegistry;
     private baml!: BamlAsyncClient;
@@ -46,30 +47,14 @@ export class ModelHarness {
     private prevTotalInputTokens: number = 0;
     private prevTotalOutputTokens: number = 0;
 
-    constructor(options: { llm: LLMClient } & Partial<ModelHarnessOptions>) {
-        this.options = options;
-        //this.llm = options.llm
-        // this.collector = new Collector("macro");
-        // this.cr = new ClientRegistry();
-        // const client = this.options.llm;
-        // let bamlClientOptions = convertToBamlClientOptions(this.options.llm);
-        // this.cr.addLlmClient('Macro', client.provider, bamlClientOptions, 'DefaultRetryPolicy');
-        // this.cr.setPrimary('Macro');
+    constructor(options: ModelHarnessOptions) {
+        this.options = {
+            llm: options.llm,
+            promptCaching: options.promptCaching ?? false
+        };
 
-        // this.baml = b.withOptions({ collector: this.collector, clientRegistry: this.cr });
         this.logger = logger.child({ name: 'llm' });
     }
-
-    // getInfo(): ModelUsage {
-    //     return {
-    //         provider: this.options.client.provider,
-    //         model: 'model' in this.options.client.options ?
-    //             this.options.client.options.model : 'unknown',
-    //         inputTokens: this.collector.usage.inputTokens ?? 0,
-    //         outputTokens: this.collector.usage.outputTokens ?? 0,
-    //         numCalls: this.collector.logs.length
-    //     }
-    // }
 
     async setup() {
         // Must be called after constructor
@@ -86,14 +71,6 @@ export class ModelHarness {
 
         this.baml = b.withOptions({ collector: this.collector, clientRegistry: this.cr });
     }
-
-    // async ensureAuthenticated() {
-    //     // only used for claude code max oauth rn
-    //     let bamlClientOptions = convertToBamlClientOptions(this.options.llm);
-    //     this.cr.addLlmClient('Macro', this.options.llm.provider, bamlClientOptions, 'DefaultRetryPolicy');
-    //     this.cr.setPrimary('Macro');
-    //     this.baml = b.withOptions({ collector: this.collector, clientRegistry: this.cr });
-    // }
 
     describeModel(): string {
         return `${this.options.llm.provider}:${'model' in this.options.llm.options ? this.options.llm.options.model : 'unknown'}`;

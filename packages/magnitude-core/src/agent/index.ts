@@ -9,11 +9,12 @@ import { AgentConnector } from '@/connectors';
 import { Observation } from '@/memory/observation';
 import { LLMClient } from "@/ai/types";
 import { AgentError } from "@/agent/errors";
-import { AgentMemory } from "@/memory";
+import { AgentMemory, AgentMemoryOptions } from "@/memory";
 import { ActionDefinition } from "@/actions";
 import { taskActions } from "@/actions/taskActions";
 import { traceAsync } from "@/ai/baml_client";
 import { telemetrifyAgent } from '@/telemetry/events';
+import { isClaude } from '@/ai/util';
 
 
 export interface AgentOptions {
@@ -53,6 +54,8 @@ export class Agent {
     private connectors: AgentConnector[];
     private actions: ActionDefinition<any>[]; // actions from connectors + any other additional ones configured
 
+    private memoryOptions: AgentMemoryOptions;
+
     public readonly model: ModelHarness;
     //public readonly micro: GroundingService;
     //public readonly events: EventEmitter<AgentEvents>;
@@ -84,13 +87,21 @@ export class Agent {
         // Deduplicate actions by name
         // TODO: maybe error instead, or automatically differentiate them?
         //this.options.actions = Array.from(new Map(aggregatedActions.map(actDef => [actDef.name, actDef])).values());
+
+        const doPromptCaching = isClaude(this.options.llm) && (this.options.llm.provider === 'anthropic' || this.options.llm.provider === 'claude-code');
         
-        this.model = new ModelHarness({ llm: this.options.llm });
+        this.model = new ModelHarness({ llm: this.options.llm, promptCaching: doPromptCaching });
         this.model.events.on('tokensUsed', (usage) => this.events.emit('tokensUsed', usage), this);
         this.doneActing = false;
 
+        this.memoryOptions = {
+            // TODO: maybe do if Gemini or other prompt caching supported providers as well
+            // Claude supports prompt caching but only via Anthropic, not on Bedrock
+            promptCaching: doPromptCaching
+        };
+
         // Empty memory will get replaced on first act(), but this prevents errors from having undefined memory
-        this.latestTaskMemory = new AgentMemory();
+        this.latestTaskMemory = new AgentMemory(this.memoryOptions);
     }
 
     public getConnector<C extends AgentConnector>(
@@ -208,7 +219,7 @@ export class Agent {
             ...(this.options.prompt ? [this.options.prompt] : []),
             ...(options.prompt ? [options.prompt] : []),
         ].join('\n');
-        const taskMemory = new AgentMemory(instructions === '' ? undefined : instructions);
+        const taskMemory = new AgentMemory({ ...this.memoryOptions, instructions: instructions === '' ? undefined : instructions });
 
         if (Array.isArray(taskOrSteps)) {
             const steps = taskOrSteps;

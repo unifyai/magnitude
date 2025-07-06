@@ -27,6 +27,8 @@ export interface SerializedAgentMemory {
 }
 
 export interface AgentMemoryOptions {
+    instructions?: string | null,
+    promptCaching?: boolean,
     thoughtLimit?: number, // TTL for thoughts
 }
 
@@ -36,14 +38,16 @@ export class AgentMemory {
     //private history: StoredHistoryEntry[] = [];
 
     // Custom instructions relating to this memory instance (e.g. agent-level and/or task-level instructions)
-    public readonly instructions: string | null;
+    //public readonly instructions: string | null;
 
     private observations: Observation[] = [];
     //private tasks: { task: string, observations: Observation[] }[] = [];
 
-    constructor(instructions?: string, options?: AgentMemoryOptions) {
-        this.instructions = instructions ?? null;
+    constructor(options?: AgentMemoryOptions) {
+        //this.instructions = instructions ?? null;
         this.options = {
+            instructions: options?.instructions ?? null,
+            promptCaching: options?.promptCaching ?? false,
             thoughtLimit: options?.thoughtLimit ?? 20
         };
     }
@@ -103,7 +107,7 @@ export class AgentMemory {
         }
 
         return {
-            instructions: this.instructions,
+            instructions: this.options.instructions,
             observationContent: content,
             connectorInstructions: connectorInstructions
         };
@@ -120,7 +124,8 @@ export class AgentMemory {
             });
         }
         return {
-            ...(this.instructions ? { instructions: this.instructions } : {}),
+            // TODO: include other options as well
+            ...(this.options.instructions ? { instructions: this.options.instructions } : {}),
             observations: observations
         };
     }
