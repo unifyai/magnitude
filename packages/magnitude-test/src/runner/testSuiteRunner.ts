@@ -1,106 +1,137 @@
-// Removed React import
-import logger from '@/logger';
-import { BrowserOptions, GroundingClient, LLMClient } from 'magnitude-core';
-import { RegisteredTest } from '@/discovery/types';
-// Removed App import from '@/app'
-// import { AllTestStates } from '@/term-app/types'; // Not directly used
-//import { getUniqueTestId } from '@/term-app/util'; // Import util from term-app
-import { Browser, BrowserContextOptions, chromium, LaunchOptions } from 'playwright';
-import { describeModel } from '../util';
+import { MagnitudeConfig, RegisteredTest, TestOptions } from '@/discovery/types';
+import { processUrl } from '../util';
 import { WorkerPool, WorkerPoolResult } from './workerPool';
-import { startTestCaseAgent, TestCaseAgent } from '@/agent';
-import { TestRunner } from './testRunner';
-import { TestResult, TestFailure } from './state';
+import { TestResult } from './state';
 import { TestRenderer } from '@/renderer';
+import { Worker } from 'node:worker_threads';
+import { postToWorker, TestWorkerData, TestWorkerOutgoingMessage } from '@/worker/util';
+import { isBun, isDeno } from 'std-env';
 
-// Removed RerenderFunction type
-
-// Define types for the term-app functions (can be refined if needed)
-// type UpdateUIFunction = (tests: CategorizedTestCases, testStates: AllTestStates) => void;
-// type CleanupUIFunction = () => void;
-
+const TEST_FILE_LOADING_TIMEOUT = 30000;
 
 export interface TestSuiteRunnerConfig {
     workerCount: number;
-    //prettyDisplay: boolean;
-    renderer: TestRenderer;
-    llm?: LLMClient;
-    grounding?: GroundingClient;
-    browserOptions?: BrowserOptions;
-    // browserContextOptions: BrowserContextOptions;
-    // browserLaunchOptions: LaunchOptions;
-    telemetry: boolean;
+    createRenderer: (tests: RegisteredTest[]) => TestRenderer;
+    config: MagnitudeConfig;
 }
 
-// export const DEFAULT_CONFIG = {
-//     workerCount: 1,
-//     prettyDisplay: true,
-//     browserContextOptions: {},
-//     browserLaunchOptions: {},
-//     telemetry: true,
-//     downscalingRatio: 0.75,
-// };
-
 export class TestSuiteRunner {
-    private config: TestSuiteRunnerConfig;
-    private tests: RegisteredTest[];//CategorizedTestCases;
-    // private testStates: AllTestStates;
-    // private updateUI: UpdateUIFunction;
-    // private cleanupUI: CleanupUIFunction;
+    private runnerConfig: TestSuiteRunnerConfig;
+    private renderer?: TestRenderer;
+    private config: MagnitudeConfig;
+
+    private tests: RegisteredTest[];
+    private workers: Map<string, Worker> = new Map();
 
     constructor(
-        config: TestSuiteRunnerConfig,
-        tests: RegisteredTest[],
-        // testStates: AllTestStates,
-        // updateUI: UpdateUIFunction,
-        // cleanupUI: CleanupUIFunction,
+        config: TestSuiteRunnerConfig
     ) {
-        this.config = config;
-        //this.config = { ...DEFAULT_CONFIG, ...config };
-        this.tests = tests;
-        // this.testStates = testStates;
-        // this.updateUI = updateUI;
-        // this.cleanupUI = cleanupUI;
+        this.tests = [];
+        this.runnerConfig = config;
+        this.config = config.config;
     }
 
-    async runTests(): Promise<void> {
-        // const browser = await chromium.launch({ 
-        //     headless: false, // Consider making this configurable via this.config
-        //     args: ['--disable-gpu'], 
-        //     ...this.config.browserLaunchOptions 
-        // });
+    private runTest(test: RegisteredTest): Promise<TestResult> {
+        const worker = this.workers.get(test.id);
+        if (!worker) {
+            throw new Error(`Test worker not found for test ID: ${test.id}`);
+        }
 
-        const workerPool = new WorkerPool(this.config.workerCount);
-        const testsToRun: RegisteredTest[] = this.tests;
+        return new Promise((resolve, reject) => {
+            const messageHandler = (message: TestWorkerOutgoingMessage) => {
+                if (!("testId" in message) || message.testId !== test.id) return;
+                if (message.type === "test_result") {
+                    worker.off("message", messageHandler);
+                    resolve(message.result);
+                } else if (message.type === "test_error") {
+                    worker.off("message", messageHandler);
+                    reject(new Error(message.error));
+                } else if (message.type === "test_state_change") {
+                    this.renderer?.onTestStateUpdated(test, message.state);
+                }
+            }
 
-        const taskFunctions = testsToRun.map((test) => {
-            return async (signal: AbortSignal): Promise<TestResult> => {
-                const runner = new TestRunner(test, {
-                    browserOptions: this.config.browserOptions,
-                    //browser: browser,
-                    llm: this.config.llm,
-                    grounding: this.config.grounding,
-                    //browserContextOptions: this.config.browserContextOptions,
-                    telemetry: this.config.telemetry
-                });
+            worker.on("message", messageHandler);
+            postToWorker(worker, {
+                type: "execute",
+                test,
+                browserOptions: this.config.browser,
+                llm: this.config.llm,
+                grounding: this.config.grounding,
+                telemetry: this.config.telemetry
+            })
 
-                runner.events.on('stateChanged', (state) => {
-                    try {
-                        this.config.renderer.onTestStateUpdated(test, state);
-                    } catch (err: unknown) {
-                        // shouldn't happen
-                        if (err instanceof Error) {
-                            logger.error(`Error updating test state:\n${err.message}`);
-                        } else {
-                            logger.error(`Error updating test state:\n${err}`);
-                        }
-                        throw err;
+        })
+    }
+
+    private getActiveOptions(): TestOptions {
+        const envOptions = process.env.MAGNITUDE_TEST_URL ? {
+            url: process.env.MAGNITUDE_TEST_URL
+        } : {};
+
+        return {
+            ...this.config,
+            ...envOptions, // env options take precedence over config options
+            url: processUrl(envOptions.url, this.config.url),
+        };
+    }
+
+    public async loadTestFile(absoluteFilePath: string, relativeFilePath: string): Promise<void> {
+        try {
+            const worker = new Worker(
+                new URL('./worker/readTest.js', import.meta.url),
+                {
+                    workerData: {
+                        filePath: absoluteFilePath,
+                        options: this.getActiveOptions(),
+                    } satisfies TestWorkerData,
+                    env: { NODE_ENV: 'test', ...process.env },
+                    execArgv: !(isBun || isDeno) ? ["--import=jiti/register"] : []
+                }
+            );
+
+            return new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    worker.terminate();
+                    reject(new Error(`Test file loading timeout: ${relativeFilePath}`));
+                }, TEST_FILE_LOADING_TIMEOUT);
+
+                worker.on('message', (message: TestWorkerOutgoingMessage) => {
+                    if (message.type === 'registered') {
+                        this.tests.push(message.test);
+                        this.workers.set(message.test.id, worker);
+                    } else if (message.type === 'load_error') {
+                        clearTimeout(timeout);
+                        worker.terminate();
+                        reject(new Error(`Failed to load ${relativeFilePath}: ${message.error}`));
+                    } else if (message.type === 'load_complete') {
+                        clearTimeout(timeout);
+                        resolve();
                     }
                 });
-                
-                //return await runner.run();
+
+                worker.on('error', (error) => {
+                    clearTimeout(timeout);
+                    worker.terminate();
+                    reject(error);
+                });
+            });
+        } catch (error) {
+            console.error(`Failed to load test file ${relativeFilePath}:`, error);
+            throw error;
+        }
+    }
+
+    async runTests(): Promise<boolean> {
+        if (!this.tests) throw new Error('No tests were registered');
+        this.renderer = this.runnerConfig.createRenderer(this.tests);
+        this.renderer.start?.();
+        const workerPool = new WorkerPool(this.runnerConfig.workerCount);
+
+        const taskFunctions = this.tests.map((test) => {
+            return async (signal: AbortSignal): Promise<TestResult> => {
                 try {
-                    return await runner.run();
+                    return await this.runTest(test);
                 } catch (err: unknown) {
                     // user-facing, can happen e.g. when URL is not running
                     if (err instanceof Error) {
@@ -108,7 +139,7 @@ export class TestSuiteRunner {
                     } else {
                         console.error(`Unexpected error during test '${test.title}':\n${err}`);
                     }
-                    
+
                     throw err;
                 }
             };
@@ -118,7 +149,7 @@ export class TestSuiteRunner {
         try {
             const poolResult: WorkerPoolResult<TestResult> = await workerPool.runTasks<TestResult>(
                 taskFunctions,
-                (taskOutcome: TestResult) => !taskOutcome.passed 
+                (taskOutcome: TestResult) => !taskOutcome.passed
             );
 
             for (const result of poolResult.results) {
@@ -133,9 +164,9 @@ export class TestSuiteRunner {
 
         } catch (error) {
             overallSuccess = false;
-        } finally {
-            //await browser.close();
-            process.exit(overallSuccess ? 0 : 1);
         }
+        this.renderer.stop?.();
+        return overallSuccess;
+
     }
 }

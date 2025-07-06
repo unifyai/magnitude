@@ -78,8 +78,6 @@ export interface TestDeclaration {
 export interface RegisteredTest {
     // unique id
     id: string,
-    // defined test
-    fn: TestFunction,
     title: string,
     url: string,
     // meta

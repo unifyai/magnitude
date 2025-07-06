@@ -4,9 +4,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { glob } from 'glob';
 //import { Magnitude, TestCase } from '..';
-import TestRegistry from '@/discovery/testRegistry';
 //import { LocalTestRunner } from '@/runner';
-import { TestCompiler } from '@/compiler';
 import { MagnitudeConfig } from '@/discovery/types';
 //import chalk from 'chalk';
 import { discoverTestFiles, findConfig, findProjectRoot, isProjectRoot, readConfig } from '@/discovery/util';
@@ -197,8 +195,6 @@ program
 
         //console.log(config)
 
-        const registry = TestRegistry.getInstance();
-        registry.setGlobalOptions(config);
 
         // // If planner not provided, make a choice based on available environment variables
         // if (!config.planner) {
@@ -248,78 +244,36 @@ program
         }
 
 
+        const showUI = !options.debug && !options.plain;
 
 
-        // === Compile test files ===
+        const testSuiteRunner = new TestSuiteRunner({
+            config,
+            workerCount: workerCount,
+            createRenderer: (tests) => showUI
+                ? new TermAppRenderer(config, tests)
+                : {
+                    // Plain/debug renderer
+                    onTestStateUpdated: (test, state) => {
+                        logger.info(`Test: ${test.title} (${test.id})`);
+                        logger.info(`  Status: ${state.failure ? 'failed' : (state.doneAt ? 'passed' : (state.startedAt ? 'running' : 'pending'))}`);
+                        if (state.failure) {
+                            logger.error(`  Failure: ${state.failure.message}`);
+                        }
+                    }
+                },
+        });
 
         for (const filePath of absoluteFilePaths) {
-            await registry.loadTestFile(filePath, getRelativePath(projectRoot, filePath));
-        }
-
-
-        // === Run Tests ===
-
-        // console.log("Tests:", registry.getRegisteredTestCases());
-        // console.log("Tests:", registry.getFlattenedTestCases());
-
-
-        // for (const [filename, tests] of Object.entries(registry.getRegisteredTestCases())) {
-        //     console.log("file:", filename);
-        //     console.log("tests:", tests);
-        const tests = registry.getRegisteredTests();
-
-        // --- Initialize State using utility ---
-        //const testStates = initializeTestStates(categorizedTests); // Old state init
-
-        const showUI = !options.debug && !options.plain;
-        let termAppRenderer: TermAppRenderer | null = null;
-        
-        if (showUI) {
-            termAppRenderer = new TermAppRenderer(config, tests);
-        }
-
-        const runnerConfig: TestSuiteRunnerConfig = {
-            workerCount: workerCount,
-            renderer: termAppRenderer || { // Use TermAppRenderer or a dummy for plain/debug
-                onTestStateUpdated: (test, state) => {
-                    // Simple console output for plain/debug mode
-                    logger.info(`Test: ${test.title} (${test.id})`);
-                    logger.info(`  Status: ${state.failure ? 'failed' : (state.doneAt ? 'passed' : (state.startedAt ? 'running' : 'pending'))}`);
-                    if (state.failure) {
-                        logger.error(`  Failure: ${state.failure.message}`);
-                    }
-                }
-            },
-            llm: config.llm,
-            grounding: config.grounding,
-            browserOptions: config.browser,
-            // browserContextOptions: config.browser?.contextOptions ?? {},
-            // browserLaunchOptions: config.browser?.launchOptions ?? {},
-            telemetry: config.telemetry ?? true
-        };
-
-        const testSuiteRunner = new TestSuiteRunner(runnerConfig, tests);
-
-        // --- Start Execution ---
-        if (termAppRenderer && termAppRenderer.start) {
-            termAppRenderer.start();
+            await testSuiteRunner.loadTestFile(filePath, getRelativePath(projectRoot, filePath));
         }
 
         try {
-            await testSuiteRunner.runTests();
-            // TODO: Determine exit code based on test results if not handled by TestSuiteRunner
+            const overallSuccess = await testSuiteRunner.runTests();
+            process.exit(overallSuccess ? 0 : 1);
         } catch (error) {
             logger.error("Test suite execution failed:", error);
-            // process.exit(1); // Consider exiting based on error
-        } finally {
-            if (termAppRenderer && termAppRenderer.stop) {
-                termAppRenderer.stop();
-            }
-            // stopWebServers is handled by process.on('exit') and SIGINT
-            // The process will exit naturally after this, or TestSuiteRunner might exit.
-            // If TestSuiteRunner doesn't exit, and we need to based on results:
-            // const allPassed = ... (check results from TestSuiteRunner if it returns them)
-            // process.exit(allPassed ? 0 : 1);
+            process.exit(1);
         }
     });
 
