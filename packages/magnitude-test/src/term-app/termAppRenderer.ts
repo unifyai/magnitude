@@ -123,7 +123,7 @@ export class TermAppRenderer implements TestRenderer {
             this.sigintListener = null;
         }
 
-        // redraw(); // Perform one final draw - Direct call - REMOVED to prevent double printing
+        redraw(); // Last draw to reflect final state
         // logUpdate.done(); // Responsibility moved to redraw() when isFinished is true
         // process.stderr.write('\n'); // Also moved to redraw()
         // DO NOT call process.exit() here
