@@ -34,19 +34,21 @@ export async function convertToBamlClientOptions(client: LLMClient): Promise<Rec
             temperature: temp,
             headers: {
                 'Authorization': `Bearer ${oauthToken}`,
-                'anthropic-beta': 'oauth-2025-04-20',
+                'anthropic-beta': 'oauth-2025-04-20' + (client.options.promptCaching ? ',prompt-caching-2024-07-31' : ''),
                 // Overrides this header from being automatically derived from ANTHROPIC_API_KEY
                 'X-API-Key': ''
-            }
+            },
+            ...(client.options.promptCaching ? { allowed_role_metadata: ["cache_control"] } : {}),
         };
     } else if (client.provider === 'anthropic') {
         options = {
             api_key: client.options.apiKey,
             model: client.options.model,
             temperature: temp,
-            // headers: {
-            //     'X-API-Key': ''//'something-invalid'
-            // }
+            ...(client.options.promptCaching ? {
+                allowed_role_metadata: ["cache_control"],
+                headers: { 'anthropic-beta': 'prompt-caching-2024-07-31' }
+            } : {}),
         };
     } else if (client.provider === 'aws-bedrock') {
         options = {

@@ -12,7 +12,8 @@ export interface AnthropicClient {
     options: {
         model: string,
         apiKey?: string,
-        temperature?: number
+        temperature?: number,
+        promptCaching?: boolean,
     }   
 }
 
@@ -21,7 +22,8 @@ export interface ClaudeCodeClient {
     provider: 'claude-code',
     options: {
         model: string,
-        temperature?: number
+        temperature?: number,
+        promptCaching?: boolean,
     }   
 }
 
