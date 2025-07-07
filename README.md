@@ -1,21 +1,16 @@
 <div align="center">
-  <img src="assets/full-header.png" alt="Magnitude Text Logo" width="500"/>
+  <img src="assets/banner.png" alt="Magnitude Text Logo"/>
 </div>
 
-<h1 align="center">
-  The AI browser automation framework
-</h1>
+<br/>
 
-<p align="center">
-  Magnitude uses vision AI to enable you to control your browser with natural language
-</p>
+<div align="center">
+  <a href="https://docs.magnitude.run/getting-started/introduction" target="_blank"><img src="https://img.shields.io/badge/📕-Docs-0369a1?style=flat-square&labelColor=0369a1&color=gray" alt="Documentation" /></a> <img src="https://img.shields.io/badge/License-Apache%202.0-0369a1?style=flat-square&labelColor=0369a1&color=gray" alt="License" /> <a href="https://discord.gg/VcdpMh9tTy" target="_blank"><img src="https://img.shields.io/discord/1305570963206836295?style=flat-square&logo=discord&logoColor=white&label=Discord&labelColor=5865F2&color=gray" alt="Discord" /></a> <a href="https://x.com/tgrnwld" target="_blank"><img src="https://img.shields.io/badge/-Follow%20Tom!-000000?style=flat-square&labelColor=000000&color=gray&logo=x&logoColor=white" alt="Follow Tom" /></a> <a href="https://x.com/ndrsrkl" target="_blank"><img src="https://img.shields.io/badge/-Follow%20Anders!-000000?style=flat-square&labelColor=000000&color=gray&logo=x&logoColor=white" alt="Follow Anders" /></a>
+</div>
 
-<p align="center">
-  <a href="https://docs.magnitude.run/getting-started/introduction" target="_blank"><img src="https://img.shields.io/badge/📕-Docs-0369a1?style=flat-square&labelColor=0369a1&color=gray" alt="Documentation" /></a> <img src="https://img.shields.io/badge/License-Apache%202.0-0369a1?style=flat-square&labelColor=0369a1&color=gray" alt="License" /> <a href="https://discord.gg/VcdpMh9tTy" target="_blank"><img src="https://img.shields.io/discord/1305570963206836295?style=flat-square&logo=discord&logoColor=white&label=Discord&labelColor=5865F2&color=gray" alt="Discord" /></a> <a href="https://x.com/tgrnwld" target="_blank"><img src="https://img.shields.io/badge/-Follow%20Tom!-000000?style=flat-square&labelColor=000000&color=gray&logo=x&logoColor=white" alt="Follow @tgrnwld" /></a>
-</p>
+<hr/>
 
-<hr style="height: 1px; border: none; background-color: #e1e4e8; margin: 24px 0;">
-
+Magnitude uses vision AI to enable you to control your browser with natural language.
 - 🧭 **Navigate** - Sees and understands any interface to plan out actions
 - 🖱️ **Interact** - Executes precise actions using mouse and keyboard
 - 🔍 **Extract** - Intelligently extracts useful structured data

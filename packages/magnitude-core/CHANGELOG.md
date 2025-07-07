@@ -1,5 +1,11 @@
 # magnitude-core
 
+## 0.2.18
+
+### Patch Changes
+
+- [`5c63903`](https://github.com/magnitudedev/magnitude/commit/5c6390364602bad88a799978eb206dd7abe5e5ae) Thanks [@anerli](https://github.com/anerli)! - default thought limit in memory, option for screenshot limit
+
 ## 0.2.17
 
 ### Patch Changes

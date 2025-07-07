@@ -432,6 +432,10 @@
         "reason": "There no longer seems to be an explicit 'World News' section",
         "remove": true
     },
+    "BBC News--29": {
+        "reason": "No 'New Releases' section",
+        "remove": true
+    },
     "BBC News--33": {
         "reason": "There no longer seems to be an explicit 'World News' section",
         "remove": true
@@ -457,7 +461,7 @@
         "remove": true
     },
     "Coursera--17": {
-        "reason": "There’s no 'Credit Eligible' filter",
+        "reason": "There's no 'Credit Eligible' filter",
         "remove": true
     },
     "Coursera--28": {
@@ -478,6 +482,10 @@
     },
     "GitHub--22": {
         "reason": "There are no repos that are focused on natural language processing in Ruby updated within the last week",
+        "remove": true
+    },
+    "GitHub--29": {
+        "reason": "GitHub Pro does not exist anymore - only teams",
         "remove": true
     },
     "Google Flights--0": {
@@ -502,6 +510,10 @@
     },
     "Google Map--26": {
         "reason": "Cannot actually print something",
+        "remove": true
+    },
+    "Google Search--6": {
+        "reason": "Not possible to filter trends by monthly, 7 days is maximum",
         "remove": true
     },
     "Google Search--15": {
