@@ -144,18 +144,29 @@ export async function maskObservations(observations: Observation[], freezeMask?:
     return mask;
 }
 
-export function applyMask(observations: Observation[], mask: boolean[]): Observation[] {
+export interface MaskedObservation {
+    observation: Observation;
+    index: number;
+}
+
+export function applyMask(observations: Observation[], mask: boolean[]): MaskedObservation[] {
     /**
      * Applies a boolean mask to an array of observations, returning only those
-     * observations where the corresponding mask value is true.
+     * observations where the corresponding mask value is true, along with their original indices.
      * 
      * @param observations - The array of observations to filter
      * @param mask - Boolean array where true indicates the observation should be included
-     * @returns Filtered array containing only observations where mask[i] is true
+     * @returns Array of objects containing the observation and its original index
      */
     if (observations.length !== mask.length) {
         throw new Error(`Mask length (${mask.length}) must match observations length (${observations.length})`);
     }
     
-    return observations.filter((_, index) => mask[index]);
+    const result: MaskedObservation[] = [];
+    observations.forEach((observation, index) => {
+        if (mask[index]) {
+            result.push({ observation, index });
+        }
+    });
+    return result;
 }

@@ -100,8 +100,10 @@ describe('maskObservations with freezeMask', () => {
         const filtered = applyMask(observations, mask);
         
         expect(filtered.length).toBe(2);
-        expect(filtered[0].content).toBe('obs1');
-        expect(filtered[1].content).toBe('obs3');
+        expect(filtered[0].observation.content).toBe('obs1');
+        expect(filtered[0].index).toBe(0);
+        expect(filtered[1].observation.content).toBe('obs3');
+        expect(filtered[1].index).toBe(2);
     });
 
     test('freezeMask with no typed observations', async () => {

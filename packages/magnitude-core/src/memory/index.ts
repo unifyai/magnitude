@@ -34,6 +34,7 @@ export interface AgentMemoryOptions {
 //     visibilityMask: boolean[],
 // }
 
+const CACHE_CONTROL_LIMIT = 3; // Anthropic allows max of 4, we use static one on system, 3 can be cyclic
 
 export class AgentMemory {
     //public readonly events: EventEmitter<AgentMemoryEvents> = new EventEmitter();
@@ -46,6 +47,7 @@ export class AgentMemory {
 
     //private freezeState?: FreezeState;
     private freezeMask?: boolean[];
+    private cacheControlIndices: number[] = [];
 
     constructor(options?: AgentMemoryOptions) {
         //this.instructions = instructions ?? null;
@@ -63,19 +65,23 @@ export class AgentMemory {
     }
 
     public async render(): Promise<MultiMediaMessage[]> {
-        const refreezeCondition = false; // TODO - algo for this
-        if (this.options.promptCaching && refreezeCondition) {
+        if (this.options.promptCaching && this.cacheControlIndices.length >= CACHE_CONTROL_LIMIT) {
             this.freezeMask = undefined;
+            this.cacheControlIndices = [];
         }
         const mask = await maskObservations(this.observations, this.freezeMask);
 
         const visibleObservations = applyMask(this.observations, mask);
+
+        const lastVisible = visibleObservations.at(-1);
+        if (lastVisible) this.cacheControlIndices.push(lastVisible.index); // index WRT full observation list
         
         let messages: MultiMediaMessage[] = [];
-        for (const obs of visibleObservations) {
-            const message = await obs.render({
-                prefix: obs.source.startsWith('action:taken') || obs.source.startsWith('thought') ?
-                    [`[${new Date(obs.timestamp).toTimeString().split(' ')[0]}]: `] : []
+        for (const { observation, index } of visibleObservations) {
+            const message = await observation.render({
+                prefix: observation.source.startsWith('action:taken') || observation.source.startsWith('thought') ?
+                    [`[${new Date(observation.timestamp).toTimeString().split(' ')[0]}]: `] : [],
+                cacheControl: this.options.promptCaching && this.cacheControlIndices.includes(index)
             });
             messages.push(message);
         }
@@ -110,32 +116,6 @@ export class AgentMemory {
         }
         return null;
     }
-
-    // public async buildContext(activeConnectors: AgentConnector[]): Promise<ModularMemoryContext> {
-    //     const content = await renderObservations(this.observations);
-
-    //     // TODO: doesn't really make sense for memory to be responsible for current state and instruction render logic
-    //     const connectorInstructions: ConnectorInstructions[] = [];
-
-    //     for (const connector of activeConnectors) {
-    //         if (connector.getInstructions) {
-    //             const instructions = await connector.getInstructions();
-
-    //             if (instructions) {
-    //                 connectorInstructions.push({
-    //                     connectorId: connector.id,
-    //                     instructions: instructions
-    //                 });
-    //             }
-    //         }
-    //     }
-
-    //     return {
-    //         instructions: this.instructions,
-    //         observationContent: content,
-    //         connectorInstructions: connectorInstructions
-    //     };
-    // }
 
     public async toJSON(): Promise<SerializedAgentMemory> {
         const observations = [];

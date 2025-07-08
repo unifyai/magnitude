@@ -75,9 +75,10 @@ export class Observation {
         return await observableDataToJson(this.content);
     }
 
-    async render(options?: { prefix?: MultiMediaContentPart[], postfix?: MultiMediaContentPart[] }): Promise<MultiMediaMessage> {
+    async render(options?: { prefix?: MultiMediaContentPart[], postfix?: MultiMediaContentPart[], cacheControl?: boolean }): Promise<MultiMediaMessage> {
         return {
             role: this.role,
+            cacheControl: options?.cacheControl ?? false,
             content: [ ...(options?.prefix ?? []), ...(await renderParts(this.content)), ...(options?.postfix ?? [])]
         };
     }

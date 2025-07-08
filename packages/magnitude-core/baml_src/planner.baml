@@ -25,8 +25,13 @@ template_string RenderMultiMediaContentParts(parts: MultiMediaContentPart[]) #"
 
 template_string RenderMessages(messages: MultiMediaMessage[]) #"
     {% for message in messages -%}
+    {%if message.cacheControl %}
     {{ _.role(message.role, cache_control={"type": "ephemeral"}) }}
     {{ RenderMultiMediaContentParts(message.content) }}
+    {%else%}
+    {{ _.role(message.role) }}
+    {{ RenderMultiMediaContentParts(message.content) }}
+    {%endif%}
     {%- endfor %}
 "#
 
@@ -96,7 +101,7 @@ function CreatePartialRecipe (memory: AgentContext, task: string, includeClaudeS
     client SonnetAnthropic
     prompt #"
         {%if includeClaudeSpoof%}
-        {{ _.role("system", cache_control={"type": "ephemeral"}) }}
+        {{ _.role("system") }}
         You are Claude Code, Anthropic's official CLI for Claude.
         {%endif%}
         {{ InstructionsWithContext(memory, TaskInstructions(task)) }}
@@ -128,7 +133,7 @@ function QueryMemory(memory: AgentContext, query: string, includeClaudeSpoof: bo
     client GeminiPro
     prompt #"
         {%if includeClaudeSpoof%}
-        {{ _.role("system", cache_control={"type": "ephemeral"}) }}
+        {{ _.role("system") }}
         You are Claude Code, Anthropic's official CLI for Claude.
         {%endif%}
         {{ InstructionsWithContext(memory, query) }}
