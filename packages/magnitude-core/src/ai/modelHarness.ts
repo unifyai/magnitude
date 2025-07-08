@@ -19,7 +19,7 @@ import EventEmitter from "eventemitter3";
 
 interface ModelHarnessOptions {
     llm: LLMClient;
-    promptCaching?: boolean;
+    //promptCaching?: boolean;
 }
 
 // export interface ModelUsage {
@@ -50,7 +50,7 @@ export class ModelHarness {
     constructor(options: ModelHarnessOptions) {
         this.options = {
             llm: options.llm,
-            promptCaching: options.promptCaching ?? false
+            //promptCaching: options.promptCaching ?? false
         };
 
         this.logger = logger.child({ name: 'llm' });

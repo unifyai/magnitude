@@ -38,7 +38,7 @@ export async function convertToBamlClientOptions(client: LLMClient): Promise<Rec
                 // Overrides this header from being automatically derived from ANTHROPIC_API_KEY
                 'X-API-Key': ''
             },
-            ...(client.options.promptCaching ? { allowed_role_metadata: ["cache_control"] } : {}),
+            ...(client.options.promptCaching ? { allowed_role_metadata: "all" } : {}),
         };
     } else if (client.provider === 'anthropic') {
         options = {
@@ -46,7 +46,7 @@ export async function convertToBamlClientOptions(client: LLMClient): Promise<Rec
             model: client.options.model,
             temperature: temp,
             ...(client.options.promptCaching ? {
-                allowed_role_metadata: ["cache_control"],
+                allowed_role_metadata: "all",
                 headers: { 'anthropic-beta': 'prompt-caching-2024-07-31' }
             } : {}),
         };

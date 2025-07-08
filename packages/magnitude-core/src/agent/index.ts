@@ -88,9 +88,14 @@ export class Agent {
         // TODO: maybe error instead, or automatically differentiate them?
         //this.options.actions = Array.from(new Map(aggregatedActions.map(actDef => [actDef.name, actDef])).values());
 
-        const doPromptCaching = isClaude(this.options.llm) && (this.options.llm.provider === 'anthropic' || this.options.llm.provider === 'claude-code');
+        const doPromptCaching = ('promptCaching' in this.options.llm.options) ? this.options.llm.options.promptCaching : isClaude(this.options.llm) && (this.options.llm.provider === 'anthropic' || this.options.llm.provider === 'claude-code');
+        //console.log('doPromptCaching?', doPromptCaching)
         
-        this.model = new ModelHarness({ llm: this.options.llm, promptCaching: doPromptCaching });
+        //promptCaching: doPromptCaching
+        //if ('promptCaching' in this.options.llm.options) this.options.llm.options.promptCaching = doPromptCaching;
+        // needs testing
+        if (this.options.llm.provider === 'anthropic' || this.options.llm.provider === 'claude-code') this.options.llm.options.promptCaching = doPromptCaching;
+        this.model = new ModelHarness({ llm: this.options.llm });
         this.model.events.on('tokensUsed', (usage) => this.events.emit('tokensUsed', usage), this);
         this.doneActing = false;
 

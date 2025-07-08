@@ -21,6 +21,7 @@ const DEFAULT_BROWSER_AGENT_TEMP = 0.2;
 export async function startBrowserAgent(
     options?: AgentOptions & BrowserConnectorOptions & { narrate?: boolean }//StartAgentWithWebOptions = {}
 ): Promise<BrowserAgent> {
+    //console.log("sba options:", options);
     const { agentOptions, browserOptions } = buildDefaultBrowserAgentOptions({ agentOptions: options ?? {}, browserOptions: options ?? {} });
 
     const agent = new BrowserAgent({
@@ -95,6 +96,7 @@ export class BrowserAgent extends Agent {
 
     constructor({ agentOptions, browserOptions }: { agentOptions?: Partial<AgentOptions>, browserOptions?: BrowserConnectorOptions }) {
         //console.log("agent options:", agent);
+        //console.log("browser options:", browserOptions);
         super({
             ...agentOptions,
             connectors: [new BrowserConnector(browserOptions || {}), ...(agentOptions?.connectors ?? [])]

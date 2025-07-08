@@ -50,6 +50,8 @@ export class BrowserConnector implements AgentConnector {
     private grounding?: GroundingService;
 
     constructor(options: BrowserConnectorOptions = {}) {
+        // console.log("options", options)
+        // console.log("options.screenshotMemoryLimit", options.screenshotMemoryLimit)
         this.options = options;
         this.logger = logger.child({
             name: `connectors.${this.id}`
@@ -163,11 +165,15 @@ export class BrowserConnector implements AgentConnector {
             tabInfo += `${index === currentTabs.activeTab ? '[ACTIVE] ' : ''}${tab.title} (${tab.url})`;
         });
 
+        //console.log("this.options.screenshotMemoryLimit", this.options.screenshotMemoryLimit);
+        const screenshotLimit = this.options.screenshotMemoryLimit ?? DEFAULT_SCREENSHOT_MEMORY_LIMIT;
+        //console.log("screenshotLimit:", screenshotLimit);
+
         observations.push(
             Observation.fromConnector(
                 this.id,
                 await this.transformScreenshot(currentState.screenshot),
-                { type: 'screenshot', limit: this.options.screenshotMemoryLimit ?? DEFAULT_SCREENSHOT_MEMORY_LIMIT, dedupe: true }
+                { type: 'screenshot', limit: screenshotLimit, dedupe: true }
             )
         );
         observations.push(

@@ -19,6 +19,9 @@ client<llm> SonnetAnthropic {
         api_key env.ANTHROPIC_API_KEY
         temperature 0.0
         allowed_role_metadata ["cache_control"]
+        headers {
+            "anthropic-beta" "prompt-caching-2024-07-31"
+        }
     }
 }
 
