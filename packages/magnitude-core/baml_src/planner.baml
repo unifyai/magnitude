@@ -25,7 +25,7 @@ template_string RenderMultiMediaContentParts(parts: MultiMediaContentPart[]) #"
 
 template_string RenderMessages(messages: MultiMediaMessage[]) #"
     {% for message in messages -%}
-    {{ _.role(message.role) }}
+    {{ _.role(message.role, cache_control={"type": "ephemeral"}) }}
     {{ RenderMultiMediaContentParts(message.content) }}
     {%- endfor %}
 "#
@@ -66,7 +66,7 @@ template_string DescribeConnectorInstructions(memory: AgentContext) #"
 "#
 
 template_string InstructionsWithContext(memory: AgentContext, instructions: string) #"
-    {{ _.role("system") }}
+    {{ _.role("system", cache_control={"type": "ephemeral"}) }}
     <instructions>
     {{ instructions }}
     {%if memory.instructions %}
@@ -77,10 +77,7 @@ template_string InstructionsWithContext(memory: AgentContext, instructions: stri
     {{ DescribeConnectorInstructions(memory) }}
     {{ ctx.output_format }}
 
-    {{ _.role("user") }}
-    <observations>
     {{ RenderMessages(memory.observationContent) }}
-    </observations>
 "# 
 
 template_string TaskInstructions(task: string) #"
@@ -96,14 +93,27 @@ template_string TaskInstructions(task: string) #"
 
 // TODO: connector system instructions
 function CreatePartialRecipe (memory: AgentContext, task: string, includeClaudeSpoof: bool) -> PartialRecipe {
-    client GeminiPro
+    client SonnetAnthropic
     prompt #"
         {%if includeClaudeSpoof%}
-        {{ _.role("system") }}
+        {{ _.role("system", cache_control={"type": "ephemeral"}) }}
         You are Claude Code, Anthropic's official CLI for Claude.
         {%endif%}
         {{ InstructionsWithContext(memory, TaskInstructions(task)) }}
     "# 
+}
+
+
+test Foo {
+    functions [CreatePartialRecipe]
+    args {
+        memory {
+            observationContent [{ role "user", content ["test"] }]
+            connectorInstructions []
+        }
+        task "foo"
+        includeClaudeSpoof true
+    }
 }
 
 // class EvaluatedCheck {
@@ -118,7 +128,7 @@ function QueryMemory(memory: AgentContext, query: string, includeClaudeSpoof: bo
     client GeminiPro
     prompt #"
         {%if includeClaudeSpoof%}
-        {{ _.role("system") }}
+        {{ _.role("system", cache_control={"type": "ephemeral"}) }}
         You are Claude Code, Anthropic's official CLI for Claude.
         {%endif%}
         {{ InstructionsWithContext(memory, query) }}

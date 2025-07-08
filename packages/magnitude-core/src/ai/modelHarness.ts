@@ -1,6 +1,6 @@
 import { convertToBamlClientOptions } from "./util";
 // Import ModularMemoryContext instead of old MemoryContext
-import { b, ModularMemoryContext } from "@/ai/baml_client"; 
+import { b, AgentContext } from "@/ai/baml_client"; 
 import { Image as BamlImage, Collector, ClientRegistry } from "@boundaryml/baml";
 import { Action, ActionIntent, Intent } from "@/actions/types";
 import { TestStepDefinition } from "@/types";
@@ -127,7 +127,7 @@ export class ModelHarness {
     }
 
     async createPartialRecipe<T>(
-        context: ModularMemoryContext, // Changed to ModularMemoryContext
+        context: AgentContext, // Changed to ModularMemoryContext
         task: string,
         actionVocabulary: ActionDefinition<T>[]
     ): Promise<{ reasoning: string, actions: Action[] }> {
@@ -187,7 +187,7 @@ export class ModelHarness {
     }
     // ^ extract could prob be a subset of query w trimmed mem
 
-    async query<T extends Schema>(context: ModularMemoryContext, query: string, schema: T): Promise<z.infer<T>> {
+    async query<T extends Schema>(context: AgentContext, query: string, schema: T): Promise<z.infer<T>> {
         const tb = new TypeBuilder();
 
         if (schema instanceof z.ZodObject) {

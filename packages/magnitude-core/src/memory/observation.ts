@@ -52,7 +52,7 @@ export class Observation {
 
     static fromActionTaken(actionId: string, content: RenderableContent, options?: ObservationRetentionOptions): Observation {
         // see notes on fromThought
-        return new Observation(`action:taken:${actionId}`, 'assistant', content, options);
+        return new Observation(`action:taken:${actionId}`, 'user', content, options);
     }
 
     static fromActionResult(actionId: string, content: RenderableContent, options?: ObservationRetentionOptions): Observation {
@@ -62,7 +62,8 @@ export class Observation {
     static fromThought(content: RenderableContent, options?: ObservationRetentionOptions): Observation {
         // may want to reconsider this structure - probably want to show something that actually matches what the assistant sent else it might pattern match.
         // or just do these as user messages.
-        return new Observation(`thought`, 'assistant', content, options);
+        // changed to user for now
+        return new Observation(`thought`, 'user', content, options);
     }
 
     toString() {

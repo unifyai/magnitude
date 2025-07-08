@@ -52,13 +52,13 @@
     "typescript": "~5.7.2"
   },
   "dependencies": {
-    "@boundaryml/baml": "^0.90.2",
+    "@boundaryml/baml": "^0.201.0",
     "@paralleldrive/cuid2": "^2.2.2",
     "@types/object-hash": "^3.0.6",
-    "magnitude-extract": "0.0.2",
     "ansis": "^4.1.0",
     "commander": "^13.1.0",
     "eventemitter3": "^5.0.1",
+    "magnitude-extract": "0.0.2",
     "moondream": "^0.1.0",
     "object-hash": "^3.0.0",
     "open": "^10.1.2",
