@@ -28,11 +28,12 @@ class ConnectorInstructions {
     //content (string | image)[]
 }
 
-class ModularMemoryContext {
+class AgentContext {
     instructions string? // additional task-level or agent-level instructions
     //history (BamlThought | BamlTurn)[]
     //observations Observation[]
-    observationContent (string | image)[] // complete rendered observation content as multimedia content "chunks"
+    //observationContent (string | image)[] // complete rendered observation content as multimedia content "chunks"
+    observationContent MultiMediaMessage[]
     //currentTimestamp string
     connectorInstructions ConnectorInstructions[]
 }

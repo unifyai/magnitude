@@ -15,8 +15,19 @@ class PartialRecipe {
 
 
 // render "chunked" multimedia content of strings or images with no added whitespace between
-template_string RenderContent(content: (string | image)[]) #"
-    {% for chunk in content -%}{{chunk}}{%- endfor %}
+// template_string RenderContent(content: (string | image)[]) #"
+//     {% for chunk in content -%}{{chunk}}{%- endfor %}
+// "#
+
+template_string RenderMultiMediaContentParts(parts: MultiMediaContentPart[]) #"
+    {% for part in parts -%}{{part}}{%- endfor %}
+"#
+
+template_string RenderMessages(messages: MultiMediaMessage[]) #"
+    {% for message in messages -%}
+    {{ _.role(message.role) }}
+    {{ RenderMultiMediaContentParts(message.content) }}
+    {%- endfor %}
 "#
 
 
@@ -46,7 +57,7 @@ template_string HybridMeta #"
     </meta>
 "#
 
-template_string DescribeConnectorInstructions(memory: ModularMemoryContext) #"
+template_string DescribeConnectorInstructions(memory: AgentContext) #"
     {% for conn in memory.connectorInstructions %}
     <{{ conn.connectorId }}>
     {{- conn.instructions -}}
@@ -54,7 +65,7 @@ template_string DescribeConnectorInstructions(memory: ModularMemoryContext) #"
     {% endfor %}
 "#
 
-template_string InstructionsWithContext(memory: ModularMemoryContext, instructions: string) #"
+template_string InstructionsWithContext(memory: AgentContext, instructions: string) #"
     {{ _.role("system") }}
     <instructions>
     {{ instructions }}
@@ -68,7 +79,7 @@ template_string InstructionsWithContext(memory: ModularMemoryContext, instructio
 
     {{ _.role("user") }}
     <observations>
-    {{ RenderContent(memory.observationContent) }}
+    {{ RenderMessages(memory.observationContent) }}
     </observations>
 "# 
 
@@ -84,7 +95,7 @@ template_string TaskInstructions(task: string) #"
 "#
 
 // TODO: connector system instructions
-function CreatePartialRecipe (memory: ModularMemoryContext, task: string, includeClaudeSpoof: bool) -> PartialRecipe {
+function CreatePartialRecipe (memory: AgentContext, task: string, includeClaudeSpoof: bool) -> PartialRecipe {
     client GeminiPro
     prompt #"
         {%if includeClaudeSpoof%}
@@ -103,7 +114,7 @@ class QueryResponse {
     @@dynamic
 }
 
-function QueryMemory(memory: ModularMemoryContext, query: string, includeClaudeSpoof: bool) -> QueryResponse {
+function QueryMemory(memory: AgentContext, query: string, includeClaudeSpoof: bool) -> QueryResponse {
     client GeminiPro
     prompt #"
         {%if includeClaudeSpoof%}

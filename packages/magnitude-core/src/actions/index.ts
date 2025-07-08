@@ -1,12 +1,12 @@
 import { Agent } from "@/agent"
-import { ObservableData } from "@/memory/observation";
+import { RenderableContent } from "@/memory/observation";
 import { z, Schema, ZodTypeAny } from "zod"
 
 export interface ActionDefinition<T> {
     name: string;
     description?: string;
     schema: Schema<T>;
-    resolver: ({ input, agent }: { input: T, agent: Agent }) => Promise<void | ObservableData>;
+    resolver: ({ input, agent }: { input: T, agent: Agent }) => Promise<void | RenderableContent>;
     render: (action: T) => string
 }
 
@@ -15,7 +15,7 @@ export function createAction<S extends ZodTypeAny>(
         name: string;
         description?: string;
         schema?: S;
-        resolver: ({ input, agent }: { input: z.infer<S>; agent: Agent }) => Promise<void | ObservableData>;
+        resolver: ({ input, agent }: { input: z.infer<S>; agent: Agent }) => Promise<void | RenderableContent>;
         render?: (action: z.infer<S>) => string
     }
 ): ActionDefinition<z.infer<S>> {

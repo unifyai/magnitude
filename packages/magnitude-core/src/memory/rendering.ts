@@ -2,15 +2,23 @@
  * Convert observations to form that can be passed as BAML context, rendered as a custom XML-like structure.
  */
 import { Image as BamlImage } from '@boundaryml/baml';
-import { ObservableData, ObservableDataObject, ObservableDataArray, ObservableDataPrimitive } from './observation';
+import { RenderableContent, ObservableDataObject, ObservableDataArray, ObservableDataPrimitive } from './observation';
 import { Image } from './image'; // Our custom Image class
+//import { MultiMediaContentPart } from '@/ai/baml_client';
 
-export type BamlRenderable = BamlImage | string;
+
+export type MultiMediaContentPart = BamlImage | string;
+
+//export type BamlRenderable = BamlImage | string;
+// export type BamlRenderable = {
+//     role: ''
+//     content: (BamlImage | string)[]
+// }
 
 async function buildXmlPartsRecursive(
-    data: ObservableData,
+    data: RenderableContent,
     indentLevel: number,
-    partsList: BamlRenderable[],
+    partsList: MultiMediaContentPart[],
     isInsideList: boolean = false
 ): Promise<void> {
     const indent = '  '.repeat(indentLevel);
@@ -55,12 +63,12 @@ async function buildXmlPartsRecursive(
         
         objectEntries.forEach(async ([key, value], entryIndex) => {
             const tagName = key; // Use key directly as tag name
-            const currentValueParts: BamlRenderable[] = [];
+            const currentValueParts: MultiMediaContentPart[] = [];
             
             await buildXmlPartsRecursive(value, indentLevel + 1, currentValueParts, false);
 
             // Merge adjacent strings in currentValueParts for easier analysis
-            const mergedValueParts: BamlRenderable[] = [];
+            const mergedValueParts: MultiMediaContentPart[] = [];
             let currentStr = "";
             for (const part of currentValueParts) {
                 if (typeof part === 'string') {
@@ -106,8 +114,8 @@ async function buildXmlPartsRecursive(
     throw new Error(`Object type not supported for LLM context: ${typeof data}`);
 }
 
-export async function observableDataToContext(data: ObservableData): Promise<BamlRenderable[]> {
-    const rawList: BamlRenderable[] = [];
+export async function renderParts(data: RenderableContent): Promise<MultiMediaContentPart[]> {
+    const rawList: MultiMediaContentPart[] = [];
     await buildXmlPartsRecursive(data, 0, rawList);
 
     // Merge adjacent strings
@@ -115,7 +123,7 @@ export async function observableDataToContext(data: ObservableData): Promise<Bam
         return [];
     }
 
-    const mergedList: BamlRenderable[] = [];
+    const mergedList: MultiMediaContentPart[] = [];
     let currentString = "";
 
     for (const item of rawList) {

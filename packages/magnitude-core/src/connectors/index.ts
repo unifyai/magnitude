@@ -1,6 +1,6 @@
 import { ActionDefinition } from '@/actions';
 import { BamlRenderable } from '@/memory/context';
-import { ObservableData, Observation } from '@/memory/observation';
+import { RenderableContent, Observation } from '@/memory/observation';
 
 export interface AgentConnector {
     // Unique connector ID (required)

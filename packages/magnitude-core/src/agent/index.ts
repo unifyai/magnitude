@@ -12,7 +12,7 @@ import { AgentError } from "@/agent/errors";
 import { AgentMemory, AgentMemoryOptions } from "@/memory";
 import { ActionDefinition } from "@/actions";
 import { taskActions } from "@/actions/taskActions";
-import { traceAsync } from "@/ai/baml_client";
+import { ConnectorInstructions, AgentContext, traceAsync } from "@/ai/baml_client";
 import { telemetrifyAgent } from '@/telemetry/events';
 import { isClaude } from '@/ai/util';
 
@@ -253,6 +253,32 @@ export class Agent {
         })(task, options));
     }
 
+    private async _buildContext(memory: AgentMemory): Promise<AgentContext> {
+        const messages = await memory.render();
+
+        const connectorInstructions: ConnectorInstructions[] = [];
+
+        for (const connector of this.connectors) {
+            if (connector.getInstructions) {
+                const instructions = await connector.getInstructions();
+
+                if (instructions) {
+                    connectorInstructions.push({
+                        connectorId: connector.id,
+                        instructions: instructions
+                    });
+                }
+            }
+        }
+
+        return {
+            instructions: memory.instructions,
+            observationContent: messages,
+            //observationContent: content,
+            connectorInstructions: connectorInstructions
+        };
+    }
+
     async _act(description: string, memory: AgentMemory, options: ActOptions = {}): Promise<void> {
         this.doneActing = false;
         logger.info(`Act: ${description}`);
@@ -289,7 +315,7 @@ export class Agent {
             let reasoning: string;
             let actions: Action[];
             try {
-                const memoryContext = await memory.buildContext(this.connectors);
+                const memoryContext = await this._buildContext(memory);//await memory.buildContext(this.connectors);
                 ({ reasoning, actions } = await this.model.createPartialRecipe(
                     memoryContext,
                     description,
@@ -349,7 +375,7 @@ export class Agent {
     async query<T extends z.Schema>(query: string, schema: T): Promise<z.infer<T>> {
         // Record observations in case no act() was used beforehand
         await this._recordConnectorObservations(this.latestTaskMemory);
-        const memoryContext = await this.memory.buildContext(this.connectors);
+        const memoryContext = await this._buildContext(this.memory);//this.memory.buildContext(this.connectors);
         return await this.model.query(memoryContext, query, schema);
     }
 

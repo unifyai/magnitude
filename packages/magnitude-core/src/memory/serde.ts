@@ -2,7 +2,7 @@
  * Utilities for converting multi-media observation data to/from JSON
  */
 import { Base64Image } from "@/web/types";
-import { ObservableData, ObservableDataObject } from "./observation";
+import { RenderableContent, ObservableDataObject } from "./observation";
 import { Image } from './image';
 
 
@@ -40,7 +40,7 @@ export type MultiMediaObject = {
 
 export type MultiMediaJson = MultiMediaPrimitive | MultiMediaArray | MultiMediaObject;
 
-export async function observableDataToJson(data: ObservableData): Promise<MultiMediaJson> {
+export async function observableDataToJson(data: RenderableContent): Promise<MultiMediaJson> {
     if (data instanceof Image) {
         return await data.toJson();//return imageToJson(data);
     }
@@ -89,7 +89,7 @@ export async function observableDataToJson(data: ObservableData): Promise<MultiM
 // TODO: Implement deserialization, and actually leverage serde for logging stuff
 
 
-export async function jsonToObservableData(data: MultiMediaJson): Promise<ObservableData> {
+export async function jsonToObservableData(data: MultiMediaJson): Promise<RenderableContent> {
     // Handle null and undefined primitives
     if (data === null || data === undefined) {
         return data;
