@@ -16,14 +16,31 @@ export async function maskObservations(observations: Observation[], freezeMask?:
      * Deduplication is applied before limiting for each type.
      * Untyped observations (no `obs.retention.type`) are always marked as true.
      * 
+     * If freezeMask is provided:
+     * - The first freezeMask.length observations will have their mask values frozen
+     * - Dedupe will preserve frozen observations if equivalent values exist in unfrozen section
+     * - Limit only applies to unfrozen observations
+     * 
      * @returns A boolean array where true indicates the observation at that index should be visible
      */
+    const frozenCount = freezeMask?.length ?? 0;
+    
+    // Initialize mask
     const mask = new Array(observations.length).fill(true);
+    
+    // Copy frozen mask values if provided
+    if (freezeMask) {
+        for (let i = 0; i < frozenCount && i < observations.length; i++) {
+            mask[i] = freezeMask[i];
+        }
+    }
     
     // Group observations by type, tracking their original indices
     const observationsByType = new Map<string, {
-        indices: number[];
-        obsList: Observation[];
+        frozenIndices: number[];
+        unfrozenIndices: number[];
+        frozenObs: Observation[];
+        unfrozenObs: Observation[];
         limit?: number;
         dedupe?: boolean;
     }>();
@@ -33,56 +50,95 @@ export async function maskObservations(observations: Observation[], freezeMask?:
             const type = obs.retention.type;
             if (!observationsByType.has(type)) {
                 observationsByType.set(type, {
-                    indices: [],
-                    obsList: [],
+                    frozenIndices: [],
+                    unfrozenIndices: [],
+                    frozenObs: [],
+                    unfrozenObs: [],
                     limit: obs.retention.limit,
                     dedupe: obs.retention.dedupe,
                 });
             }
             const typeData = observationsByType.get(type)!;
-            typeData.indices.push(index);
-            typeData.obsList.push(obs);
+            
+            if (index < frozenCount) {
+                typeData.frozenIndices.push(index);
+                typeData.frozenObs.push(obs);
+            } else {
+                typeData.unfrozenIndices.push(index);
+                typeData.unfrozenObs.push(obs);
+            }
         }
-        // Untyped observations remain true in mask (already initialized)
+        // Untyped observations: frozen ones keep their freezeMask value, unfrozen remain true
     });
 
     // Process each type
     for (const [type, data] of observationsByType.entries()) {
-        let visibleIndices = [...data.indices];
+        // Only process unfrozen observations for dedupe and limit
+        let visibleUnfrozenIndices = [...data.unfrozenIndices];
 
-        // Apply deduplication
-        if (data.dedupe && data.obsList.length > 1) {
+        // Apply deduplication to unfrozen section
+        if (data.dedupe && data.unfrozenObs.length > 1) {
             const dedupedIndices: number[] = [];
-            dedupedIndices.unshift(data.indices[data.indices.length - 1]);
+            dedupedIndices.unshift(data.unfrozenIndices[data.unfrozenIndices.length - 1]);
 
-            for (let i = data.indices.length - 2; i >= 0; i--) {
-                const currentObs = data.obsList[i];
+            for (let i = data.unfrozenIndices.length - 2; i >= 0; i--) {
+                const currentObs = data.unfrozenObs[i];
                 const lastKeptIdx = dedupedIndices[0];
-                const lastKeptObs = data.obsList[data.indices.indexOf(lastKeptIdx)];
+                const lastKeptObs = observations[lastKeptIdx];
                 
                 if (!(await currentObs.equals(lastKeptObs))) {
-                    dedupedIndices.unshift(data.indices[i]);
+                    dedupedIndices.unshift(data.unfrozenIndices[i]);
                 }
             }
-            visibleIndices = dedupedIndices;
+            visibleUnfrozenIndices = dedupedIndices;
+        }
+        
+        // Special handling for dedupe with frozen observations
+        if (data.dedupe && freezeMask) {
+            // Check if any frozen observations should be preserved
+            // because equivalent values exist in unfrozen section
+            const frozenToPreserve = new Set<number>();
+            
+            for (let i = 0; i < data.frozenIndices.length; i++) {
+                const frozenIdx = data.frozenIndices[i];
+                if (mask[frozenIdx]) { // Only check if currently visible in freezeMask
+                    const frozenObs = data.frozenObs[i];
+                    
+                    // Check if any unfrozen observation equals this frozen one
+                    for (const unfrozenObs of data.unfrozenObs) {
+                        if (await frozenObs.equals(unfrozenObs)) {
+                            frozenToPreserve.add(frozenIdx);
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Ensure preserved frozen observations stay visible
+            frozenToPreserve.forEach(idx => {
+                mask[idx] = true;
+            });
         }
 
-        // Apply limit
+        // Apply limit only to unfrozen observations
         if (data.limit !== undefined && data.limit >= 0) {
             if (data.limit === 0) {
-                visibleIndices = [];
+                visibleUnfrozenIndices = [];
             } else {
-                visibleIndices = visibleIndices.slice(-data.limit);
+                // Limit only counts unfrozen observations
+                visibleUnfrozenIndices = visibleUnfrozenIndices.slice(-data.limit);
             }
         }
 
-        // Mark non-visible observations as false
-        const visibleSet = new Set(visibleIndices);
-        data.indices.forEach(idx => {
+        // Mark non-visible unfrozen observations as false
+        const visibleSet = new Set(visibleUnfrozenIndices);
+        data.unfrozenIndices.forEach(idx => {
             if (!visibleSet.has(idx)) {
                 mask[idx] = false;
             }
         });
+        
+        // Frozen observations keep their freezeMask values (already set above)
     }
 
     return mask;
