@@ -77,37 +77,63 @@ export class ModelHarness {
     }
 
     reportUsage(): void {
+        // console.log('this.collector.last', this.collector.last)
+        // if (this.collector.last) console.log("calls:", this.collector.last.calls)//console.log("Response: ", this.collector.last.calls[-1].httpResponse);
+        //console.log('last call:', this.collector.last?.calls.at(-1)?.httpResponse?.body.json());
         // Get tokens used since last call to reportUsage
-        const inputTokens = (this.collector.usage.inputTokens ?? 0) - this.prevTotalInputTokens;
-        const outputTokens = (this.collector.usage.outputTokens ?? 0) - this.prevTotalOutputTokens;
+        //console.log(this.collector.usage);
+
+        let inputTokens: number = 0;
+        let outputTokens: number = 0;
+        let cacheWriteInputTokens: number = 0;
+        let cacheReadInputTokens: number = 0;
+
+        if (this.options.llm.provider === 'anthropic' || this.options.llm.provider === 'claude-code') {
+            type AnthropicUsage = { input_tokens: number, cache_creation_input_tokens: number, cache_read_input_tokens: number, output_tokens: number, service_tier: string };
+            const usage = this.collector.last?.calls.at(-1)?.httpResponse?.body.json().usage as AnthropicUsage;
+            //console.log("Usage from Anthropic:", usage);
+            cacheWriteInputTokens = usage.cache_creation_input_tokens;
+            cacheReadInputTokens = usage.cache_read_input_tokens;
+        } else {
+            inputTokens = (this.collector.usage.inputTokens ?? 0) - this.prevTotalInputTokens;
+            outputTokens = (this.collector.usage.outputTokens ?? 0) - this.prevTotalOutputTokens;
+        }
 
         const model = (this.options.llm.options as any).model ?? 'unknown';
 
         // Get cost if known
-        const knownCostMap: Record<string, number[]> = {
-            'gemini-2.5-pro': [1.25, 10.0],
-            'gemini-2.5-flash': [0.15, 0.60],
-            'claude-3.5-sonnet': [3.00, 15.00],
-            'claude-3.7-sonnet': [3.00, 15.00],
-            'claude-sonnet-4': [3.00, 15.00],
-            'claude-opus-4': [15.00, 75.00],
-            'gpt-4.1': [2.00, 8.00],
-            'gpt-4.1-mini': [0.40, 1.60],
-            'gpt-4.1-nano': [0.10, 0.40],
-            'gpt-4o': [3.75, 15.00],
+        const knownCostMap: Record<string, { inputTokens: number, outputTokens: number, cacheWriteInputTokens?: number, cacheReadInputTokens?: number }> = {
+            // TODO: track cached savings on Gemini
+            'gemini-2.5-pro': { inputTokens: 1.25, outputTokens: 10.0 },
+            'gemini-2.5-flash': { inputTokens: 0.15, outputTokens: 0.60 },
+            'claude-3.5-sonnet': { inputTokens: 3.00, outputTokens: 15.00, cacheWriteInputTokens: 3.75, cacheReadInputTokens: 0.30 },
+            'claude-3.7-sonnet': { inputTokens: 3.00, outputTokens: 15.00, cacheWriteInputTokens: 3.75, cacheReadInputTokens: 0.30 },
+            'claude-sonnet-4': { inputTokens: 3.00, outputTokens: 15.00, cacheWriteInputTokens: 3.75, cacheReadInputTokens: 0.30 },
+            'claude-opus-4': { inputTokens: 15.00, outputTokens: 75.00, cacheWriteInputTokens: 18.75, cacheReadInputTokens: 1.50 },
+            'gpt-4.1': { inputTokens: 2.00, outputTokens: 8.00 },
+            'gpt-4.1-mini': { inputTokens: 0.40, outputTokens: 1.60 },
+            'gpt-4.1-nano': { inputTokens: 0.10, outputTokens: 0.40 },
+            'gpt-4o': { inputTokens: 3.75, outputTokens: 15.00 },
             // Assuming Nebius prices, may be higher
-            'qwen2.5-vl-72b': [0.25, 0.75]
+            'qwen2.5-vl-72b': { inputTokens: 0.25, outputTokens: 0.75 }
         };
 
         let inputTokenCost: number | undefined;
         let outputTokenCost: number | undefined;
+        let cacheWriteInputTokenCost: number | undefined;
+        let cacheReadInputTokenCost: number | undefined;
 
         for (const [name, costs] of Object.entries(knownCostMap)) {
             if (model.includes(name)) {
-                inputTokenCost = costs[0] / 1_000_000;
-                outputTokenCost = costs[0] / 1_000_000;
+                inputTokenCost = costs.inputTokens / 1_000_000;
+                outputTokenCost = costs.outputTokens / 1_000_000;
+                cacheWriteInputTokenCost = costs.cacheReadInputTokens ? costs.cacheReadInputTokens / 1_000_000 : undefined;
+                cacheReadInputTokenCost = costs.cacheWriteInputTokens ? costs.cacheWriteInputTokens / 1_000_000 : undefined;
             }
         }
+
+        // console.log("cacheWriteInputTokenCost:", cacheWriteInputTokenCost);
+        // console.log("cacheWriteInputTokens:", cacheWriteInputTokens);
 
         const usage: ModelUsage = {
             llm: {
@@ -116,11 +142,20 @@ export class ModelHarness {
             },//this.options.llm,
             inputTokens: inputTokens,
             outputTokens: outputTokens,
-            ...(inputTokenCost ? { inputCost: inputTokens * inputTokenCost } : {}),
-            ...(outputTokenCost ? { outputCost: outputTokens * outputTokenCost } : {})
+            ...(cacheWriteInputTokens ? { cacheWriteInputTokens } : {}),
+            ...(cacheReadInputTokens ? { cacheReadInputTokens } : {}),
+            ...(inputTokenCost ? {
+                inputCost: inputTokens * inputTokenCost +
+                    ( cacheWriteInputTokenCost ? cacheWriteInputTokenCost * cacheWriteInputTokens : 0.0 ) +
+                    ( cacheReadInputTokenCost ? cacheReadInputTokenCost * cacheReadInputTokens : 0.0 )
+            } : {}),
+            ...(outputTokenCost ? { outputCost: outputTokens * outputTokenCost } : {}),
+            // ...(cacheWriteInputTokenCost ? { : inputTokens * inputTokenCost } : {}),
+            // ...(cacheReadInputTokenCost ? { outputCost: outputTokens * outputTokenCost } : {})
         };
 
         this.events.emit('tokensUsed', usage);
+        //console.log("Usage:", usage);
 
         this.prevTotalInputTokens = inputTokens;
         this.prevTotalOutputTokens = outputTokens;

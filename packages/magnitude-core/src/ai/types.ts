@@ -114,6 +114,8 @@ export interface ModelUsage {
     llm: LLMClientIdentifier,
     inputTokens: number,
     outputTokens: number,
+    cacheWriteInputTokens?: number,
+    cacheReadInputTokens?: number,
     inputCost?: number,
     outputCost?: number,
 }
