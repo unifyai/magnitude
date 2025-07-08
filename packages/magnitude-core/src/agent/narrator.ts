@@ -7,12 +7,16 @@ import { z } from 'zod';
 export function narrateAgent(agent: Agent) {
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
+    let totalCachedWriteInputTokens = 0;
+    let totalCachedReadInputTokens = 0;
     let totalInputTokenCost = 0.0;
     let totalOutputTokenCost = 0.0;
 
     agent.events.on('tokensUsed', (usage) => {
         totalInputTokens += usage.inputTokens;
         totalOutputTokens += usage.outputTokens;
+        totalCachedWriteInputTokens += usage.cacheWriteInputTokens ?? 0;
+        totalCachedReadInputTokens += usage.cacheReadInputTokens ?? 0;
         totalInputTokenCost += usage.inputCost ?? 0.0;
         totalOutputTokenCost += usage.outputCost ?? 0.0;
     });
@@ -24,7 +28,7 @@ export function narrateAgent(agent: Agent) {
     agent.events.on('stop', () => {
         console.log(bold(blueBright(`■ [stop] agent stopped`)));
 
-        console.log(`  Total usage: ` + bold`${totalInputTokens}` + ` input tokens` + ` / ` + bold`${totalOutputTokens}` + ` output tokens`);
+        console.log(`  Total usage: ` + bold`${totalInputTokens + totalCachedWriteInputTokens + totalCachedReadInputTokens}` + ` input tokens` + (totalCachedWriteInputTokens > 0 || totalCachedReadInputTokens > 0 ? ` (${totalCachedWriteInputTokens} cache write, ${totalCachedReadInputTokens} cache read)` : '') + ` / ` + bold`${totalOutputTokens}` + ` output tokens`);
         if (totalInputTokenCost > 0 || totalOutputTokenCost > 0) {
             if (agent.model.describeModel().startsWith('claude-code')) {
                 console.log(`  Cost: ` + cyanBright`None - using Claude Pro or Max subscription`)
