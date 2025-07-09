@@ -1,5 +1,11 @@
 # magnitude-core
 
+## 0.2.19
+
+### Patch Changes
+
+- [#78](https://github.com/magnitudedev/magnitude/pull/78) [`5d61247`](https://github.com/magnitudedev/magnitude/commit/5d612477c25a83aa8b09808130fb1728246c44a6) Thanks [@anerli](https://github.com/anerli)! - prompt caching for ~40%+ less cost with claude
+
 ## 0.2.18
 
 ### Patch Changes
