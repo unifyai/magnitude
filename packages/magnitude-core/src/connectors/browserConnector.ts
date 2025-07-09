@@ -23,7 +23,7 @@ import { GroundingService, moondreamTargetingInstructions } from "@/ai/grounding
 
 // }
 
-const DEFAULT_SCREENSHOT_MEMORY_LIMIT = 3;
+const DEFAULT_SCREENSHOT_MEMORY_LIMIT = 1;
 
 export interface BrowserConnectorOptions {
     //browser?: Browser
