@@ -79,6 +79,12 @@
                         ]
                     },
                     {
+                        "group": "Advanced",
+                        "pages": [
+                            "advanced/memory"
+                        ]
+                    },
+                    {
                         "group": "Reference",
                         "pages": [
                             "reference/llm-providers",

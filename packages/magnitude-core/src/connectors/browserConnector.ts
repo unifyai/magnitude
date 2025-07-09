@@ -32,7 +32,7 @@ export interface BrowserConnectorOptions {
     //browserContextOptions?: BrowserContextOptions
     grounding?: GroundingClient
     virtualScreenDimensions?: { width: number, height: number },
-    screenshotMemoryLimit?: number,
+    minScreenshots?: number,
 }
 
 export interface BrowserConnectorStateData {
@@ -166,7 +166,7 @@ export class BrowserConnector implements AgentConnector {
         });
 
         //console.log("this.options.screenshotMemoryLimit", this.options.screenshotMemoryLimit);
-        const screenshotLimit = this.options.screenshotMemoryLimit ?? DEFAULT_SCREENSHOT_MEMORY_LIMIT;
+        const screenshotLimit = this.options.minScreenshots ?? DEFAULT_SCREENSHOT_MEMORY_LIMIT;
         //console.log("screenshotLimit:", screenshotLimit);
 
         observations.push(
