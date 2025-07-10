@@ -2,7 +2,6 @@ import { RegisteredTest, TestOptions } from "@/discovery/types";
 import { TestResult, TestState } from "@/runner/state";
 import { BrowserOptions, GroundingClient, LLMClient } from "magnitude-core";
 import { parentPort, workerData } from "node:worker_threads";
-import { Worker } from "node:worker_threads";
 
 export type TestWorkerIncomingMessage = {
     type: "execute"
@@ -11,10 +10,6 @@ export type TestWorkerIncomingMessage = {
     llm?: LLMClient;
     grounding?: GroundingClient;
     telemetry?: boolean;
-}
-
-export function postToWorker(worker: Worker, message: TestWorkerIncomingMessage) {
-    worker.postMessage(message);
 }
 
 export type TestWorkerOutgoingMessage = {

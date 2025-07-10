@@ -1,10 +1,10 @@
 import { MagnitudeConfig, RegisteredTest, TestOptions } from '@/discovery/types';
 import { processUrl } from '../util';
 import { WorkerPool, WorkerPoolResult } from './workerPool';
-import { TestResult } from './state';
+import { TestResult, TestState } from './state';
 import { TestRenderer } from '@/renderer';
 import { Worker } from 'node:worker_threads';
-import { postToWorker, TestWorkerData, TestWorkerOutgoingMessage } from '@/worker/util';
+import { TestWorkerData, TestWorkerIncomingMessage, TestWorkerOutgoingMessage } from '@/worker/util';
 import { isBun, isDeno } from 'std-env';
 
 const TEST_FILE_LOADING_TIMEOUT = 30000;
@@ -21,7 +21,7 @@ export class TestSuiteRunner {
     private config: MagnitudeConfig;
 
     private tests: RegisteredTest[];
-    private workers: Map<string, Worker> = new Map();
+    private executors: Map<string, ClosedTestExecutor> = new Map();
 
     constructor(
         config: TestSuiteRunnerConfig
@@ -31,37 +31,26 @@ export class TestSuiteRunner {
         this.config = config.config;
     }
 
-    private runTest(test: RegisteredTest): Promise<TestResult> {
-        const worker = this.workers.get(test.id);
-        if (!worker) {
+    private runTest(test: RegisteredTest, signal: AbortSignal): Promise<TestResult> {
+        const executor = this.executors.get(test.id);
+        if (!executor) {
             throw new Error(`Test worker not found for test ID: ${test.id}`);
         }
 
-        return new Promise((resolve, reject) => {
-            const messageHandler = (message: TestWorkerOutgoingMessage) => {
-                if (!("testId" in message) || message.testId !== test.id) return;
-                if (message.type === "test_result") {
-                    worker.off("message", messageHandler);
-                    resolve(message.result);
-                } else if (message.type === "test_error") {
-                    worker.off("message", messageHandler);
-                    reject(new Error(message.error));
-                } else if (message.type === "test_state_change") {
-                    this.renderer?.onTestStateUpdated(test, message.state);
-                }
-            }
-
-            worker.on("message", messageHandler);
-            postToWorker(worker, {
+        return executor(
+            {
                 type: "execute",
                 test,
                 browserOptions: this.config.browser,
                 llm: this.config.llm,
                 grounding: this.config.grounding,
                 telemetry: this.config.telemetry
-            })
-
-        })
+            },
+            (state: TestState) => {
+                this.renderer?.onTestStateUpdated(test, state);
+            },
+            signal
+        );
     }
 
     private getActiveOptions(): TestOptions {
@@ -78,49 +67,20 @@ export class TestSuiteRunner {
 
     public async loadTestFile(absoluteFilePath: string, relativeFilePath: string): Promise<void> {
         try {
-            const worker = new Worker(
-                new URL(
-                    import.meta.url.endsWith(".ts")
-                        ? '../worker/readTest.ts'
-                        : './worker/readTest.js',
-                    import.meta.url
-                ),
-                {
-                    workerData: {
-                        filePath: absoluteFilePath,
-                        options: this.getActiveOptions(),
-                    } satisfies TestWorkerData,
-                    env: { NODE_ENV: 'test', ...process.env },
-                    execArgv: !(isBun || isDeno) ? ["--import=jiti/register"] : []
-                }
-            );
+            const workerData = {
+                filePath: absoluteFilePath,
+                options: this.getActiveOptions(),
+            } satisfies TestWorkerData;
 
-            return new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    worker.terminate();
-                    reject(new Error(`Test file loading timeout: ${relativeFilePath}`));
-                }, TEST_FILE_LOADING_TIMEOUT);
-
-                worker.on('message', (message: TestWorkerOutgoingMessage) => {
-                    if (message.type === 'registered') {
-                        this.tests.push(message.test);
-                        this.workers.set(message.test.id, worker);
-                    } else if (message.type === 'load_error') {
-                        clearTimeout(timeout);
-                        worker.terminate();
-                        reject(new Error(`Failed to load ${relativeFilePath}: ${message.error}`));
-                    } else if (message.type === 'load_complete') {
-                        clearTimeout(timeout);
-                        resolve();
-                    }
-                });
-
-                worker.on('error', (error) => {
-                    clearTimeout(timeout);
-                    worker.terminate();
-                    reject(error);
-                });
+            const result = await createNodeTestWorker({
+                workerData,
+                relativeFilePath
             });
+
+            this.tests.push(...result.tests);
+            for (const test of result.tests) {
+                this.executors.set(test.id, result.executor);
+            }
         } catch (error) {
             console.error(`Failed to load test file ${relativeFilePath}:`, error);
             throw error;
@@ -136,7 +96,7 @@ export class TestSuiteRunner {
         const taskFunctions = this.tests.map((test) => {
             return async (signal: AbortSignal): Promise<TestResult> => {
                 try {
-                    return await this.runTest(test);
+                    return await this.runTest(test, signal);
                 } catch (err: unknown) {
                     // user-facing, can happen e.g. when URL is not running
                     if (err instanceof Error) {
@@ -175,3 +135,93 @@ export class TestSuiteRunner {
 
     }
 }
+
+type ClosedTestExecutor =
+    (
+        message: TestWorkerIncomingMessage,
+        onStateChange: (state: TestState) => void,
+        signal: AbortSignal
+    ) => Promise<TestResult>;
+
+
+type CreateTestWorker = (arg: {
+    workerData: TestWorkerData,
+    relativeFilePath: string
+}) => Promise<{
+    tests: RegisteredTest[];
+    executor: ClosedTestExecutor;
+}>;
+
+
+const createNodeTestWorker: CreateTestWorker = async ({ workerData, relativeFilePath }) =>
+    new Promise((resolve, reject) => {
+        const worker = new Worker(
+            new URL(
+                import.meta.url.endsWith(".ts")
+                    ? '../worker/readTest.ts'
+                    : './worker/readTest.js',
+                import.meta.url
+            ),
+            {
+                workerData,
+                env: { NODE_ENV: 'test', ...process.env },
+                execArgv: !(isBun || isDeno) ? ["--import=jiti/register"] : []
+            }
+        );
+
+        const executor: ClosedTestExecutor =
+            (executeMessage, onStateChange, signal) => new Promise((res, rej) => {
+                const messageHandler = (msg: TestWorkerOutgoingMessage) => {
+                    if (!("testId" in msg) || msg.testId !== executeMessage.test.id) return;
+
+                    if (msg.type === "test_result") {
+                        worker.off("message", messageHandler);
+                        res(msg.result);
+                    } else if (msg.type === "test_error") {
+                        worker.off("message", messageHandler);
+                        rej(new Error(msg.error));
+                    } else if (msg.type === "test_state_change") {
+                        onStateChange(msg.state);
+                    }
+                };
+
+                signal.addEventListener('abort', () => {
+                    worker.off("message", messageHandler);
+                    rej(new Error('Test execution aborted'));
+                });
+
+                worker.on("message", messageHandler);
+                worker.postMessage(executeMessage);
+            });
+
+        const registeredTests: RegisteredTest[] = [];
+
+        worker.on('message', (message: TestWorkerOutgoingMessage) => {
+            if (message.type === 'registered') {
+                registeredTests.push(message.test);
+
+            } else if (message.type === 'load_error') {
+                clearTimeout(timeout);
+                worker.terminate();
+                reject(new Error(`Failed to load ${relativeFilePath}: ${message.error}`));
+            } else if (message.type === 'load_complete') {
+                clearTimeout(timeout);
+                if (!registeredTests.length) {
+                    reject(new Error(`No tests registered for file ${relativeFilePath}`));
+                    return;
+                }
+                resolve({ tests: registeredTests, executor });
+            }
+        });
+
+        const timeout = setTimeout(() => {
+            worker.terminate();
+            reject(new Error(`Test file loading timeout: ${relativeFilePath}`));
+        }, TEST_FILE_LOADING_TIMEOUT);
+
+        worker.on('error', (error) => {
+            clearTimeout(timeout);
+            worker.terminate();
+            reject(error);
+        });
+    })
