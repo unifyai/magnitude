@@ -1,5 +1,13 @@
 # magnitude-core
 
+## 0.2.20
+
+### Patch Changes
+
+- [`6e90614`](https://github.com/magnitudedev/magnitude/commit/6e906148a8c467bbca14a23da99867a88a6e72ce) Thanks [@anerli](https://github.com/anerli)! - add retries for when no actions returned or other weird llm provider errors
+
+- [`797a94b`](https://github.com/magnitudedev/magnitude/commit/797a94b07684397b6ef6b8fa8122980841436b43) Thanks [@anerli](https://github.com/anerli)! - fix cost computation bug for cached input tokens By @Naqu6
+
 ## 0.2.19
 
 ### Patch Changes
