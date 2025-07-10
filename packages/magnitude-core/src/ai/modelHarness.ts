@@ -129,8 +129,8 @@ export class ModelHarness {
             if (model.includes(name)) {
                 inputTokenCost = costs.inputTokens / 1_000_000;
                 outputTokenCost = costs.outputTokens / 1_000_000;
-                cacheWriteInputTokenCost = costs.cacheReadInputTokens ? costs.cacheReadInputTokens / 1_000_000 : undefined;
-                cacheReadInputTokenCost = costs.cacheWriteInputTokens ? costs.cacheWriteInputTokens / 1_000_000 : undefined;
+                cacheReadInputTokenCost = costs.cacheReadInputTokens ? costs.cacheReadInputTokens / 1_000_000 : undefined;
+                cacheWriteInputTokenCost = costs.cacheWriteInputTokens ? costs.cacheWriteInputTokens / 1_000_000 : undefined;
             }
         }
 
