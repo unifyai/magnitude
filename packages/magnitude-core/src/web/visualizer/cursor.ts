@@ -1,7 +1,7 @@
 import logger from "@/logger";
 import { Page } from "playwright";
 
-export class ActionVisualizer {
+export class CursorVisual {
     /**
      * Manages the visual indicator for actions on a page
      */
@@ -18,6 +18,7 @@ export class ActionVisualizer {
 
         page.on('load', async () => {
             // Use a try-catch as page navigation might interrupt this
+            // TODO: should retry here
             try {
                 await this.redrawLastPosition();
             } catch (error) {
@@ -27,11 +28,11 @@ export class ActionVisualizer {
         });
     }
 
-    async visualizeAction(x: number, y: number): Promise<void> {
+    async move(x: number, y: number): Promise<void> {
         // Store the position
         this.lastPosition = { x, y };
         // Create or update the mouse pointer visual, showing the click effect
-        await this._drawVisual(x, y, true);
+        await this._drawVisual(x, y, false);
         // The pointer visual takes 0.3s on the transition, but awaiting script evaluation does not wait for this to complete.
         // So we wait 300ms manually.
         await this.page.waitForTimeout(300);
@@ -149,7 +150,7 @@ export class ActionVisualizer {
         }
     }
 
-    async hidePointer(): Promise<void> {
+    async hide(): Promise<void> {
         try {
             await this.page.evaluate((id) => {
                 const element = document.getElementById(id);
@@ -162,7 +163,7 @@ export class ActionVisualizer {
         }
     }
 
-    async showPointer(): Promise<void> {
+    async show(): Promise<void> {
         try {
             await this.page.evaluate((id) => {
                 const element = document.getElementById(id);

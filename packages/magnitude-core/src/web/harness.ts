@@ -33,7 +33,11 @@ export class WebHarness { // implements StateComponent
         this.context = context;
         this.options = options;
         this.stability = new PageStabilityAnalyzer();
-        this.visualizer = new ActionVisualizer();
+        this.visualizer = new ActionVisualizer(this.context, {
+            showCursor: true,
+            showClickEffects: true,
+            showTypeEffects: true
+        });
         this.transformer = new DOMTransformer();
         this.tabs = new TabManager(context);
 
@@ -71,6 +75,7 @@ export class WebHarness { // implements StateComponent
             await this.context.newPage();
             // Other logic for page tracking is automatically handled by TabManager
         }
+        await this.visualizer.setup();
     }
 
     get page() {
@@ -245,10 +250,10 @@ export class WebHarness { // implements StateComponent
         clickCount?: number;
         delay?: number;
     }) {
-        await this.visualizer.visualizeAction(x, y);
-        await this.visualizer.hidePointer(); // hide / show pointer because no-pointer is not always consistent and visualizer can block click
+        await this.visualizer.moveVirtualCursor(x, y);
+        await this.visualizer.hideAll(); // hide / show pointer because no-pointer is not always consistent and visualizer can block click
         await this.page.mouse.click(x, y);
-        await this.visualizer.showPointer();
+        await this.visualizer.showAll();
     }
 
     async rightClick({ x, y }: { x: number, y: number }) {
@@ -259,10 +264,10 @@ export class WebHarness { // implements StateComponent
 
     async doubleClick({ x, y }: { x: number, y: number }) {
         ({ x, y } = await this.transformCoordinates({ x, y }));
-        await this.visualizer.visualizeAction(x, y);
-        await this.visualizer.hidePointer();
+        await this.visualizer.moveVirtualCursor(x, y);
+        await this.visualizer.hideAll();
         await this.page.mouse.dblclick(x, y);
-        await this.visualizer.showPointer();
+        await this.visualizer.showAll();
         await this.waitForStability();
     }
 
@@ -274,12 +279,12 @@ export class WebHarness { // implements StateComponent
         
         await this.page.mouse.move(x1, y1, { steps: 1 });
         await this.page.mouse.down();
-        await this.visualizer.visualizeAction(x1, y1);
+        await this.visualizer.moveVirtualCursor(x1, y1);
         await this.page.waitForTimeout(500);
         
         await Promise.all([
             this.page.mouse.move(x2, y2, { steps: 20 }),
-            this.visualizer.visualizeAction(x2, y2)
+            this.visualizer.moveVirtualCursor(x2, y2)
         ]);
         // await this.page.mouse.move(x2, y2, { steps: 100 });
         // await this.visualizer.visualizeAction(x2, y2);
@@ -298,7 +303,7 @@ export class WebHarness { // implements StateComponent
         //console.log(`Pre transform: ${x}, ${y}`);
         ({ x, y } = await this.transformCoordinates({ x, y }));
         //console.log(`Post transform: ${x}, ${y}`);
-        await this.visualizer.visualizeAction(x, y);
+        await this.visualizer.moveVirtualCursor(x, y);
         this._click(x, y);
         await this._type(content);
         await this.waitForStability();
@@ -306,7 +311,7 @@ export class WebHarness { // implements StateComponent
     
     async scroll({ x, y, deltaX, deltaY }: { x: number, y: number, deltaX: number, deltaY: number }) {
         ({ x, y } = await this.transformCoordinates({ x, y }));
-        await this.visualizer.visualizeAction(x, y);
+        await this.visualizer.moveVirtualCursor(x, y);
         await this.page.mouse.move(x, y);
         await this.page.mouse.wheel(deltaX, deltaY);
         await this.waitForStability();

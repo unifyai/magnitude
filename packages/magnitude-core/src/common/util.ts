@@ -7,6 +7,17 @@ export interface RetryOptions {
     warn: boolean
 }
 
+// export type RetryOptions =
+//     ({ errorSubstrings: string[] } | { retryAll: true }) &
+//     {retryLimit: number,
+//     delayMs: number,
+//     warn: boolean
+// }
+
+// export const DEFAULT_RETRY_OPTIONS = {
+
+// }
+
 export async function retryOnError<T>(
     fnToRetry: () => Promise<T>,
     { errorSubstrings, retryLimit, delayMs, warn }: RetryOptions
