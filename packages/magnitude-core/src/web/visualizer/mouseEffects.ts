@@ -58,6 +58,7 @@ export class MouseEffectVisual {
                 let isMouseDown = false;
                 let dragStartX = 0;
                 let dragStartY = 0;
+                const activeRipples = new Set<HTMLElement>();
 
                 // Track mouse movement
                 document.addEventListener('mousemove', (e) => {
@@ -102,83 +103,104 @@ export class MouseEffectVisual {
 
                 // Visualize clicks
                 document.addEventListener('click', (e) => {
-                    // Create ripple effect
-                    const ripple = document.createElement('div');
-                    ripple.style.cssText = `
-                        position: fixed;
-                        left: ${e.clientX - 30}px;
-                        top: ${e.clientY - 30}px;
-                        width: 60px;
-                        height: 60px;
-                        border: 3px solid #0096ff;
-                        border-radius: 50%;
-                        pointer-events: none;
-                        z-index: 1000000040;
-                        animation: ripple 0.6s ease-out;
-                    `;
-
-                    // Add ripple animation
-                    const style = document.createElement('style');
-                    style.textContent = `
-                        @keyframes ripple {
-                            0% {
-                                transform: scale(0);
-                                opacity: 1;
+                    // Add ripple animation styles once
+                    if (!document.querySelector('style[data-cursor-effects]')) {
+                        const style = document.createElement('style');
+                        style.setAttribute('data-cursor-effects', 'true');
+                        style.textContent = `
+                            @keyframes ripple {
+                                0% {
+                                    transform: scale(0);
+                                    opacity: 1;
+                                }
+                                100% {
+                                    transform: scale(2);
+                                    opacity: 0;
+                                }
                             }
-                            100% {
-                                transform: scale(2);
+                            .click-ripple {
+                                position: fixed;
+                                width: 60px;
+                                height: 60px;
+                                border: 3px solid #0096ff;
+                                border-radius: 50%;
+                                pointer-events: none;
+                                z-index: 1000000040;
+                                transform: scale(0);
                                 opacity: 0;
                             }
-                        }
-                    `;
-                    if (!document.querySelector('style[data-cursor-effects]')) {
-                        style.setAttribute('data-cursor-effects', 'true');
+                            .click-ripple.active {
+                                animation: ripple 0.6s ease-out forwards;
+                            }
+                        `;
                         document.head.appendChild(style);
                     }
 
+                    // Create ripple effect
+                    const ripple = document.createElement('div');
+                    ripple.className = 'click-ripple';
+                    ripple.style.left = `${e.clientX - 30}px`;
+                    ripple.style.top = `${e.clientY - 30}px`;
+                    
                     document.body.appendChild(ripple);
+                    activeRipples.add(ripple);
+                    
+                    // Trigger animation on next frame to ensure proper initialization
+                    requestAnimationFrame(() => {
+                        ripple.classList.add('active');
+                    });
 
-                    // Flash the cursor
-                    cursor.style.background = `rgba(0, 150, 255, ${opacity * 2.67})`;
-                    cursor.style.border = `2px solid rgba(0, 150, 255, 1)`;
-                    cursor.style.transform = 'scale(1.5)';
+                    // Flash the cursor only if not already scaled down
+                    const currentTransform = cursor.style.transform;
+                    if (currentTransform !== 'scale(0.5)') {
+                        cursor.style.background = `rgba(0, 150, 255, ${opacity * 2})`;
+                        cursor.style.border = `2px solid rgba(0, 150, 255, 1)`;
+                        cursor.style.transform = 'scale(1.5)';
 
-                    setTimeout(() => {
-                        cursor.style.background = `rgba(0, 150, 255, ${opacity * 0.33})`;
-                        cursor.style.border = `2px solid rgba(0, 150, 255, ${opacity})`;
-                        cursor.style.transform = 'scale(1)';
-                    }, 200);
+                        setTimeout(() => {
+                            cursor.style.background = `rgba(0, 150, 255, ${opacity * 0.5})`;
+                            cursor.style.border = `2px solid rgba(0, 150, 255, ${opacity})`;
+                            cursor.style.transform = 'scale(1)';
+                        }, 200);
+                    }
 
                     // Remove ripple after animation
-                    setTimeout(() => ripple.remove(), 600);
+                    setTimeout(() => {
+                        ripple.remove();
+                        activeRipples.delete(ripple);
+                    }, 600);
                 });
 
                 // Also track right clicks
                 document.addEventListener('contextmenu', (e) => {
                     // Don't prevent default - let context menu show
 
-                    // Create different colored ripple for right click
+                    // Create ripple for right click (reuse same styles)
                     const ripple = document.createElement('div');
-                    ripple.style.cssText = `
-                        position: fixed;
-                        left: ${e.clientX - 30}px;
-                        top: ${e.clientY - 30}px;
-                        width: 60px;
-                        height: 60px;
-                        border: 3px solid #0096ff;
-                        border-radius: 50%;
-                        pointer-events: none;
-                        z-index: 1000000040;
-                        animation: ripple 0.6s ease-out;
-                    `;
-
+                    ripple.className = 'click-ripple';
+                    ripple.style.left = `${e.clientX - 30}px`;
+                    ripple.style.top = `${e.clientY - 30}px`;
+                    
                     document.body.appendChild(ripple);
-                    setTimeout(() => ripple.remove(), 600);
+                    activeRipples.add(ripple);
+                    
+                    // Trigger animation on next frame
+                    requestAnimationFrame(() => {
+                        ripple.classList.add('active');
+                    });
+                    
+                    setTimeout(() => {
+                        ripple.remove();
+                        activeRipples.delete(ripple);
+                    }, 600);
                 });
 
                 // Hide cursor when it leaves the viewport
                 document.addEventListener('mouseleave', () => {
                     cursor.style.display = 'none';
+                    // Clean up any active ripples
+                    activeRipples.forEach(ripple => ripple.remove());
+                    activeRipples.clear();
                 });
 
                 document.addEventListener('mouseenter', () => {
