@@ -146,7 +146,7 @@ module.exports = function getShadowDOMInputAdapterScript() {
           background: 'white',
           border: '1px solid #ccc',
           boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
-          zIndex: '2147483647',
+          zIndex: '1000000000',
           padding: '10px',
           borderRadius: '4px',
           display: 'flex',

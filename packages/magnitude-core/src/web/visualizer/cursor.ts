@@ -94,7 +94,7 @@ export class CursorVisual {
                         pointerElement = document.createElement('div');
                         pointerElement.id = id;
                         pointerElement.style.position = 'absolute';
-                        pointerElement.style.zIndex = '9999';
+                        pointerElement.style.zIndex = '1000000100';
                         pointerElement.style.pointerEvents = 'none'; // Don't interfere with actual clicks
                         // Notice that transition is 300ms
                         pointerElement.style.transition = 'left 0.3s cubic-bezier(0.25, 0.1, 0.25, 1), top 0.3s cubic-bezier(0.25, 0.1, 0.25, 1)';

@@ -250,7 +250,12 @@ export class WebHarness { // implements StateComponent
         clickCount?: number;
         delay?: number;
     }) {
-        await this.visualizer.moveVirtualCursor(x, y);
+        await Promise.all([
+            this.visualizer.moveVirtualCursor(x, y),
+            this.page.mouse.move(x, y, { steps: 20 })
+        ])
+        // await this.visualizer.moveVirtualCursor(x, y);
+        // await this.page.mouse.move(x, y, { steps: 20 });
         await this.visualizer.hideAll(); // hide / show pointer because no-pointer is not always consistent and visualizer can block click
         await this.page.mouse.click(x, y);
         await this.visualizer.showAll();

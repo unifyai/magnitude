@@ -22,7 +22,7 @@ export class MouseEffectVisual {
                     border-radius: 50%;
                     background: rgba(255, 0, 0, 0.3);
                     pointer-events: none;
-                    z-index: 999999;
+                    z-index: 1000000050;
                     transition: transform 0.1s ease-out, width 0.1s ease-out, height 0.1s ease-out;
                 `;
                 document.body.appendChild(cursor);
@@ -37,7 +37,7 @@ export class MouseEffectVisual {
                     width: 100vw;
                     height: 100vh;
                     pointer-events: none;
-                    z-index: 999997;
+                    z-index: 1000000030;
                     overflow: visible;
                 `;
                 const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -113,7 +113,7 @@ export class MouseEffectVisual {
                         border: 3px solid #ff0000;
                         border-radius: 50%;
                         pointer-events: none;
-                        z-index: 999998;
+                        z-index: 1000000040;
                         animation: ripple 0.6s ease-out;
                     `;
 
@@ -166,7 +166,7 @@ export class MouseEffectVisual {
                         border: 3px solid #0000ff;
                         border-radius: 50%;
                         pointer-events: none;
-                        z-index: 999998;
+                        z-index: 1000000040;
                         animation: ripple 0.6s ease-out;
                     `;
 

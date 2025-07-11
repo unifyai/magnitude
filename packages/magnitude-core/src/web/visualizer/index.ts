@@ -27,6 +27,7 @@ export class ActionVisualizer {
 
     async setup() {
         await this.mouseEffects.setContext(this.context);
+        //this.showAll();
     }
 
     setActivePage(page: Page) {
