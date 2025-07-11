@@ -29,7 +29,7 @@ export class MouseEffectVisual {
                     background: rgba(0, 150, 255, ${opacity * 0.5});
                     pointer-events: none;
                     z-index: 1000000050;
-                    transition: transform 0.15s ease-out, width 0.15s ease-out, height 0.15s ease-out, border-color 0.15s ease-out, background-color 0.15s ease-out;
+                    transition: transform 0.1s ease-out;
                 `;
                 document.body.appendChild(cursor);
 
@@ -58,15 +58,12 @@ export class MouseEffectVisual {
                 let isMouseDown = false;
                 let dragStartX = 0;
                 let dragStartY = 0;
-                let currentSize = 20; // Track intended size explicitly
-                let shrinkTimeout: number | null = null;
 
                 // Track mouse movement
                 document.addEventListener('mousemove', (e) => {
                     // Update cursor position - always center on mouse
-                    const offset = currentSize / 2;
-                    cursor.style.left = e.clientX - offset + 'px';
-                    cursor.style.top = e.clientY - offset + 'px';
+                    cursor.style.left = e.clientX - 10 + 'px';
+                    cursor.style.top = e.clientY - 10 + 'px';
 
                     // Update drag line if dragging
                     if (isMouseDown) {
@@ -84,23 +81,10 @@ export class MouseEffectVisual {
                     dragStartX = e.clientX;
                     dragStartY = e.clientY;
 
-                    // Temporarily disable transition for instant repositioning
-                    cursor.style.transition = 'none';
-                    
-                    // Shrink cursor and update size tracking
-                    currentSize = 10;
-                    cursor.style.width = '10px';
-                    cursor.style.height = '10px';
+                    // Use transform scale instead of changing width/height
+                    cursor.style.transform = 'scale(0.5)';
                     cursor.style.background = `rgba(0, 150, 255, ${opacity * 1.5})`;
                     cursor.style.border = `2px solid rgba(0, 150, 255, ${opacity * 2})`;
-                    // Immediately reposition the smaller cursor
-                    cursor.style.left = e.clientX - 5 + 'px';
-                    cursor.style.top = e.clientY - 5 + 'px';
-                    
-                    // Re-enable transition after a frame
-                    requestAnimationFrame(() => {
-                        cursor.style.transition = 'transform 0.15s ease-out, width 0.15s ease-out, height 0.15s ease-out, border-color 0.15s ease-out, background-color 0.15s ease-out';
-                    });
                 });
 
                 // Mouse up - end drag and restore cursor
@@ -110,39 +94,10 @@ export class MouseEffectVisual {
                     // Hide drag line
                     line.style.display = 'none';
 
-                    // Clear any existing timeout
-                    if (shrinkTimeout !== null) {
-                        clearTimeout(shrinkTimeout);
-                        shrinkTimeout = null;
-                    }
-
-                    // Delay the restore to ensure shrink animation is visible
-                    const restoreCursor = () => {
-                        // Temporarily disable transition for instant repositioning
-                        cursor.style.transition = 'none';
-                        
-                        // Restore cursor size and update size tracking
-                        currentSize = 20;
-                        cursor.style.width = '20px';
-                        cursor.style.height = '20px';
-                        cursor.style.background = `rgba(0, 150, 255, ${opacity * 0.33})`;
-                        cursor.style.border = `2px solid rgba(0, 150, 255, ${opacity})`;
-                        // Immediately reposition the restored cursor
-                        cursor.style.left = e.clientX - 10 + 'px';
-                        cursor.style.top = e.clientY - 10 + 'px';
-                        
-                        // Re-enable transition after a frame with slower timing for growth
-                        requestAnimationFrame(() => {
-                            cursor.style.transition = 'transform 0.2s ease-out, width 0.2s ease-out, height 0.2s ease-out, border-color 0.2s ease-out, background-color 0.2s ease-out';
-                        });
-                    };
-
-                    // If cursor is already small, add a small delay for visual feedback
-                    if (currentSize === 10) {
-                        shrinkTimeout = setTimeout(restoreCursor, 150) as unknown as number;
-                    } else {
-                        restoreCursor();
-                    }
+                    // Restore cursor
+                    cursor.style.transform = 'scale(1)';
+                    cursor.style.background = `rgba(0, 150, 255, ${opacity * 0.5})`;
+                    cursor.style.border = `2px solid rgba(0, 150, 255, ${opacity})`;
                 });
 
                 // Visualize clicks
