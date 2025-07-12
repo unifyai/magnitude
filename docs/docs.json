@@ -81,7 +81,8 @@
                     {
                         "group": "Advanced",
                         "pages": [
-                            "advanced/memory"
+                            "advanced/memory",
+                            "advanced/roles"
                         ]
                     },
                     {
