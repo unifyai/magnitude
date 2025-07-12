@@ -3,7 +3,7 @@ import { BrowserContext } from "playwright";
 export class MouseEffectVisual {
     private baseOpacity: number;
 
-    constructor(baseOpacity: number = 0.6) {
+    constructor(baseOpacity: number = 0.5) {
         this.baseOpacity = baseOpacity;
     }
 
@@ -153,7 +153,7 @@ export class MouseEffectVisual {
                     // Flash the cursor only if not already scaled down
                     const currentTransform = cursor.style.transform;
                     if (currentTransform !== 'scale(0.5)') {
-                        cursor.style.background = `rgba(0, 150, 255, ${opacity * 2})`;
+                        cursor.style.background = `rgba(0, 150, 255, ${opacity * 1.5})`;
                         cursor.style.border = `2px solid rgba(0, 150, 255, 1)`;
                         cursor.style.transform = 'scale(1.5)';
 
