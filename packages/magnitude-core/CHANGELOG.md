@@ -1,5 +1,13 @@
 # magnitude-core
 
+## 0.2.21
+
+### Patch Changes
+
+- [`d48d4ea`](https://github.com/magnitudedev/magnitude/commit/d48d4ea312509ae2953f915055d0df338864cbc8) Thanks [@anerli](https://github.com/anerli)! - swap rebrowser-patches for patchright
+
+- [`09193a0`](https://github.com/magnitudedev/magnitude/commit/09193a0a1d6b87e091cfd58b17104da837f5a6c6) Thanks [@anerli](https://github.com/anerli)! - enable setting different llms for different purposes (act, extract, query)
+
 ## 0.2.20
 
 ### Patch Changes
