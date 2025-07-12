@@ -21,7 +21,7 @@ export function registerTest(testFn: TestFunction, title: string, url: string) {
             id: testId,
             title,
             url,
-            filepath: workerData.filePath,
+            filepath: workerData.relativeFilePath,
             group: currentGroup?.name
         }
     });

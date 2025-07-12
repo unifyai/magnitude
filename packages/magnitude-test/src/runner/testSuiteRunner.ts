@@ -69,15 +69,13 @@ export class TestSuiteRunner {
     public async loadTestFile(absoluteFilePath: string, relativeFilePath: string): Promise<void> {
         try {
             const workerData = {
-                filePath: absoluteFilePath,
+                relativeFilePath,
+                absoluteFilePath,
                 options: this.getActiveOptions(),
             } satisfies TestWorkerData;
 
             const createWorker = isBun ? createBunTestWorker : createNodeTestWorker;
-            const result = await createWorker({
-                workerData,
-                relativeFilePath
-            });
+            const result = await createWorker(workerData);
 
             this.tests.push(...result.tests);
             for (const test of result.tests) {
@@ -145,18 +143,15 @@ type ClosedTestExecutor =
         signal: AbortSignal
     ) => Promise<TestResult>;
 
+type CreateTestWorker = (workerData: TestWorkerData) =>
+    Promise<{
+        tests: RegisteredTest[];
+        executor: ClosedTestExecutor;
+    }>;
 
-type CreateTestWorker = (arg: {
-    workerData: TestWorkerData,
-    relativeFilePath: string
-}) => Promise<{
-    tests: RegisteredTest[];
-    executor: ClosedTestExecutor;
-}>;
-
-
-const createNodeTestWorker: CreateTestWorker = async ({ workerData, relativeFilePath }) =>
+const createNodeTestWorker: CreateTestWorker = async (workerData) =>
     new Promise((resolve, reject) => {
+        const { relativeFilePath } = workerData;
         const worker = new Worker(
             new URL(
                 import.meta.url.endsWith(".ts")
@@ -228,8 +223,9 @@ const createNodeTestWorker: CreateTestWorker = async ({ workerData, relativeFile
         });
     });
 
-const createBunTestWorker: CreateTestWorker = async ({ workerData, relativeFilePath }) =>
+const createBunTestWorker: CreateTestWorker = async (workerData) =>
     new Promise((resolve, reject) => {
+        const { relativeFilePath } = workerData;
         const emit = new EventEmitter();
         const proc = Bun.spawn({
             cmd: [

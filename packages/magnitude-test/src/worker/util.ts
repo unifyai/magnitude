@@ -32,10 +32,8 @@ export type TestWorkerIncomingMessage = {
 
 export type TestWorkerOutgoingMessage = {
     type: "load_complete";
-    filePath: string;
 } | {
     type: "load_error";
-    filePath: string;
     error: string;
 } | {
     type: "registered";
@@ -67,8 +65,9 @@ export function postToParent(message: TestWorkerOutgoingMessage) {
 }
 
 export type TestWorkerData = {
-    filePath: string;
+    absoluteFilePath: string;
     options: TestOptions;
+    relativeFilePath: string;
 }
 
 export function getTestWorkerData() {

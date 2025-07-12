@@ -17,16 +17,14 @@ if (isBun) {
 
 async function readTest() {
     try {
-        const url = pathToFileURL(workerData.filePath).href;
+        const url = pathToFileURL(workerData.absoluteFilePath).href;
         await import(url);
         postToParent({
             type: 'load_complete',
-            filePath: workerData.filePath
         });
     } catch (error) {
         postToParent({
             type: 'load_error',
-            filePath: workerData.filePath,
             error: error instanceof Error ? error.message : String(error)
         });
     }
