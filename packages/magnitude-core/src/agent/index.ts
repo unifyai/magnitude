@@ -329,7 +329,7 @@ export class Agent {
                 const memoryContext = await this._buildContext(memory);
                 await retryOnError(
                     async () => {
-                        ({ reasoning, actions } = await this.model.createPartialRecipe(
+                        ({ reasoning, actions } = await this.model.partialAct(
                             memoryContext,
                             description,
                             dataContentParts,

@@ -77,7 +77,7 @@ export class ModelHarness {
         return `${this.options.llm.provider}:${'model' in this.options.llm.options ? this.options.llm.options.model : 'unknown'}`;
     }
 
-    reportUsage(): void {
+    private _reportUsage(): void {
         // console.log('this.collector.last', this.collector.last)
         // if (this.collector.last) console.log("calls:", this.collector.last.calls)//console.log("Response: ", this.collector.last.calls[-1].httpResponse);
         //console.log('last call:', this.collector.last?.calls.at(-1)?.httpResponse?.body.json());
@@ -172,7 +172,7 @@ export class ModelHarness {
         this.prevTotalOutputTokens = outputTokens;
     }
 
-    async createPartialRecipe<T>(
+    async partialAct<T>(
         context: AgentContext, // Changed to ModularMemoryContext
         task: string,
         data: MultiMediaContentPart[],
@@ -195,7 +195,7 @@ export class ModelHarness {
         this.logger.trace(`createPartialRecipe took ${Date.now()-start}ms`);
         // BAML does not carry over action type to @@dynamic of PartialRecipe, so forced cast necssary
         //return response as unknown as { actions: z.infer<ActionDefinition<T>['schema']>[] };//, finished: boolean };
-        this.reportUsage();
+        this._reportUsage();
         return {
             reasoning: response.reasoning,//(response.observations ? response.observations + " " : "") + response.meta_reasoning + " " + response.reasoning,
             actions: response.actions// as z.infer<ActionDefinition<T>['schema']>[]
@@ -225,7 +225,7 @@ export class ModelHarness {
             this.options.llm.provider === 'claude-code',
             { tb }
         );
-        this.reportUsage();
+        this._reportUsage();
 
         if (schema instanceof z.ZodObject) {
             return resp;
@@ -254,7 +254,7 @@ export class ModelHarness {
             this.options.llm.provider === 'claude-code',
             { tb }
         );
-        this.reportUsage();
+        this._reportUsage();
         
         if (schema instanceof z.ZodObject) {
             return resp;

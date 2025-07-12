@@ -3,8 +3,12 @@
 //     confidence: number
 // }
 
+export type BrowserAgentRole= 'act' | 'extract' | 'query';
+export const allBrowserAgentRoles: BrowserAgentRole[] = ['act', 'extract', 'query'] as const;
+
 // Approximately mirrors https://docs.boundaryml.com/ref/llm-client-providers
-export type LLMClient = AnthropicClient | ClaudeCodeClient | BedrockClient | GoogleAIClient | GoogleVertexClient | OpenAIClient | OpenAIGenericClient | AzureOpenAIClient;
+export type LLMClient = (AnthropicClient | ClaudeCodeClient | BedrockClient | GoogleAIClient | GoogleVertexClient | OpenAIClient | OpenAIGenericClient | AzureOpenAIClient) &
+    { roles?: BrowserAgentRole[] };
 export type GroundingClient = MoondreamClient;
 
 export interface AnthropicClient {
