@@ -6,6 +6,7 @@ import { TestRenderer } from '@/renderer';
 import { Worker } from 'node:worker_threads';
 import { TestWorkerData, TestWorkerIncomingMessage, TestWorkerOutgoingMessage } from '@/worker/util';
 import { isBun, isDeno } from 'std-env';
+import { EventEmitter } from 'node:events';
 
 const TEST_FILE_LOADING_TIMEOUT = 30000;
 
@@ -72,7 +73,8 @@ export class TestSuiteRunner {
                 options: this.getActiveOptions(),
             } satisfies TestWorkerData;
 
-            const result = await createNodeTestWorker({
+            const createWorker = isBun ? createBunTestWorker : createNodeTestWorker;
+            const result = await createWorker({
                 workerData,
                 relativeFilePath
             });
@@ -224,4 +226,91 @@ const createNodeTestWorker: CreateTestWorker = async ({ workerData, relativeFile
             worker.terminate();
             reject(error);
         });
-    })
+    });
+
+const createBunTestWorker: CreateTestWorker = async ({ workerData, relativeFilePath }) =>
+    new Promise((resolve, reject) => {
+        const emit = new EventEmitter();
+        const proc = Bun.spawn({
+            cmd: [
+                "bun",
+                new URL(
+                    import.meta.url.endsWith(".ts")
+                        ? '../worker/readTest.ts'
+                        : './worker/readTest.js',
+                    import.meta.url
+                ).pathname
+            ],
+            env: {
+                NODE_ENV: 'test',
+                ...process.env,
+                MAGNITUDE_WORKER_DATA: JSON.stringify(workerData)
+            },
+            cwd: process.cwd(),
+            stdin: "inherit",
+            stdout: "inherit",
+            stderr: "inherit",
+            // "advanced" serialization in Bun somehow isn't able to clone test state messages?
+            serialization: 'json',
+            ipc(message) {
+                emit.emit('message', message);
+            },
+            onExit(_subprocess, exitCode) {
+                if (exitCode !== 0) {
+                    clearTimeout(timeout);
+                    reject(new Error(`Worker process exited with code ${exitCode}`));
+                }
+            },
+        });
+
+        const executor: ClosedTestExecutor = (executeMessage, onStateChange, signal) =>
+            new Promise((res, rej) => {
+                const messageHandler = (msg: TestWorkerOutgoingMessage) => {
+                    if (!("testId" in msg) || msg.testId !== executeMessage.test.id) return;
+
+                    if (msg.type === "test_result") {
+                        emit.off('message', messageHandler);
+                        res(msg.result);
+                    } else if (msg.type === "test_error") {
+                        emit.off('message', messageHandler);
+                        rej(new Error(msg.error));
+                    } else if (msg.type === "test_state_change") {
+                        onStateChange(msg.state);
+                    }
+                };
+
+                emit.on('message', messageHandler);
+
+                signal.addEventListener('abort', () => {
+                    emit.off('message', messageHandler);
+                    rej(new Error('Test execution aborted'));
+                });
+
+                proc.send(executeMessage);
+
+            });
+
+        const registeredTests: RegisteredTest[] = [];
+
+        emit.on('message', ((message: TestWorkerOutgoingMessage) => {
+            if (message.type === 'registered') {
+                registeredTests.push(message.test);
+            } else if (message.type === 'load_error') {
+                clearTimeout(timeout);
+                proc.kill();
+                reject(new Error(`Failed to load ${relativeFilePath}: ${message.error}`));
+            } else if (message.type === 'load_complete') {
+                clearTimeout(timeout);
+                if (!registeredTests.length) {
+                    reject(new Error(`No tests registered for file ${relativeFilePath}`));
+                    return;
+                }
+                resolve({ tests: registeredTests, executor });
+            }
+        }));
+
+        const timeout = setTimeout(() => {
+            proc.kill();
+            reject(new Error(`Test file loading timeout: ${relativeFilePath}`));
+        }, TEST_FILE_LOADING_TIMEOUT);
+    });

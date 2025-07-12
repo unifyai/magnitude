@@ -1,7 +1,6 @@
 import { TestFunction, TestGroup, TestOptions } from "@/discovery/types";
 import cuid2 from "@paralleldrive/cuid2";
-import { getTestWorkerData, postToParent, TestWorkerIncomingMessage } from "./util";
-import { parentPort } from "node:worker_threads";
+import { getTestWorkerData, postToParent, testFunctions, messageEmitter, TestWorkerIncomingMessage } from "./util";
 import { TestCaseAgent } from "@/agent";
 import { TestResult, TestState, TestStateTracker } from "@/runner/state";
 import { buildDefaultBrowserAgentOptions } from "magnitude-core";
@@ -13,7 +12,6 @@ const workerData = getTestWorkerData();
 
 const generateId = cuid2.init({ length: 12 });
 
-const testFunctions = new Map<string, TestFunction>();
 export function registerTest(testFn: TestFunction, title: string, url: string) {
     const testId = generateId();
     testFunctions.set(testId, testFn);
@@ -37,7 +35,8 @@ export function currentGroupOptions(): TestOptions {
     return structuredClone(currentGroup?.options) ?? {};
 }
 
-parentPort?.on('message', async (message: TestWorkerIncomingMessage) => {
+messageEmitter.removeAllListeners('message');
+messageEmitter.on('message', async (message: TestWorkerIncomingMessage) => {
     if (message.type !== 'execute') return;
     const { test, browserOptions, llm, grounding, telemetry } = message;
     const testFn = testFunctions.get(test.id);
