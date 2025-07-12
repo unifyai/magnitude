@@ -23,7 +23,10 @@ import { GroundingService, moondreamTargetingInstructions } from "@/ai/grounding
 
 // }
 
-const DEFAULT_SCREENSHOT_MEMORY_LIMIT = 1;
+// Changed back to 3 - too many situations where the amnesia of having only 1 is very problematic and makes agent act stupidly
+// With caching, using 3 is relatively ok tradeoff
+// Maybe try 2 for now, or could do 3 when prompt caching available else 2
+const DEFAULT_MIN_RETAINED_SCREENSHOTS = 2;
 
 export interface BrowserConnectorOptions {
     //browser?: Browser
@@ -166,7 +169,7 @@ export class BrowserConnector implements AgentConnector {
         });
 
         //console.log("this.options.screenshotMemoryLimit", this.options.screenshotMemoryLimit);
-        const screenshotLimit = this.options.minScreenshots ?? DEFAULT_SCREENSHOT_MEMORY_LIMIT;
+        const screenshotLimit = this.options.minScreenshots ?? DEFAULT_MIN_RETAINED_SCREENSHOTS;
         //console.log("screenshotLimit:", screenshotLimit);
 
         observations.push(
