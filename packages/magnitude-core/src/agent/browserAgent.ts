@@ -152,7 +152,7 @@ export class BrowserAgent extends Agent {
         const markdown = serializeToMarkdown(result, markdownOptions);
 
         const screenshot = await this.require(BrowserConnector).getHarness().screenshot();
-        const data = await this.model.extract(instructions, schema, screenshot, markdown);
+        const data = await this.models.extract(instructions, schema, screenshot, markdown);
 
         this.browserAgentEvents.emit('extractDone', instructions, data);
 

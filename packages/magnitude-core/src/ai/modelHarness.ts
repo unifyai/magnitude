@@ -116,7 +116,8 @@ export class ModelHarness {
         const knownCostMap: Record<string, { inputTokens: number, outputTokens: number, cacheWriteInputTokens?: number, cacheReadInputTokens?: number }> = {
             // TODO: track cached savings on Gemini
             'gemini-2.5-pro': { inputTokens: 1.25, outputTokens: 10.0 },
-            'gemini-2.5-flash': { inputTokens: 0.15, outputTokens: 0.60 },
+            'gemini-2.5-flash': { inputTokens: 0.30, outputTokens: 2.50 },
+            'gemini-2.5-flash-lite': { inputTokens: 0.10, outputTokens: 0.40 },
             'claude-3.5-sonnet': { inputTokens: 3.00, outputTokens: 15.00, cacheWriteInputTokens: 3.75, cacheReadInputTokens: 0.30 },
             'claude-3.7-sonnet': { inputTokens: 3.00, outputTokens: 15.00, cacheWriteInputTokens: 3.75, cacheReadInputTokens: 0.30 },
             'claude-sonnet-4': { inputTokens: 3.00, outputTokens: 15.00, cacheWriteInputTokens: 3.75, cacheReadInputTokens: 0.30 },

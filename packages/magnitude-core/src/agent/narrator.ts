@@ -22,7 +22,7 @@ export function narrateAgent(agent: Agent) {
     });
 
     agent.events.on('start', () => {
-        console.log(bold(blueBright(`▶ [start] agent started with ${agent.model.describeModel()}`)));
+        console.log(bold(blueBright(`▶ [start] agent started with ${agent.models.describe()}`)));
     });
 
     agent.events.on('stop', () => {
@@ -30,7 +30,7 @@ export function narrateAgent(agent: Agent) {
 
         console.log(`  Total usage: ` + bold`${totalInputTokens + totalCachedWriteInputTokens + totalCachedReadInputTokens}` + ` input tokens` + (totalCachedWriteInputTokens > 0 || totalCachedReadInputTokens > 0 ? ` (${totalCachedWriteInputTokens} cache write, ${totalCachedReadInputTokens} cache read)` : '') + ` / ` + bold`${totalOutputTokens}` + ` output tokens`);
         if (totalInputTokenCost > 0 || totalOutputTokenCost > 0) {
-            if (agent.model.describeModel().startsWith('claude-code')) {
+            if (agent.models.numUniqueModels === 1 && agent.models.describe().startsWith('claude-code')) {
                 console.log(`  Cost: ` + cyanBright`None - using Claude Pro or Max subscription`)
             } else {
                 console.log(`  Cost: $${(totalInputTokenCost + totalOutputTokenCost).toFixed(3)}`);

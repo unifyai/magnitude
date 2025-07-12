@@ -238,10 +238,11 @@ export function buildDefaultBrowserAgentOptions(
     //const { llm: envLlm, grounding: envGrounding } = tryDeriveUIGroundedClients();
     const envLlm = tryDeriveUIGroundedClient();
     
-    let llm: LLMClient | null = agentOptions.llm ?? envLlm;
+    //let llm: LLMClient | null = agentOptions.llm ?? envLlm;
+    let llms: LLMClient[] = agentOptions.llm ? (Array.isArray(agentOptions.llm) ? agentOptions.llm : [agentOptions.llm]) : (envLlm ? [envLlm] : []);
     const grounding = browserOptions.grounding;//(llm && isGroundedLlm(llm)) ? null : (browserOptions.grounding ?? envGrounding);
     
-    if (!llm) {
+    if (llms.length == 0) {
         throw new Error("No LLM configured or available from environment. Set environment variable ANTHROPIC_API_KEY and try again. See https://docs.magnitude.run/customizing/llm-configuration for details");
     }
     // else if (!isGroundedLlm(llm) && !grounding) {
@@ -249,17 +250,21 @@ export function buildDefaultBrowserAgentOptions(
     // }
 
     // Set reasonable temp if not provided
-    let llmOptions: LLMClient['options'] = { temperature: DEFAULT_BROWSER_AGENT_TEMP, ...(llm?.options ?? {}) };
-    llm = {...llm, options: llmOptions as any }
-
     let virtualScreenDimensions = null;
-    if (isClaude(llm)) {
-        // Claude grounding only really works on 1024x768 screenshots
-        virtualScreenDimensions = { width: 1024, height: 768 };
+    for (const llm of llms) {
+        let llmOptions: LLMClient['options'] = { temperature: DEFAULT_BROWSER_AGENT_TEMP, ...(llm?.options ?? {}) };
+        //let modifiedLlm = {...llm, options: llmOptions as any }
+        llm.options = llmOptions;
+
+        if (isClaude(llm)) {
+            // Claude grounding only really works on 1024x768 screenshots
+            // if any model is claude, use virtual screen dimensions
+            virtualScreenDimensions = { width: 1024, height: 768 };
+        }
     }
 
     return {
-        agentOptions: {...agentOptions, llm: llm },
+        agentOptions: {...agentOptions, llm: llms },
         browserOptions: {...browserOptions, grounding: grounding ?? undefined, virtualScreenDimensions: virtualScreenDimensions ?? undefined }
     };
 }

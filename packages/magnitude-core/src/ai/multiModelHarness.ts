@@ -66,4 +66,8 @@ export class MultiModelHarness {
     async query<T extends z.Schema>(context: AgentContext, query: string, schema: T): Promise<z.infer<T>> {
         return await this.roles['query'].query(context, query, schema);
     }
+
+    get numUniqueModels() {
+        return this.uniqueModels.length;
+    }
 }

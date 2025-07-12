@@ -17,10 +17,11 @@ import { telemetrifyAgent } from '@/telemetry/events';
 import { isClaude } from '@/ai/util';
 import { retryOnError } from '@/common';
 import { renderContentParts } from '@/memory/rendering';
+import { MultiModelHarness } from '@/ai/multiModelHarness';
 
 
 export interface AgentOptions {
-    llm?: LLMClient;
+    llm?: LLMClient | LLMClient[];
     connectors?: AgentConnector[];
     actions?: ActionDefinition<any>[]; // any additional actions not provided by connectors
     prompt?: string | null; // additional agent-level system prompt instructions
@@ -58,7 +59,9 @@ export class Agent {
 
     private memoryOptions: AgentMemoryOptions;
 
-    public readonly model: ModelHarness;
+    public readonly models: MultiModelHarness;
+
+    //public readonly model: ModelHarness;
     //public readonly micro: GroundingService;
     //public readonly events: EventEmitter<AgentEvents>;
 
@@ -90,15 +93,27 @@ export class Agent {
         // TODO: maybe error instead, or automatically differentiate them?
         //this.options.actions = Array.from(new Map(aggregatedActions.map(actDef => [actDef.name, actDef])).values());
 
-        const doPromptCaching = ('promptCaching' in this.options.llm.options) ? this.options.llm.options.promptCaching : isClaude(this.options.llm) && (this.options.llm.provider === 'anthropic' || this.options.llm.provider === 'claude-code');
-        //console.log('doPromptCaching?', doPromptCaching)
-        
-        //promptCaching: doPromptCaching
-        //if ('promptCaching' in this.options.llm.options) this.options.llm.options.promptCaching = doPromptCaching;
-        // needs testing
-        if (this.options.llm.provider === 'anthropic' || this.options.llm.provider === 'claude-code') this.options.llm.options.promptCaching = doPromptCaching;
-        this.model = new ModelHarness({ llm: this.options.llm });
-        this.model.events.on('tokensUsed', (usage) => this.events.emit('tokensUsed', usage), this);
+        const llms = Array.isArray(this.options.llm) ? this.options.llm : [this.options.llm];
+
+        let doPromptCaching = false;
+        for (const client of llms ) {
+            // If any LLM is prompt-caching compatible, turn on prompt caching overall for memory etc.
+            if (isClaude(client) && (client.provider === 'anthropic' || client.provider === 'claude-code')) {
+                // Prompt-caching compatible client
+
+                if ('promptCaching' in client.options && client.options.promptCaching !== undefined) {
+                    doPromptCaching = client.options.promptCaching;
+                } else {
+                    // Default to true if not specified, and override on client config to true
+                    doPromptCaching = true;
+                    client.options.promptCaching = true;
+                }
+            }
+        }
+
+        //this.model = new ModelHarness({ llm: this.options.llm });
+        this.models = new MultiModelHarness(llms);
+        this.models.events.on('tokensUsed', (usage) => this.events.emit('tokensUsed', usage), this);
         this.doneActing = false;
 
         this.memoryOptions = {
@@ -130,7 +145,7 @@ export class Agent {
         if (this.options.telemetry) telemetrifyAgent(this);
 
         //console.log('setting up model')
-        await this.model.setup();
+        await this.models.setup();
         //console.log('done setting up model')
 
         logger.info("Agent: Starting connectors...");
@@ -329,7 +344,7 @@ export class Agent {
                 const memoryContext = await this._buildContext(memory);
                 await retryOnError(
                     async () => {
-                        ({ reasoning, actions } = await this.model.partialAct(
+                        ({ reasoning, actions } = await this.models.partialAct(
                             memoryContext,
                             description,
                             dataContentParts,
@@ -395,7 +410,7 @@ export class Agent {
         // Record observations in case no act() was used beforehand
         await this._recordConnectorObservations(this.latestTaskMemory);
         const memoryContext = await this._buildContext(this.memory);//this.memory.buildContext(this.connectors);
-        return await this.model.query(memoryContext, query, schema);
+        return await this.models.query(memoryContext, query, schema);
     }
 
     async queueDone() {
