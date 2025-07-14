@@ -232,9 +232,11 @@ export class MouseEffectVisual {
                     const scrollDirection = e.deltaY > 0 ? 'down' : 'up';
                     scrollArrow.textContent = scrollDirection === 'down' ? '▼' : '▲';
                     
-                    // Position at mouse
+                    // Position above/below cursor based on direction
+                    // Arrow is 40px tall, cursor is ~20px, add 10px spacing
+                    const offset = scrollDirection === 'down' ? 30 : -30;
                     scrollArrow.style.left = `${e.clientX - 20}px`;
-                    scrollArrow.style.top = `${e.clientY - 20}px`;
+                    scrollArrow.style.top = `${e.clientY + offset - 20}px`; // -20 to account for arrow center
                     
                     // Scale based on deltaY magnitude
                     const scale = 1 + Math.min(Math.abs(e.deltaY) / 10, 1);
