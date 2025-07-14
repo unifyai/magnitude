@@ -5,7 +5,7 @@ export class TypeEffectVisual {
     private displayDuration: number;
     private maxKeys: number;
 
-    constructor(baseOpacity: number = 0.9, displayDuration: number = 2000, maxKeys: number = 5) {
+    constructor(baseOpacity: number = 0.6, displayDuration: number = 2000, maxKeys: number = 5) {
         this.baseOpacity = baseOpacity;
         this.displayDuration = displayDuration;
         this.maxKeys = maxKeys;
@@ -68,17 +68,19 @@ export class TypeEffectVisual {
                         min-width: 40px;
                         height: 40px;
                         padding: 0 12px;
-                        background: rgba(0, 100, 200, ${options.opacity * 0.8});
-                        border: 2px solid rgba(255, 255, 255, ${options.opacity * 0.9});
-                        border-radius: 8px;
+                        background: rgba(0, 100, 200, ${options.opacity * 0.9});
+                        border: none;
+                        border-radius: 6px;
                         font-family: monospace;
                         font-size: 16px;
                         font-weight: bold;
                         color: white;
                         animation: keyIn 0.2s ease-out forwards;
-                        box-shadow: 0 4px 12px rgba(0, 100, 200, ${options.opacity * 0.5});
-                        backdrop-filter: blur(8px);
                         white-space: nowrap;
+                        user-select: none;
+                        -webkit-user-select: none;
+                        -moz-user-select: none;
+                        -ms-user-select: none;
                     }
                     .key-badge.fading {
                         animation: keyOut 0.3s ease-out forwards;
@@ -90,7 +92,6 @@ export class TypeEffectVisual {
                 const specialKeys: { [key: string]: string } = {
                     'Enter': '↵ Enter',
                     'Tab': '⇥ Tab',
-                    'Backspace': '⌫ Back',
                     'Delete': '⌦ Del',
                     'Escape': '⎋ Esc',
                     'ArrowUp': '↑',
@@ -101,9 +102,7 @@ export class TypeEffectVisual {
                     'End': '⇲ End',
                     'PageUp': '⇞ PgUp',
                     'PageDown': '⇟ PgDn',
-                    ' ': '␣ Space',
                     'Insert': 'Ins',
-                    'CapsLock': '⇪ Caps',
                 };
 
                 // Active badges
