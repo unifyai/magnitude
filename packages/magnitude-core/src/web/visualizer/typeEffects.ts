@@ -3,16 +3,16 @@ import { BrowserContext } from "playwright";
 export class TypeEffectVisual {
     private baseOpacity: number;
     private groupTimeout: number;
-    private maxCharsPerGroup: number;
+    private maxWidthPercent: number;
 
-    constructor(baseOpacity: number = 0.8, groupTimeout: number = 1000, maxCharsPerGroup: number = 30) {
+    constructor(baseOpacity: number = 0.8, groupTimeout: number = 1000, maxWidthPercent: number = 80) {
         this.baseOpacity = baseOpacity;
         this.groupTimeout = groupTimeout;
-        this.maxCharsPerGroup = maxCharsPerGroup;
+        this.maxWidthPercent = maxWidthPercent;
     }
 
     async setContext(context: BrowserContext) {
-        await context.addInitScript((options: { opacity: number, groupTimeout: number, maxCharsPerGroup: number }) => {
+        await context.addInitScript((options: { opacity: number, groupTimeout: number, maxWidthPercent: number }) => {
             // Wait for DOM to be ready
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', setupTypeEffects);
@@ -42,43 +42,50 @@ export class TypeEffectVisual {
                     @keyframes typeIn {
                         0% {
                             opacity: 0;
-                            transform: scale(0.8) translateY(10px);
+                            transform: translateX(-50%) scale(0.8) translateY(10px);
                         }
                         100% {
                             opacity: 1;
-                            transform: scale(1) translateY(0);
+                            transform: translateX(-50%) scale(1) translateY(0);
                         }
                     }
                     @keyframes fadeOut {
                         0% {
                             opacity: 1;
-                            transform: translateY(0);
+                            transform: translateX(-50%) translateY(0);
                         }
                         100% {
                             opacity: 0;
-                            transform: translateY(-20px);
+                            transform: translateX(-50%) translateY(20px);
                         }
                     }
                     .type-group {
                         position: fixed;
+                        bottom: 40px;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        max-width: ${options.maxWidthPercent}vw;
                         background: rgba(0, 150, 255, ${options.opacity * 0.15});
                         border: 1px solid rgba(0, 150, 255, ${options.opacity * 0.5});
                         border-radius: 4px;
-                        padding: 4px 8px;
+                        padding: 8px 12px;
                         font-family: monospace;
                         font-size: 14px;
                         color: rgba(0, 150, 255, ${options.opacity});
                         pointer-events: none;
-                        animation: typeIn 0.2s ease-out;
+                        animation: typeIn 0.2s ease-out forwards;
                         box-shadow: 0 2px 8px rgba(0, 150, 255, ${options.opacity * 0.3});
                         backdrop-filter: blur(4px);
-                        white-space: pre;
+                        white-space: pre-wrap;
+                        word-wrap: break-word;
+                        text-align: center;
+                        line-height: 1.4;
                     }
                     .type-group.fading {
                         animation: fadeOut 0.5s ease-out forwards;
                     }
                     .type-group .char {
-                        display: inline-block;
+                        display: inline;
                         animation: typeIn 0.1s ease-out;
                         animation-fill-mode: both;
                     }
@@ -95,7 +102,6 @@ export class TypeEffectVisual {
                 let groupTimeout: ReturnType<typeof setTimeout> | null = null;
                 let fadeTimeout: ReturnType<typeof setTimeout> | null = null;
                 let lastKeyTime = 0;
-                let groupPosition = { x: 100, y: 100 };
 
                 // Handle keydown events
                 document.addEventListener('keydown', (e) => {
@@ -121,25 +127,9 @@ export class TypeEffectVisual {
                     // Cancel any ongoing fade
                     typeGroup.classList.remove('fading');
 
-                    // Clear group if timeout exceeded or too many chars
-                    if (now - lastKeyTime > options.groupTimeout || typeGroup.children.length >= options.maxCharsPerGroup) {
+                    // Clear group if timeout exceeded
+                    if (now - lastKeyTime > options.groupTimeout) {
                         typeGroup.innerHTML = '';
-                        
-                        // Update position based on focused element or mouse position
-                        const focused = document.activeElement;
-                        if (focused && focused !== document.body && focused.getBoundingClientRect) {
-                            const rect = focused.getBoundingClientRect();
-                            groupPosition.x = rect.left + rect.width / 2;
-                            groupPosition.y = rect.top - 30;
-                        } else {
-                            // Use last mouse position with some offset
-                            groupPosition.x = Math.min(Math.max(groupPosition.x, 50), window.innerWidth - 200);
-                            groupPosition.y = Math.min(Math.max(groupPosition.y, 50), window.innerHeight - 100);
-                        }
-
-                        typeGroup.style.left = `${groupPosition.x}px`;
-                        typeGroup.style.top = `${groupPosition.y}px`;
-                        typeGroup.style.transform = 'translateX(-50%)';
                     }
 
                     // Show the group
@@ -182,12 +172,6 @@ export class TypeEffectVisual {
                     }, options.groupTimeout * 2);
                 });
 
-                // Track mouse position for positioning fallback
-                document.addEventListener('mousemove', (e) => {
-                    groupPosition.x = e.clientX;
-                    groupPosition.y = e.clientY - 40;
-                });
-
                 // Clean up on page hide
                 document.addEventListener('visibilitychange', () => {
                     if (document.hidden) {
@@ -205,6 +189,6 @@ export class TypeEffectVisual {
                     }
                 });
             }
-        }, { opacity: this.baseOpacity, groupTimeout: this.groupTimeout, maxCharsPerGroup: this.maxCharsPerGroup });
+        }, { opacity: this.baseOpacity, groupTimeout: this.groupTimeout, maxWidthPercent: this.maxWidthPercent });
     }
 }
