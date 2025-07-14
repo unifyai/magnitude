@@ -3,14 +3,16 @@ import { CursorVisual } from "./cursor";
 import { MouseEffectVisual } from "./mouseEffects";
 import { TypeEffectVisual } from "./typeEffects";
 
-interface ActionVisualizerOptions {
-    showCursor: boolean,
-    showClickEffects: boolean,
-    showTypeEffects: boolean,
+export interface ActionVisualizerOptions {
+    showCursor?: boolean,
+    showHoverCircle?: boolean; // mouse effect option
+    showClickRipple?: boolean; // mouse effect option
+    showDragLine?: boolean; // mouse effect option
+    showTypeEffects?: boolean,
 }
 
 export class ActionVisualizer {
-    private options: ActionVisualizerOptions;
+    private options: Required<ActionVisualizerOptions>;
     private context: BrowserContext;
     private page!: Page;
 
@@ -21,10 +23,16 @@ export class ActionVisualizer {
 
     constructor(context: BrowserContext, options: ActionVisualizerOptions) {
         this.context = context;
-        this.options = options;
+        this.options = {
+            showCursor: options.showCursor ?? true,
+            showHoverCircle: options.showHoverCircle ?? true,
+            showClickRipple: options.showClickRipple ?? true,
+            showDragLine: options.showDragLine ?? true,
+            showTypeEffects: options.showTypeEffects ?? true
+        };
 
         this.cursor = new CursorVisual();
-        this.mouseEffects = new MouseEffectVisual();
+        this.mouseEffects = new MouseEffectVisual(this.options);
         this.typeEffects = new TypeEffectVisual();
     }
 

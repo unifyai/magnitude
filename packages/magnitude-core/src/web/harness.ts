@@ -2,7 +2,7 @@ import { Page, Browser, BrowserContext, PageScreenshotOptions } from "playwright
 import { ClickWebAction, ScrollWebAction, SwitchTabWebAction, TypeWebAction, WebAction } from '@/web/types';
 import { PageStabilityAnalyzer } from "./stability";
 import { parseTypeContent } from "./util";
-import { ActionVisualizer } from "./visualizer";
+import { ActionVisualizer, ActionVisualizerOptions } from "./visualizer";
 import logger from "@/logger";
 import { TabManager, TabState } from "./tabs";
 import { DOMTransformer } from "./transformer";
@@ -14,6 +14,7 @@ export interface WebHarnessOptions {
     //fallbackViewportDimensions?: { width: number, height: number}
     // Some LLM operate best on certain screen dims
     virtualScreenDimensions?: { width: number, height: number }
+    visuals?: ActionVisualizerOptions
 }
 
 export class WebHarness { // implements StateComponent
@@ -33,11 +34,7 @@ export class WebHarness { // implements StateComponent
         this.context = context;
         this.options = options;
         this.stability = new PageStabilityAnalyzer();
-        this.visualizer = new ActionVisualizer(this.context, {
-            showCursor: true,
-            showClickEffects: true,
-            showTypeEffects: true
-        });
+        this.visualizer = new ActionVisualizer(this.context, this.options.visuals ?? {});
         this.transformer = new DOMTransformer();
         this.tabs = new TabManager(context);
 

@@ -12,6 +12,7 @@ import { Observation } from "@/memory/observation";
 import { Image } from "@/memory/image";
 import { GroundingClient } from "@/ai/types";
 import { GroundingService, moondreamTargetingInstructions } from "@/ai/grounding";
+import { ActionVisualizerOptions } from "@/web/visualizer";
 
 // export type BrowserOptions = ({ instance: Browser } | { launchOptions?: LaunchOptions }) & {
 //     contextOptions?: BrowserContextOptions;
@@ -33,6 +34,7 @@ export interface BrowserConnectorOptions {
     grounding?: GroundingClient
     virtualScreenDimensions?: { width: number, height: number },
     minScreenshots?: number,
+    visuals?: ActionVisualizerOptions
 }
 
 export interface BrowserConnectorStateData {
@@ -77,7 +79,8 @@ export class BrowserConnector implements AgentConnector {
         
         this.harness = new WebHarness(this.context, {
             //fallbackViewportDimensions: contextOptions?.viewport ?? { width: 1024, height: 768 },
-            virtualScreenDimensions: this.options.virtualScreenDimensions
+            virtualScreenDimensions: this.options.virtualScreenDimensions,
+            visuals: this.options.visuals
         });
         await this.harness.start();
         this.logger.info("WebHarness started.");
