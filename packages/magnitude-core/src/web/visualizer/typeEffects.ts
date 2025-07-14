@@ -3,14 +3,16 @@ import { BrowserContext } from "playwright";
 export class TypeEffectVisual {
     private baseOpacity: number;
     private groupTimeout: number;
+    private maxCharsPerGroup: number;
 
-    constructor(baseOpacity: number = 0.8, groupTimeout: number = 1000) {
+    constructor(baseOpacity: number = 0.8, groupTimeout: number = 1000, maxCharsPerGroup: number = 30) {
         this.baseOpacity = baseOpacity;
         this.groupTimeout = groupTimeout;
+        this.maxCharsPerGroup = maxCharsPerGroup;
     }
 
     async setContext(context: BrowserContext) {
-        await context.addInitScript((options: { opacity: number, groupTimeout: number }) => {
+        await context.addInitScript((options: { opacity: number, groupTimeout: number, maxCharsPerGroup: number }) => {
             // Wait for DOM to be ready
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', setupTypeEffects);
@@ -83,12 +85,17 @@ export class TypeEffectVisual {
                 `;
                 document.head.appendChild(style);
 
+                // Create the single type group element
+                const typeGroup = document.createElement('div');
+                typeGroup.className = 'type-group';
+                typeGroup.style.display = 'none';
+                container.appendChild(typeGroup);
+
                 // State management
-                let currentGroup: HTMLElement | null = null;
                 let groupTimeout: ReturnType<typeof setTimeout> | null = null;
+                let fadeTimeout: ReturnType<typeof setTimeout> | null = null;
                 let lastKeyTime = 0;
                 let groupPosition = { x: 100, y: 100 };
-                let activeGroups = new Set<HTMLElement>();
 
                 // Handle keydown events
                 document.addEventListener('keydown', (e) => {
@@ -101,28 +108,24 @@ export class TypeEffectVisual {
                         return;
                     }
 
-                    // Clear existing timeout
+                    // Clear existing timeouts
                     if (groupTimeout) {
                         clearTimeout(groupTimeout);
+                        groupTimeout = null;
+                    }
+                    if (fadeTimeout) {
+                        clearTimeout(fadeTimeout);
+                        fadeTimeout = null;
                     }
 
-                    // Create new group if needed
-                    if (!currentGroup || now - lastKeyTime > options.groupTimeout) {
-                        // Fade out previous group if exists
-                        if (currentGroup) {
-                            const prevGroup = currentGroup;
-                            prevGroup.classList.add('fading');
-                            setTimeout(() => {
-                                prevGroup.remove();
-                                activeGroups.delete(prevGroup);
-                            }, 500);
-                        }
+                    // Cancel any ongoing fade
+                    typeGroup.classList.remove('fading');
 
-                        // Create new group
-                        currentGroup = document.createElement('div');
-                        currentGroup.className = 'type-group';
+                    // Clear group if timeout exceeded or too many chars
+                    if (now - lastKeyTime > options.groupTimeout || typeGroup.children.length >= options.maxCharsPerGroup) {
+                        typeGroup.innerHTML = '';
                         
-                        // Position based on focused element or mouse position
+                        // Update position based on focused element or mouse position
                         const focused = document.activeElement;
                         if (focused && focused !== document.body && focused.getBoundingClientRect) {
                             const rect = focused.getBoundingClientRect();
@@ -134,13 +137,13 @@ export class TypeEffectVisual {
                             groupPosition.y = Math.min(Math.max(groupPosition.y, 50), window.innerHeight - 100);
                         }
 
-                        currentGroup.style.left = `${groupPosition.x}px`;
-                        currentGroup.style.top = `${groupPosition.y}px`;
-                        currentGroup.style.transform = 'translateX(-50%)';
-                        
-                        container.appendChild(currentGroup);
-                        activeGroups.add(currentGroup);
+                        typeGroup.style.left = `${groupPosition.x}px`;
+                        typeGroup.style.top = `${groupPosition.y}px`;
+                        typeGroup.style.transform = 'translateX(-50%)';
                     }
+
+                    // Show the group
+                    typeGroup.style.display = 'block';
 
                     // Add the typed character
                     let displayChar = key;
@@ -158,43 +161,50 @@ export class TypeEffectVisual {
                     const charSpan = document.createElement('span');
                     charSpan.className = 'char';
                     charSpan.textContent = displayChar;
-                    charSpan.style.animationDelay = `${currentGroup.children.length * 0.02}s`;
                     
-                    currentGroup.appendChild(charSpan);
+                    // Reduce delay for better performance with fast typing
+                    const charCount = typeGroup.children.length;
+                    const delay = Math.min(charCount * 0.01, 0.15); // Cap at 150ms max delay
+                    charSpan.style.animationDelay = `${delay}s`;
+                    
+                    typeGroup.appendChild(charSpan);
                     lastKeyTime = now;
 
                     // Set timeout to fade out after inactivity
                     groupTimeout = setTimeout(() => {
-                        if (currentGroup) {
-                            currentGroup.classList.add('fading');
-                            setTimeout(() => {
-                                if (currentGroup) {
-                                    currentGroup.remove();
-                                    activeGroups.delete(currentGroup);
-                                }
-                            }, 500);
-                            currentGroup = null;
-                        }
+                        typeGroup.classList.add('fading');
+                        
+                        fadeTimeout = setTimeout(() => {
+                            typeGroup.style.display = 'none';
+                            typeGroup.innerHTML = '';
+                            typeGroup.classList.remove('fading');
+                        }, 500);
                     }, options.groupTimeout * 2);
                 });
 
                 // Track mouse position for positioning fallback
                 document.addEventListener('mousemove', (e) => {
-                    if (!currentGroup) {
-                        groupPosition.x = e.clientX;
-                        groupPosition.y = e.clientY - 40;
-                    }
+                    groupPosition.x = e.clientX;
+                    groupPosition.y = e.clientY - 40;
                 });
 
                 // Clean up on page hide
                 document.addEventListener('visibilitychange', () => {
                     if (document.hidden) {
-                        activeGroups.forEach(group => group.remove());
-                        activeGroups.clear();
-                        currentGroup = null;
+                        typeGroup.innerHTML = '';
+                        typeGroup.style.display = 'none';
+                        typeGroup.classList.remove('fading');
+                        if (groupTimeout) {
+                            clearTimeout(groupTimeout);
+                            groupTimeout = null;
+                        }
+                        if (fadeTimeout) {
+                            clearTimeout(fadeTimeout);
+                            fadeTimeout = null;
+                        }
                     }
                 });
             }
-        }, { opacity: this.baseOpacity, groupTimeout: this.groupTimeout });
+        }, { opacity: this.baseOpacity, groupTimeout: this.groupTimeout, maxCharsPerGroup: this.maxCharsPerGroup });
     }
 }
