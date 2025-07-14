@@ -25,9 +25,9 @@ export class ActionVisualizer {
         this.context = context;
         this.options = {
             showCursor: options.showCursor ?? true,
-            showHoverCircle: options.showHoverCircle ?? true,
+            showHoverCircle: options.showHoverCircle ?? false,
             showClickRipple: options.showClickRipple ?? true,
-            showDragLine: options.showDragLine ?? true,
+            showDragLine: options.showDragLine ?? false,
             showTypeEffects: options.showTypeEffects ?? true
         };
 
