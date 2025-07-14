@@ -2,17 +2,17 @@ import { BrowserContext } from "playwright";
 
 export class TypeEffectVisual {
     private baseOpacity: number;
-    private groupTimeout: number;
-    private maxWidthPercent: number;
+    private displayDuration: number;
+    private maxKeys: number;
 
-    constructor(baseOpacity: number = 0.8, groupTimeout: number = 1000, maxWidthPercent: number = 80) {
+    constructor(baseOpacity: number = 0.9, displayDuration: number = 2000, maxKeys: number = 5) {
         this.baseOpacity = baseOpacity;
-        this.groupTimeout = groupTimeout;
-        this.maxWidthPercent = maxWidthPercent;
+        this.displayDuration = displayDuration;
+        this.maxKeys = maxKeys;
     }
 
     async setContext(context: BrowserContext) {
-        await context.addInitScript((options: { opacity: number, groupTimeout: number, maxWidthPercent: number }) => {
+        await context.addInitScript((options: { opacity: number, displayDuration: number, maxKeys: number }) => {
             // Wait for DOM to be ready
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', setupTypeEffects);
@@ -21,174 +21,182 @@ export class TypeEffectVisual {
             }
             
             function setupTypeEffects() {
-                // Create container for all type groups
+                // Create container for key badges
                 const container = document.createElement('div');
                 container.id = 'type-effects-container';
                 container.style.cssText = `
                     position: fixed;
-                    top: 0;
-                    left: 0;
-                    width: 100vw;
-                    height: 100vh;
+                    bottom: 40px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    display: flex;
+                    gap: 8px;
+                    align-items: center;
                     pointer-events: none;
                     z-index: 1000000060;
                 `;
                 document.body.appendChild(container);
 
-                // Add styles for type groups
+                // Add styles for key badges
                 const style = document.createElement('style');
                 style.setAttribute('data-type-effects', 'true');
                 style.textContent = `
-                    @keyframes typeIn {
+                    @keyframes keyIn {
                         0% {
                             opacity: 0;
-                            transform: translateX(-50%) scale(0.8) translateY(10px);
+                            transform: scale(0.5) translateY(20px);
                         }
                         100% {
                             opacity: 1;
-                            transform: translateX(-50%) scale(1) translateY(0);
+                            transform: scale(1) translateY(0);
                         }
                     }
-                    @keyframes fadeOut {
+                    @keyframes keyOut {
                         0% {
                             opacity: 1;
-                            transform: translateX(-50%) translateY(0);
+                            transform: scale(1) translateY(0);
                         }
                         100% {
                             opacity: 0;
-                            transform: translateX(-50%) translateY(20px);
+                            transform: scale(0.8) translateY(10px);
                         }
                     }
-                    .type-group {
-                        position: fixed;
-                        bottom: 40px;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        max-width: ${options.maxWidthPercent}vw;
-                        background: rgba(0, 150, 255, ${options.opacity * 0.15});
-                        border: 1px solid rgba(0, 150, 255, ${options.opacity * 0.5});
-                        border-radius: 4px;
-                        padding: 8px 12px;
+                    .key-badge {
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        min-width: 40px;
+                        height: 40px;
+                        padding: 0 12px;
+                        background: rgba(0, 100, 200, ${options.opacity * 0.8});
+                        border: 2px solid rgba(255, 255, 255, ${options.opacity * 0.9});
+                        border-radius: 8px;
                         font-family: monospace;
-                        font-size: 14px;
-                        color: rgba(0, 150, 255, ${options.opacity});
-                        pointer-events: none;
-                        animation: typeIn 0.2s ease-out forwards;
-                        box-shadow: 0 2px 8px rgba(0, 150, 255, ${options.opacity * 0.3});
-                        backdrop-filter: blur(4px);
-                        white-space: pre-wrap;
-                        word-wrap: break-word;
-                        text-align: center;
-                        line-height: 1.4;
+                        font-size: 16px;
+                        font-weight: bold;
+                        color: white;
+                        animation: keyIn 0.2s ease-out forwards;
+                        box-shadow: 0 4px 12px rgba(0, 100, 200, ${options.opacity * 0.5});
+                        backdrop-filter: blur(8px);
+                        white-space: nowrap;
                     }
-                    .type-group.fading {
-                        animation: fadeOut 0.5s ease-out forwards;
-                    }
-                    .type-group .char {
-                        display: inline;
-                        animation: typeIn 0.1s ease-out;
-                        animation-fill-mode: both;
+                    .key-badge.fading {
+                        animation: keyOut 0.3s ease-out forwards;
                     }
                 `;
                 document.head.appendChild(style);
 
-                // Create the single type group element
-                const typeGroup = document.createElement('div');
-                typeGroup.className = 'type-group';
-                typeGroup.style.display = 'none';
-                container.appendChild(typeGroup);
+                // Define special keys to track (excluding modifiers on their own)
+                const specialKeys: { [key: string]: string } = {
+                    'Enter': '↵ Enter',
+                    'Tab': '⇥ Tab',
+                    'Backspace': '⌫ Back',
+                    'Delete': '⌦ Del',
+                    'Escape': '⎋ Esc',
+                    'ArrowUp': '↑',
+                    'ArrowDown': '↓',
+                    'ArrowLeft': '←',
+                    'ArrowRight': '→',
+                    'Home': '⇱ Home',
+                    'End': '⇲ End',
+                    'PageUp': '⇞ PgUp',
+                    'PageDown': '⇟ PgDn',
+                    ' ': '␣ Space',
+                    'Insert': 'Ins',
+                    'CapsLock': '⇪ Caps',
+                };
 
-                // State management
-                let groupTimeout: ReturnType<typeof setTimeout> | null = null;
-                let fadeTimeout: ReturnType<typeof setTimeout> | null = null;
-                let lastKeyTime = 0;
+                // Active badges
+                const activeBadges: { element: HTMLElement, timeout: ReturnType<typeof setTimeout> }[] = [];
 
                 // Handle keydown events
                 document.addEventListener('keydown', (e) => {
-                    const now = Date.now();
                     const key = e.key;
                     
-                    // Skip modifier keys and special keys
-                    if (e.ctrlKey || e.metaKey || e.altKey || 
-                        ['Shift', 'Control', 'Meta', 'Alt', 'CapsLock', 'Tab', 'Escape'].includes(key)) {
-                        return;
-                    }
-
-                    // Clear existing timeouts
-                    if (groupTimeout) {
-                        clearTimeout(groupTimeout);
-                        groupTimeout = null;
-                    }
-                    if (fadeTimeout) {
-                        clearTimeout(fadeTimeout);
-                        fadeTimeout = null;
-                    }
-
-                    // Cancel any ongoing fade
-                    typeGroup.classList.remove('fading');
-
-                    // Clear group if timeout exceeded
-                    if (now - lastKeyTime > options.groupTimeout) {
-                        typeGroup.innerHTML = '';
-                    }
-
-                    // Show the group
-                    typeGroup.style.display = 'block';
-
-                    // Add the typed character
-                    let displayChar = key;
+                    // Check if we have meaningful modifiers (Ctrl or Cmd)
+                    const hasMeaningfulModifiers = e.ctrlKey || e.metaKey;
                     
-                    // Handle special keys
-                    if (key === 'Enter') displayChar = '↵';
-                    else if (key === 'Backspace') displayChar = '⌫';
-                    else if (key === 'Delete') displayChar = '⌦';
-                    else if (key === 'ArrowLeft') displayChar = '←';
-                    else if (key === 'ArrowRight') displayChar = '→';
-                    else if (key === 'ArrowUp') displayChar = '↑';
-                    else if (key === 'ArrowDown') displayChar = '↓';
-                    else if (key === ' ') displayChar = '␣';
-                    
-                    const charSpan = document.createElement('span');
-                    charSpan.className = 'char';
-                    charSpan.textContent = displayChar;
-                    
-                    // Reduce delay for better performance with fast typing
-                    const charCount = typeGroup.children.length;
-                    const delay = Math.min(charCount * 0.01, 0.15); // Cap at 150ms max delay
-                    charSpan.style.animationDelay = `${delay}s`;
-                    
-                    typeGroup.appendChild(charSpan);
-                    lastKeyTime = now;
-
-                    // Set timeout to fade out after inactivity
-                    groupTimeout = setTimeout(() => {
-                        typeGroup.classList.add('fading');
+                    // For modifier combos, we want to show them with ANY key (including letters/numbers)
+                    if (hasMeaningfulModifiers) {
+                        // Skip if it's just a modifier key by itself
+                        if (['Control', 'Alt', 'Shift', 'Meta'].includes(key)) {
+                            return;
+                        }
                         
-                        fadeTimeout = setTimeout(() => {
-                            typeGroup.style.display = 'none';
-                            typeGroup.innerHTML = '';
-                            typeGroup.classList.remove('fading');
-                        }, 500);
-                    }, options.groupTimeout * 2);
+                        // Build the combo display
+                        let modifiers = [];
+                        if (e.ctrlKey) modifiers.push('Ctrl');
+                        if (e.metaKey) modifiers.push('⌘');
+                        // Include Shift/Alt only if Ctrl or Cmd is also pressed
+                        if ((e.ctrlKey || e.metaKey) && e.shiftKey) modifiers.push('Shift');
+                        if ((e.ctrlKey || e.metaKey) && e.altKey) modifiers.push('Alt');
+                        
+                        // Get the key display
+                        let keyDisplay = specialKeys[key] || key.toUpperCase();
+                        if (key.length === 1) {
+                            keyDisplay = key.toUpperCase();
+                        }
+                        
+                        const displayText = modifiers.join('+') + '+' + keyDisplay;
+                        
+                        // Create badge
+                        createBadge(displayText);
+                    } else {
+                        // No modifiers - only show if it's a special key
+                        const keyDisplay = specialKeys[key];
+                        if (keyDisplay) {
+                            createBadge(keyDisplay);
+                        }
+                    }
                 });
+
+                function createBadge(displayText: string) {
+                    // Create badge element
+                    const badge = document.createElement('div');
+                    badge.className = 'key-badge';
+                    badge.textContent = displayText;
+                    
+                    // Add to container
+                    container.appendChild(badge);
+
+                    // Set up removal timeout
+                    const timeout = setTimeout(() => {
+                        badge.classList.add('fading');
+                        setTimeout(() => {
+                            badge.remove();
+                            // Remove from active badges
+                            const index = activeBadges.findIndex(b => b.element === badge);
+                            if (index !== -1) {
+                                activeBadges.splice(index, 1);
+                            }
+                        }, 300);
+                    }, options.displayDuration);
+
+                    // Track active badge
+                    activeBadges.push({ element: badge, timeout });
+
+                    // Remove oldest badges if we exceed max
+                    while (activeBadges.length > options.maxKeys) {
+                        const oldest = activeBadges.shift();
+                        if (oldest) {
+                            clearTimeout(oldest.timeout);
+                            oldest.element.classList.add('fading');
+                            setTimeout(() => oldest.element.remove(), 300);
+                        }
+                    }
+                }
 
                 // Clean up on page hide
                 document.addEventListener('visibilitychange', () => {
                     if (document.hidden) {
-                        typeGroup.innerHTML = '';
-                        typeGroup.style.display = 'none';
-                        typeGroup.classList.remove('fading');
-                        if (groupTimeout) {
-                            clearTimeout(groupTimeout);
-                            groupTimeout = null;
-                        }
-                        if (fadeTimeout) {
-                            clearTimeout(fadeTimeout);
-                            fadeTimeout = null;
-                        }
+                        activeBadges.forEach(({ element, timeout }) => {
+                            clearTimeout(timeout);
+                            element.remove();
+                        });
+                        activeBadges.length = 0;
                     }
                 });
             }
-        }, { opacity: this.baseOpacity, groupTimeout: this.groupTimeout, maxWidthPercent: this.maxWidthPercent });
+        }, { opacity: this.baseOpacity, displayDuration: this.displayDuration, maxKeys: this.maxKeys });
     }
 }
