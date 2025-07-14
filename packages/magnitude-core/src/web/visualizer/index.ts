@@ -1,6 +1,7 @@
 import { BrowserContext, Page } from "playwright";
 import { CursorVisual } from "./cursor";
 import { MouseEffectVisual } from "./mouseEffects";
+import { TypeEffectVisual } from "./typeEffects";
 
 interface ActionVisualizerOptions {
     showCursor: boolean,
@@ -15,6 +16,7 @@ export class ActionVisualizer {
 
     private cursor: CursorVisual;
     private mouseEffects: MouseEffectVisual;
+    private typeEffects: TypeEffectVisual;
     
 
     constructor(context: BrowserContext, options: ActionVisualizerOptions) {
@@ -23,10 +25,14 @@ export class ActionVisualizer {
 
         this.cursor = new CursorVisual();
         this.mouseEffects = new MouseEffectVisual();
+        this.typeEffects = new TypeEffectVisual();
     }
 
     async setup() {
         await this.mouseEffects.setContext(this.context);
+        if (this.options.showTypeEffects) {
+            await this.typeEffects.setContext(this.context);
+        }
         //this.showAll();
     }
 
