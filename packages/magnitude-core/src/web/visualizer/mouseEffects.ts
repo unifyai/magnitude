@@ -239,9 +239,9 @@ export class MouseEffectVisual {
                     scrollArrow.style.top = `${e.clientY + offset - 20}px`; // -20 to account for arrow center
                     
                     // Scale based on deltaY magnitude
-                    const scale = 1 + Math.min(Math.abs(e.deltaY) / 10, 1);
+                    const scale = 0.8 + Math.min(Math.abs(e.deltaY) / 10, 0.4);
                     scrollArrow.style.transform = `scale(${scale})`;
-                    scrollArrow.style.opacity = '0.8';
+                    scrollArrow.style.opacity = '0.4';
                     scrollArrow.style.display = 'block';
 
                     // Hide after scroll stops
