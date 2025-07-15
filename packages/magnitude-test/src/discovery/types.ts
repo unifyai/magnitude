@@ -5,6 +5,7 @@ import { TestCaseAgent } from "@/agent";
 
 export interface TestOptions {
     url?: string;
+    prompt?: string;
     //name?: string;
 }
 

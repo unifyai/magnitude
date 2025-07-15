@@ -5,6 +5,7 @@ import { TestCaseAgent } from "@/agent";
 import { TestResult, TestState, TestStateTracker } from "@/runner/state";
 import { buildDefaultBrowserAgentOptions } from "magnitude-core";
 import { sendTelemetry } from "@/runner/telemetry";
+import { testPromptStack } from "@/worker/testDeclaration";
 
 // This module has to be separate so it only gets imported once after possible compilation by jiti.
 
@@ -51,8 +52,10 @@ messageEmitter.on('message', async (message: TestWorkerIncomingMessage) => {
     }
 
     try {
+        const promptStack = testPromptStack[test.title] || [];
+        const prompt = promptStack.length > 0 ? promptStack.join('\n') : undefined;
         const { agentOptions: defaultAgentOptions, browserOptions: defaultBrowserOptions } = buildDefaultBrowserAgentOptions({
-            agentOptions: { llm },
+            agentOptions: { llm, ...(prompt ? { prompt } : {}) },
             browserOptions: {
                 url: test.url,
                 browser: browserOptions,
