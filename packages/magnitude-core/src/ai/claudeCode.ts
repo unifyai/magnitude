@@ -3,7 +3,34 @@ import { homedir } from 'os';
 import { join, dirname } from 'path';
 import crypto from 'crypto';
 import { bold, cyanBright } from 'ansis';
-import open from 'open';
+import { exec } from 'child_process';
+
+// Simple cross-platform function to open URLs
+function openUrl(url: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+        let command: string;
+        
+        switch (process.platform) {
+            case 'darwin':
+                command = `open "${url}"`;
+                break;
+            case 'win32':
+                command = `start "${url}"`;
+                break;
+            default:
+                command = `xdg-open "${url}"`;
+                break;
+        }
+        
+        exec(command, (error) => {
+            if (error) {
+                reject(error);
+            } else {
+                resolve();
+            }
+        });
+    });
+}
 
 // Constants
 const CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
@@ -156,7 +183,7 @@ export async function completeClaudeCodeAuthFlow(): Promise<string> {
     //console.log(cyanBright`Accounts with Max plan can be used for API access.`)
     console.log(cyanBright`Opening browser for authentication...`);
     try {
-        await open(authUrl);
+        await openUrl(authUrl);
     } catch (err) {
         console.log('Could not open browser automatically');
     }

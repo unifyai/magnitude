@@ -61,7 +61,6 @@
     "magnitude-extract": "0.0.2",
     "moondream": "^0.1.0",
     "object-hash": "^3.0.0",
-    "open": "^10.1.2",
     "pino": "^9.6.0",
     "pino-pretty": "^13.0.0",
     "playwright": "npm:patchright@^1.52.0",
