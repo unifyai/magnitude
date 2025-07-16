@@ -3,7 +3,7 @@ import { homedir } from 'os';
 import { join, dirname } from 'path';
 import crypto from 'crypto';
 import { bold, cyanBright } from 'ansis';
-import { exec } from 'child_process';
+import { exec } from 'node:child_process';
 
 // Simple cross-platform function to open URLs
 function openUrl(url: string): Promise<void> {
