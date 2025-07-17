@@ -1,5 +1,14 @@
 # magnitude-test
 
+## 0.3.1
+
+### Patch Changes
+
+- [`c2e6f66`](https://github.com/magnitudedev/magnitude/commit/c2e6f662c10eeed3cf8800716a50fd6c8bd0b52b) Thanks [@ashutosh-rath02](https://github.com/ashutosh-rath02)! - add support for prompting at test and test group levels
+
+- Updated dependencies [[`2ed36d2`](https://github.com/magnitudedev/magnitude/commit/2ed36d29307dbecaec839fedb1f9c853cd1045d4)]:
+  - magnitude-core@0.2.22
+
 ## 0.3.0
 
 ### Minor Changes

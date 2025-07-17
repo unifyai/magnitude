@@ -1,5 +1,11 @@
 # magnitude-core
 
+## 0.2.22
+
+### Patch Changes
+
+- [`2ed36d2`](https://github.com/magnitudedev/magnitude/commit/2ed36d29307dbecaec839fedb1f9c853cd1045d4) Thanks [@ka-brian](https://github.com/ka-brian)! - fix: remove dep on 'open' package causing cjs problems
+
 ## 0.2.21
 
 ### Patch Changes
