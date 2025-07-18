@@ -195,6 +195,17 @@ program
 
         //console.log(config)
 
+        // Check if any API key is set in environment variables or config file
+        const hasApiKey = process.env.OPENROUTER_API_KEY ||
+        process.env.ANTHROPIC_API_KEY ||
+        process.env.OPENAI_API_KEY ||
+        (config.llm && 'options' in config.llm && 'apiKey' in config.llm.options && config.llm.options.apiKey);
+        
+        
+        if (!hasApiKey) {
+            console.error("Missing API key for LLM provider");
+            process.exit(1);
+        }
 
         // // If planner not provided, make a choice based on available environment variables
         // if (!config.planner) {
