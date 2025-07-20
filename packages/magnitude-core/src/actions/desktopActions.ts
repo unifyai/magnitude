@@ -95,7 +95,7 @@ export const desktopKeyAction = createAction({
     name: 'desktop:key',
     description: "Press a key or key combination. Use '+' to combine keys (e.g., 'cmd+c', 'ctrl+shift+t')",
     schema: z.object({
-        key: z.string().describe("Key to press (e.g., 'Return', 'Tab', 'Escape') or combination (e.g., 'cmd+c', 'ctrl+a', 'ctrl+shift+t')"),
+        key: z.string().describe("Key to press (e.g., 'return', 'tab', 'escape') or combination (e.g., 'cmd+c', 'ctrl+a', 'ctrl+shift+t')"),
     }),
     resolver: async ({ input: { key }, agent }) => {
         const desktop = agent.require(DesktopConnector);
