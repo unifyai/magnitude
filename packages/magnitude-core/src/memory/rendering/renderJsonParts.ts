@@ -8,7 +8,8 @@ async function buildJsonPartsRecursive(
     data: RenderableContent,
     partsList: MultiMediaContentPart[],
     indent: number,
-    currentLevel: number = 0
+    currentLevel: number = 0,
+    isRoot: boolean = false
 ): Promise<void> {
     if (data instanceof Image) {
         const bamlImg = await data.toBaml();
@@ -29,7 +30,11 @@ async function buildJsonPartsRecursive(
         return; // Undefined values are omitted in JSON
     }
     if (typeof data === 'string') {
-        partsList.push(JSON.stringify(data));
+        if (isRoot) {
+            partsList.push(data);
+        } else {
+            partsList.push(JSON.stringify(data));
+        }
         return;
     }
     if (typeof data === 'number' || typeof data === 'boolean') {
@@ -55,7 +60,7 @@ async function buildJsonPartsRecursive(
                 } else if (index > 0) {
                     partsList.push(' ');
                 }
-                await buildJsonPartsRecursive(item, partsList, indent, currentLevel + 1);
+                await buildJsonPartsRecursive(item, partsList, indent, currentLevel + 1, false);
             }
         }
         
@@ -88,7 +93,7 @@ async function buildJsonPartsRecursive(
             partsList.push(': ');
             
             // Add the value
-            await buildJsonPartsRecursive(value, partsList, indent, currentLevel + 1);
+            await buildJsonPartsRecursive(value, partsList, indent, currentLevel + 1, false);
         }
         
         if (entries.length > 0 && indent > 0) {
@@ -103,7 +108,7 @@ async function buildJsonPartsRecursive(
 
 export async function renderJsonParts(data: RenderableContent, indent: number): Promise<MultiMediaContentPart[]> {
     const rawList: MultiMediaContentPart[] = [];
-    await buildJsonPartsRecursive(data, rawList, indent);
+    await buildJsonPartsRecursive(data, rawList, indent, 0, true);
 
     // Merge adjacent strings
     if (rawList.length === 0) {

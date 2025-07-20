@@ -1,6 +1,6 @@
 {
   "name": "magnitude-core",
-  "version": "0.2.22",
+  "version": "0.2.23",
   "description": "Magnitude e2e testing agent",
   "publishConfig": {
     "access": "public"
@@ -52,7 +52,7 @@
     "typescript": "~5.7.2"
   },
   "dependencies": {
-    "@boundaryml/baml": "^0.201.0",
+    "@boundaryml/baml": "^0.202.0",
     "@paralleldrive/cuid2": "^2.2.2",
     "@types/object-hash": "^3.0.6",
     "ansis": "^4.1.0",

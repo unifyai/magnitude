@@ -7,6 +7,7 @@ export { BrowserAgent, startBrowserAgent } from '@/agent/browserAgent';
 //export { Magnus } from "@/agent/magnus";
 //export type { AgentOptions as TestCaseAgentOptions } from "@/agent";
 export * from "@/agent";
+export * from "@/memory";
 export * from "@/web/harness";
 export * from "@/actions";
 export * from "@/connectors";

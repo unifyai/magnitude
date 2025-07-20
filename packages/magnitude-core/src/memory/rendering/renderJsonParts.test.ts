@@ -21,11 +21,30 @@ class MockImage extends Image {
 
 describe('renderJsonParts', () => {
     test('renders primitive types correctly', async () => {
-        expect(await renderJsonParts('hello', 0)).toEqual(['"hello"']);
+        expect(await renderJsonParts('hello', 0)).toEqual(['hello']);
         expect(await renderJsonParts(42, 0)).toEqual(['42']);
         expect(await renderJsonParts(true, 0)).toEqual(['true']);
         expect(await renderJsonParts(false, 0)).toEqual(['false']);
         expect(await renderJsonParts(null, 0)).toEqual(['null']);
+    });
+
+    test('renders root-level strings without quotes', async () => {
+        expect(await renderJsonParts('CLICK THE UNICORN', 0)).toEqual(['CLICK THE UNICORN']);
+        expect(await renderJsonParts('Hello World', 0)).toEqual(['Hello World']);
+        expect(await renderJsonParts('{"already":"json"}', 0)).toEqual(['{"already":"json"}']);
+    });
+
+    test('properly quotes strings inside objects and arrays', async () => {
+        // Strings in objects should be quoted
+        expect(await renderJsonParts({message: 'hello'}, 0)).toEqual(['{"message": "hello"}']);
+        expect(await renderJsonParts({name: 'John', city: 'NYC'}, 0)).toEqual(['{"name": "John", "city": "NYC"}']);
+        
+        // Strings in arrays should be quoted
+        expect(await renderJsonParts(['apple', 'banana'], 0)).toEqual(['["apple", "banana"]']);
+        expect(await renderJsonParts(['hello', 123, 'world'], 0)).toEqual(['["hello", 123, "world"]']);
+        
+        // Nested structures
+        expect(await renderJsonParts({items: ['a', 'b'], text: 'test'}, 0)).toEqual(['{"items": ["a", "b"], "text": "test"}']);
     });
 
     test('renders empty structures', async () => {
