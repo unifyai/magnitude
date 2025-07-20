@@ -29,7 +29,7 @@ export class TabManager {
     constructor(context: BrowserContext, options: TabManagerOptions = {}) {
         this.context = context;
         this.options = {
-            switchOnActivity: false,
+            switchOnActivity: true,
             ...options
         };
         this.events = new EventEmitter();
