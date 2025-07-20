@@ -1,5 +1,12 @@
 # magnitude-test
 
+## 0.3.2
+
+### Patch Changes
+
+- Updated dependencies [[`0159e6a`](https://github.com/magnitudedev/magnitude/commit/0159e6a3fe4c0186ae115cb0f8d52d55d10d1064)]:
+  - magnitude-core@0.2.23
+
 ## 0.3.1
 
 ### Patch Changes
