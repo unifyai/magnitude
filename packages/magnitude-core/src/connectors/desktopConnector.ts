@@ -19,7 +19,7 @@ export interface DesktopInterface {
     doubleClick(x: number, y: number): Promise<void>;
     moveCursor(x: number, y: number): Promise<void>;
     drag(fromX: number, fromY: number, toX: number, toY: number): Promise<void>;
-    scroll(x: number, y: number, direction?: 'up' | 'down', amount?: number): Promise<void>;
+    scroll(x: number, y: number, deltaX: number, deltaY: number): Promise<void>;
     
     // Keyboard operations
     type(text: string): Promise<void>;
@@ -30,11 +30,8 @@ export interface DesktopInterface {
     screenshot(): Promise<Buffer>;
     getScreenSize(): Promise<{ width: number; height: number }>;
     
-    // Navigation (browser-specific but common in desktop automation)
+    // Browser launch (opens new browser window/tab, not navigation within existing windows)
     navigate?(url: string): Promise<void>;
-    
-    // System operations
-    wait(ms: number): Promise<void>;
     
     // Optional: Window management
     getActiveWindow?(): Promise<{ title: string; app: string }>;

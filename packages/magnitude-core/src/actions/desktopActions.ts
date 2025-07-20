@@ -63,18 +63,18 @@ export const desktopDragAction = createAction({
 
 export const desktopScrollAction = createAction({
     name: 'desktop:scroll',
-    description: "Scroll at position",
+    description: "Hover mouse over target and scroll",
     schema: z.object({
         x: z.number().int(),
         y: z.number().int(),
-        direction: z.enum(['up', 'down']).optional(),
-        amount: z.number().int().optional(),
+        deltaX: z.number().int().describe("Pixels to scroll horizontally"),
+        deltaY: z.number().int().describe("Pixels to scroll vertically"),
     }),
-    resolver: async ({ input: { x, y, direction, amount }, agent }) => {
+    resolver: async ({ input: { x, y, deltaX, deltaY }, agent }) => {
         const desktop = agent.require(DesktopConnector);
-        await desktop.getInterface().scroll(x, y, direction, amount);
+        await desktop.getInterface().scroll(x, y, deltaX, deltaY);
     },
-    render: ({ x, y, direction, amount }) => `⊙ scroll at (${x}, ${y})${direction ? ` ${direction}` : ''}${amount ? ` ${amount}px` : ''}`
+    render: ({ x, y, deltaX, deltaY }) => `↕ scroll (${deltaX}px, ${deltaY}px)`
 });
 
 // Keyboard actions
@@ -120,9 +120,9 @@ export const desktopHotkeyAction = createAction({
 // Navigation
 export const desktopNavigateAction = createAction({
     name: 'desktop:navigate',
-    description: "Navigate to a URL in the browser",
+    description: "Open a new browser window/tab with the specified URL. For navigating within an existing browser window, interact with the address bar instead.",
     schema: z.object({
-        url: z.string().describe("URL to navigate to"),
+        url: z.string().describe("URL to open in a new browser window/tab"),
     }),
     resolver: async ({ input: { url }, agent }) => {
         const desktop = agent.require(DesktopConnector);
@@ -132,21 +132,20 @@ export const desktopNavigateAction = createAction({
         }
         await interface_.navigate(url);
     },
-    render: ({ url }) => `⛓ navigate to ${url}`
+    render: ({ url }) => `⛓ open browser with ${url}`
 });
 
 // Utility
 export const desktopWaitAction = createAction({
     name: 'desktop:wait',
-    description: "Wait for specified milliseconds",
+    description: "Actions include smart waiting automatically - so only use this when a significant additional wait is clearly required.",
     schema: z.object({
-        ms: z.number().int().min(0).describe("Milliseconds to wait"),
+        seconds: z.number().describe("Seconds to wait"),
     }),
-    resolver: async ({ input: { ms }, agent }) => {
-        const desktop = agent.require(DesktopConnector);
-        await desktop.getInterface().wait(ms);
+    resolver: async ({ input: { seconds }, agent }) => {
+        await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
     },
-    render: ({ ms }) => `⏱ wait ${ms}ms`
+    render: ({ seconds }) => `◴ wait ${seconds}s`
 });
 
 // Export all desktop actions
