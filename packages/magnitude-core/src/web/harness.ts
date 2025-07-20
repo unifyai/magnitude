@@ -16,6 +16,7 @@ export interface WebHarnessOptions {
     // Some LLM operate best on certain screen dims
     virtualScreenDimensions?: { width: number, height: number }
     visuals?: ActionVisualizerOptions
+    switchTabsOnActivity?: boolean  // Whether to automatically switch tabs when user activity is detected vs only if switchTab is used
 }
 
 export interface WebHarnessEvents {
@@ -43,7 +44,9 @@ export class WebHarness { // implements StateComponent
         this.stability = new PageStabilityAnalyzer({ disableVisualStability: true });
         this.visualizer = new ActionVisualizer(this.context, this.options.visuals ?? {});
         this.transformer = new DOMTransformer();
-        this.tabs = new TabManager(context);
+        this.tabs = new TabManager(context, {
+            switchOnActivity: options.switchTabsOnActivity
+        });
 
         // this.context.on('page', (page: Page) => {
         //     this.setActivePage(page);
@@ -60,6 +63,7 @@ export class WebHarness { // implements StateComponent
     }
 
     async setActivePage(page: Page) {
+        logger.trace(`WebHarness active page: ${page.url()}`);
         this.stability.setActivePage(page);
         await this.visualizer.setActivePage(page);
         this.transformer.setActivePage(page);
