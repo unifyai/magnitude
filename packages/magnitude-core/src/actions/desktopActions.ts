@@ -93,28 +93,29 @@ export const desktopTypeAction = createAction({
 
 export const desktopKeyAction = createAction({
     name: 'desktop:key',
-    description: "Press a single key",
+    description: "Press a key or key combination. Use '+' to combine keys (e.g., 'cmd+c', 'ctrl+shift+t')",
     schema: z.object({
-        key: z.string().describe("Key to press (e.g., 'Return', 'Tab', 'Escape')"),
+        key: z.string().describe("Key to press (e.g., 'Return', 'Tab', 'Escape') or combination (e.g., 'cmd+c', 'ctrl+a', 'ctrl+shift+t')"),
     }),
     resolver: async ({ input: { key }, agent }) => {
         const desktop = agent.require(DesktopConnector);
-        await desktop.getInterface().key(key);
+        // Check if it's a key combination (contains +)
+        if (key.includes('+')) {
+            // Parse the combination and use hotkey
+            const keys = key.split('+').map(k => k.trim());
+            await desktop.getInterface().hotkey(keys);
+        } else {
+            // Single key press
+            await desktop.getInterface().key(key);
+        }
     },
-    render: ({ key }) => `⌨ key '${key}'`
-});
-
-export const desktopHotkeyAction = createAction({
-    name: 'desktop:hotkey',
-    description: "Press a key combination",
-    schema: z.object({
-        keys: z.array(z.string()).describe("Keys to press together (e.g., ['cmd', 'c'])"),
-    }),
-    resolver: async ({ input: { keys }, agent }) => {
-        const desktop = agent.require(DesktopConnector);
-        await desktop.getInterface().hotkey(keys);
-    },
-    render: ({ keys }) => `⌨ hotkey ${keys.join('+')}`
+    render: ({ key }) => {
+        // Show differently based on whether it's a combination
+        if (key.includes('+')) {
+            return `⌨ hotkey ${key}`;
+        }
+        return `⌨ key '${key}'`;
+    }
 });
 
 // Navigation
@@ -157,7 +158,6 @@ export const desktopActions = [
     desktopScrollAction,
     desktopTypeAction,
     desktopKeyAction,
-    desktopHotkeyAction,
     desktopNavigateAction,
     desktopWaitAction,
 ]; 
