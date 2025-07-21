@@ -28,6 +28,7 @@ interface CliOptions {
     workers?: number;
     plain: boolean;
     debug: boolean;
+    failFast: boolean;
 }
 
 function getRelativePath(projectRoot: string, absolutePath: string): string {
@@ -143,7 +144,7 @@ program
     .option('-w, --workers <number>', 'number of parallel workers for test execution', '1')
     .option('-p, --plain', 'disable pretty output and print lines instead')
     .option('-d, --debug', 'enable debug logs')
-    // Changed action signature from (filters, options) to (filter, options)
+    .option('--no-fail-fast', 'continue running tests even if some fail')
     .action(async (filter, options: CliOptions) => {
         dotenv.config();
         let logLevel: string;
@@ -250,6 +251,7 @@ program
         const testSuiteRunner = new TestSuiteRunner({
             config,
             workerCount: workerCount,
+            failFast: options.failFast,
             createRenderer: (tests) => showUI
                 ? new TermAppRenderer(config, tests)
                 : {

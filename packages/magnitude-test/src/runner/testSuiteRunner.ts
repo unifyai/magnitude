@@ -14,6 +14,7 @@ export interface TestSuiteRunnerConfig {
     workerCount: number;
     createRenderer: (tests: RegisteredTest[]) => TestRenderer;
     config: MagnitudeConfig;
+    failFast?: boolean;
 }
 
 export class TestSuiteRunner {
@@ -111,7 +112,9 @@ export class TestSuiteRunner {
         try {
             const poolResult = await workerPool.runTasks(
                 this.tests.map((test) => (signal) => this.runTest(test, signal)),
-                (taskOutcome: TestResult) => !taskOutcome.passed
+                this.runnerConfig.failFast
+                    ? (taskOutcome: TestResult) => !taskOutcome.passed
+                    : () => false
             );
 
             for (const result of poolResult.results) {
