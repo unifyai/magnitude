@@ -45,7 +45,7 @@ export class WebHarness { // implements StateComponent
         this.visualizer = new ActionVisualizer(this.context, this.options.visuals ?? {});
         this.transformer = new DOMTransformer();
         this.tabs = new TabManager(context, {
-            switchOnActivity: options.switchTabsOnActivity
+            switchOnActivity: options.switchTabsOnActivity ?? true
         });
 
         // this.context.on('page', (page: Page) => {

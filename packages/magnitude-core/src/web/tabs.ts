@@ -51,6 +51,8 @@ export class TabManager {
     }
 
     private async onPageCreated(page: Page) {
+        logger.debug(`onPageCreated called for: ${page.url()}`);
+        
         // If this is the only page or no active page set, make it active
         if (!this.activePage || this.context.pages().length === 1) {
             this.setActivePage(page);
@@ -77,14 +79,23 @@ export class TabManager {
 
             // Re-inject tracking after navigation
             page.on('load', async () => {
-                logger.trace(`Page loaded: ${page.url()}, re-injecting tracking`);
+                logger.debug(`Page 'load' event: ${page.url()}, re-injecting tracking`);
                 await this.setupPageTracking(page);
             });
             
             // Also inject on DOMContentLoaded for faster setup
             page.on('domcontentloaded', async () => {
+                logger.debug(`Page 'domcontentloaded' event: ${page.url()}, re-injecting tracking`);
                 await this.setupPageTracking(page);
             });
+            
+            // For initial page that starts as about:blank, wait for first navigation
+            if (page.url() === 'about:blank') {
+                page.once('framenavigated', async () => {
+                    logger.debug(`Initial navigation from about:blank to: ${page.url()}`);
+                    await this.setupPageTracking(page);
+                });
+            }
         }
 
         // Don't automatically switch to new tabs - let the user decide
@@ -109,8 +120,11 @@ export class TabManager {
                 // Skip if page is still on about:blank
                 const currentUrl = page.url();
                 if (currentUrl === 'about:blank') {
+                    logger.debug('Skipping tracking setup - page is about:blank');
                     return;
                 }
+                
+                logger.debug(`Setting up tracking for: ${currentUrl}`);
                 
                 // Evaluate the tracking script on the page
                 await page.evaluate(() => {
