@@ -251,7 +251,9 @@ program
         const testSuiteRunner = new TestSuiteRunner({
             config,
             workerCount: workerCount,
-            failFast: options.failFast,
+            failFast: options.failFast === false
+                ? false
+                : !config.continueAfterFailure,
             createRenderer: (tests) => showUI
                 ? new TermAppRenderer(config, tests)
                 : {

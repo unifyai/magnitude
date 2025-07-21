@@ -28,6 +28,7 @@ export type MagnitudeConfig = {
     // },
     browser?: BrowserOptions,
     telemetry?: boolean,
+    continueAfterFailure?: boolean,
     display?: {
         showActions?: boolean;
     }
