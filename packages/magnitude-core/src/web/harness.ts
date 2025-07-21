@@ -81,6 +81,9 @@ export class WebHarness { // implements StateComponent
     // }
 
     async start() {
+        // Initialize tab manager first
+        await this.tabs.initialize();
+        
         if (this.context.pages().length > 0) {
             // If context already contains a page, set it as active
             this.tabs.setActivePage(this.context.pages()[0]);

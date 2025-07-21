@@ -24,6 +24,7 @@ export class TabManager {
     private context: BrowserContext;
     private activePage!: Page;
     private options: TabManagerOptions;
+    private pollInterval?: NodeJS.Timeout;
     public readonly events: EventEmitter<TabEvents>;
 
     constructor(context: BrowserContext, options: TabManagerOptions = {}) {
@@ -36,17 +37,29 @@ export class TabManager {
 
         // Track new pages
         this.context.on('page', this.onPageCreated.bind(this));
+    }
 
+    async initialize() {
+        logger.debug('TabManager.initialize() called');
         // Initialize existing pages and tracking
-        this.initializeExistingPages();
+        await this.initializeExistingPages();
+        logger.debug('TabManager.initialize() complete');
     }
 
     private async initializeExistingPages() {
         const pages = this.context.pages();
+        logger.debug(`initializeExistingPages: found ${pages.length} existing pages`);
         
         // Set up existing pages
         for (const page of pages) {
+            logger.debug(`Setting up page: ${page.url()}`);
             await this.onPageCreated(page);
+        }
+        
+        // Start polling for activity if enabled
+        if (this.options.switchOnActivity) {
+            logger.debug('Starting activity polling');
+            this.startActivityPolling();
         }
     }
 
@@ -60,42 +73,18 @@ export class TabManager {
 
         // Only set up tracking if switchOnActivity is enabled
         if (this.options.switchOnActivity) {
-            // Expose the function first (it persists across navigations)
-            try {
-                await page.exposeFunction('__reportTabActivity', () => {
-                    if (page !== this.activePage) {
-                        logger.trace(`Tab activity detected on ${page.url()}, switching...`);
-                        this.setActivePage(page);
-                    }
-                });
-            } catch (e: any) {
-                if (!e.message.includes('already exists')) {
-                    logger.error('Failed to expose function for page:', e);
-                }
-            }
-
-            // Try to set up tracking immediately
+            // Set up activity tracking immediately
             await this.setupPageTracking(page);
 
             // Re-inject tracking after navigation
             page.on('load', async () => {
-                logger.debug(`Page 'load' event: ${page.url()}, re-injecting tracking`);
                 await this.setupPageTracking(page);
             });
             
             // Also inject on DOMContentLoaded for faster setup
             page.on('domcontentloaded', async () => {
-                logger.debug(`Page 'domcontentloaded' event: ${page.url()}, re-injecting tracking`);
                 await this.setupPageTracking(page);
             });
-            
-            // For initial page that starts as about:blank, wait for first navigation
-            if (page.url() === 'about:blank') {
-                page.once('framenavigated', async () => {
-                    logger.debug(`Initial navigation from about:blank to: ${page.url()}`);
-                    await this.setupPageTracking(page);
-                });
-            }
         }
 
         // Don't automatically switch to new tabs - let the user decide
@@ -110,6 +99,12 @@ export class TabManager {
                 }
             }
         });
+        
+        // Start polling if this is the first page and switchOnActivity is enabled
+        if (this.context.pages().length === 1 && this.options.switchOnActivity && !this.pollInterval) {
+            logger.debug('Starting activity polling from onPageCreated (first page)');
+            this.startActivityPolling();
+        }
     }
 
 
@@ -124,64 +119,128 @@ export class TabManager {
                     return;
                 }
                 
-                logger.debug(`Setting up tracking for: ${currentUrl}`);
+                logger.debug(`Injecting tracking script into: ${currentUrl}`);
                 
-                // Evaluate the tracking script on the page
+                // Inject activity tracking
                 await page.evaluate(() => {
-                
-                // Track any user interaction
-                const reportActivity = (eventType: string) => {
-                    try {
-                        (window as any).__reportTabActivity();
-                    } catch (e) {
-                        console.error('[TAB TRACKING] Failed to report tab activity:', e);
+                    // Initialize activity tracking storage
+                    if (!(window as any).__tabActivityTime) {
+                        (window as any).__tabActivityTime = 0;
                     }
-                };
-                
-                // Throttle function for mousemove
-                let lastMouseMoveTime = 0;
-                const throttledMouseMove = () => {
-                    const now = Date.now();
-                    if (now - lastMouseMoveTime > 500) { // Only report every 500ms
-                        lastMouseMoveTime = now;
-                        reportActivity('mousemove');
+                    
+                    // Track any user interaction
+                    const recordActivity = () => {
+                        (window as any).__tabActivityTime = Date.now();
+                    };
+                    
+                    // Remove any existing listeners to avoid duplicates
+                    const listeners = (window as any).__tabListeners;
+                    if (listeners) {
+                        listeners.forEach((l: any) => {
+                            document.removeEventListener(l.event, l.handler, true);
+                            window.removeEventListener(l.event, l.handler, true);
+                        });
                     }
-                };
+                    
+                    // Store references to our listeners
+                    const newListeners: any[] = [];
+                    
+                    // Helper to add tracked event listener
+                    const addTrackedListener = (target: any, event: string, handler: any) => {
+                        target.addEventListener(event, handler, true);
+                        newListeners.push({ event, handler });
+                    };
+                    
+                    // Throttled mouse move handler
+                    let lastMouseMoveTime = 0;
+                    const throttledMouseMove = () => {
+                        const now = Date.now();
+                        if (now - lastMouseMoveTime > 500) {
+                            lastMouseMoveTime = now;
+                            recordActivity();
+                        }
+                    };
+                    
+                    // Mouse events
+                    addTrackedListener(document, 'mousedown', recordActivity);
+                    addTrackedListener(document, 'click', recordActivity);
+                    addTrackedListener(document, 'mousemove', throttledMouseMove);
+                    addTrackedListener(document, 'mouseenter', recordActivity);
+                    
+                    // Keyboard events
+                    addTrackedListener(document, 'keydown', recordActivity);
+                    
+                    // Focus events
+                    addTrackedListener(window, 'focus', recordActivity);
+                    
+                    // Scroll events
+                    let lastScrollTime = 0;
+                    const throttledScroll = () => {
+                        const now = Date.now();
+                        if (now - lastScrollTime > 500) {
+                            lastScrollTime = now;
+                            recordActivity();
+                        }
+                    };
+                    addTrackedListener(document, 'scroll', throttledScroll);
+                    
+                    // Visibility change
+                    addTrackedListener(document, 'visibilitychange', () => {
+                        if (!document.hidden) {
+                            recordActivity();
+                        }
+                    });
+                    
+                    // Store listeners for cleanup
+                    (window as any).__tabListeners = newListeners;
+                    
+                    // Mark as successfully set up
+                    console.log('[TAB TRACKING] Successfully injected tracking script');
+                });
                 
-                // Mouse events
-                document.addEventListener('mousedown', () => reportActivity('mousedown'), true);
-                document.addEventListener('click', () => reportActivity('click'), true);
-                document.addEventListener('mousemove', throttledMouseMove, true);
-                
-                // Also detect mouseenter on the document
-                document.addEventListener('mouseenter', () => reportActivity('mouseenter'), true);
-                
-                // Keyboard events
-                document.addEventListener('keydown', () => reportActivity('keydown'), true);
-                
-                // Focus events
-                window.addEventListener('focus', () => reportActivity('focus'), true);
-                
-                // Scroll events (user scrolling indicates activity)
-                let lastScrollTime = 0;
-                document.addEventListener('scroll', () => {
-                    const now = Date.now();
-                    if (now - lastScrollTime > 500) {
-                        lastScrollTime = now;
-                        reportActivity('scroll');
-                    }
-                }, true);
-                
-                // Visibility change
-                document.addEventListener('visibilitychange', () => {
-                    if (!document.hidden) {
-                        reportActivity('visibilitychange');
-                    }
-                }, true);
-            });
+                logger.debug(`Tracking script injected successfully for: ${currentUrl}`);
             },
             { mode: 'retry_all', delayMs: 200, retryLimit: 5 }
         );
+    }
+
+    private startActivityPolling() {
+        // Poll for activity every 200ms
+        this.pollInterval = setInterval(async () => {
+            const pages = this.context.pages();
+            let mostRecentPage: Page | null = null;
+            let mostRecentTime = 0;
+            
+            // Find the page with the most recent activity
+            for (const page of pages) {
+                if (page.isClosed()) continue;
+                
+                try {
+                    const lastActivity = await page.evaluate(() => {
+                        // Initialize if it doesn't exist (defensive programming)
+                        if (typeof (window as any).__tabActivityTime === 'undefined') {
+                            (window as any).__tabActivityTime = 0;
+                        }
+                        return (window as any).__tabActivityTime;
+                    });
+                    
+                    if (lastActivity > mostRecentTime) {
+                        mostRecentTime = lastActivity;
+                        mostRecentPage = page;
+                    }
+                } catch (e) {
+                    // Page might be navigating
+                }
+            }
+            
+            // Switch to the most recently active page if it's different and activity is recent
+            if (mostRecentPage && 
+                mostRecentPage !== this.activePage && 
+                mostRecentTime > Date.now() - 1000) { // Activity within last second
+                logger.trace(`Activity detected on ${mostRecentPage.url()}, switching...`);
+                this.setActivePage(mostRecentPage);
+            }
+        }, 200);
     }
 
     public setActivePage(page: Page) {
@@ -288,6 +347,8 @@ export class TabManager {
 
     // Clean up
     destroy() {
-        // No intervals to clean up anymore
+        if (this.pollInterval) {
+            clearInterval(this.pollInterval);
+        }
     }
 }
