@@ -88,8 +88,9 @@ export class WebHarness { // implements StateComponent
             // If context already contains a page, set it as active
             this.tabs.setActivePage(this.context.pages()[0]);
         } else {
-            await this.context.newPage();
-            // Other logic for page tracking is automatically handled by TabManager
+            const page = await this.context.newPage();
+            // Force the initial page to be set as active and emit tabChanged
+            this.tabs.setActivePage(page);
         }
         await this.visualizer.setup();
     }

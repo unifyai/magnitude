@@ -27,6 +27,11 @@ export class MouseEffectVisual {
         this.page = page;
 
         page.on('load', async () => {
+            // Clear the initialized flag on navigation to ensure re-initialization
+            await page.evaluate(() => {
+                (window as any).__mouseEffectsInitialized = false;
+            }).catch(() => {}); // Ignore errors
+            
             await retryOnErrorIsSuccess(
                 this.setupOnPage.bind(this),
                 { mode: 'retry_all', delayMs: 200, retryLimit: 10 }
@@ -35,7 +40,7 @@ export class MouseEffectVisual {
 
         await retryOnErrorIsSuccess(
             this.setupOnPage.bind(this),
-            { mode: 'retry_all', delayMs: 200, retryLimit: 5 }
+            { mode: 'retry_all', delayMs: 200, retryLimit: 10 }
         );
     }
 

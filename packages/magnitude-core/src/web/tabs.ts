@@ -26,6 +26,7 @@ export class TabManager {
     private options: TabManagerOptions;
     private pollInterval?: NodeJS.Timeout;
     public readonly events: EventEmitter<TabEvents>;
+    private trackingInProgress = new Set<Page>();
 
     constructor(context: BrowserContext, options: TabManagerOptions = {}) {
         this.context = context;
@@ -40,10 +41,8 @@ export class TabManager {
     }
 
     async initialize() {
-        logger.debug('TabManager.initialize() called');
         // Initialize existing pages and tracking
         await this.initializeExistingPages();
-        logger.debug('TabManager.initialize() complete');
     }
 
     private async initializeExistingPages() {
@@ -54,6 +53,18 @@ export class TabManager {
         for (const page of pages) {
             logger.debug(`Setting up page: ${page.url()}`);
             await this.onPageCreated(page);
+            
+            // Force initial activity time for existing pages
+            if (this.options.switchOnActivity) {
+                try {
+                    await page.evaluate(() => {
+                        (window as any).__tabActivityTime = Date.now();
+                    });
+                    logger.debug(`Set initial activity time for existing page: ${page.url()}`);
+                } catch (e) {
+                    logger.debug(`Failed to set initial activity time for: ${page.url()}`);
+                }
+            }
         }
         
         // Start polling for activity if enabled
@@ -79,6 +90,12 @@ export class TabManager {
             // Re-inject tracking after navigation
             page.on('load', async () => {
                 await this.setupPageTracking(page);
+                
+                // If this is the active page and it navigated from about:blank, re-emit tabChanged
+                if (this.activePage === page && page.url() !== 'about:blank') {
+                    logger.debug(`Re-emitting tabChanged after navigation to: ${page.url()}`);
+                    this.events.emit('tabChanged', page);
+                }
             });
             
             // Also inject on DOMContentLoaded for faster setup
@@ -92,6 +109,7 @@ export class TabManager {
 
         // Clean up when page closes
         page.on('close', () => {
+            this.trackingInProgress.delete(page);
             if (this.activePage === page) {
                 const pages = this.context.pages();
                 if (pages.length > 0) {
@@ -109,24 +127,31 @@ export class TabManager {
 
 
     private async setupPageTracking(page: Page) {
-        // Inject the tracking script with retries
-        await retryOnErrorIsSuccess(
-            async () => {
-                // Skip if page is still on about:blank
-                const currentUrl = page.url();
-                if (currentUrl === 'about:blank') {
-                    logger.debug('Skipping tracking setup - page is about:blank');
-                    return;
-                }
-                
-                logger.debug(`Injecting tracking script into: ${currentUrl}`);
-                
-                // Inject activity tracking
-                await page.evaluate(() => {
+        // Prevent concurrent tracking setups on the same page
+        if (this.trackingInProgress.has(page)) {
+            logger.trace(`Tracking already in progress for: ${page.url()}, skipping`);
+            return;
+        }
+        
+        this.trackingInProgress.add(page);
+        
+        try {
+            // Inject the tracking script with retries
+            await retryOnErrorIsSuccess(
+                async () => {
+                    const currentUrl = page.url();
+                    logger.debug(`Setting up tracking for: ${currentUrl}`);
+                    
+                    // Inject activity tracking
+                    await page.evaluate(() => {
                     // Initialize activity tracking storage
                     if (!(window as any).__tabActivityTime) {
                         (window as any).__tabActivityTime = 0;
                     }
+                    
+                    // Set initial activity time to NOW since we're setting up tracking
+                    // This ensures the initial page is considered active
+                    (window as any).__tabActivityTime = Date.now();
                     
                     // Track any user interaction
                     const recordActivity = () => {
@@ -194,14 +219,13 @@ export class TabManager {
                     // Store listeners for cleanup
                     (window as any).__tabListeners = newListeners;
                     
-                    // Mark as successfully set up
-                    console.log('[TAB TRACKING] Successfully injected tracking script');
                 });
-                
-                logger.debug(`Tracking script injected successfully for: ${currentUrl}`);
             },
-            { mode: 'retry_all', delayMs: 200, retryLimit: 5 }
+            { mode: 'retry_all', delayMs: 200, retryLimit: 10 }
         );
+        } finally {
+            this.trackingInProgress.delete(page);
+        }
     }
 
     private startActivityPolling() {
@@ -216,13 +240,38 @@ export class TabManager {
                 if (page.isClosed()) continue;
                 
                 try {
+                    const debugInfo = await page.evaluate(() => {
+                        return {
+                            url: window.location.href,
+                            hasTabActivityTime: typeof (window as any).__tabActivityTime !== 'undefined',
+                            tabActivityTime: (window as any).__tabActivityTime || 0,
+                            hasTabListeners: !!(window as any).__tabListeners,
+                            listenersLength: (window as any).__tabListeners ? (window as any).__tabListeners.length : 0,
+                            timestamp: Date.now()
+                        };
+                    });
+                    
+                    logger.trace(`Polling page ${debugInfo.url}: hasTime=${debugInfo.hasTabActivityTime}, time=${debugInfo.tabActivityTime}, hasListeners=${debugInfo.hasTabListeners}, listeners=${debugInfo.listenersLength}`);
+                    
                     const lastActivity = await page.evaluate(() => {
                         // Initialize if it doesn't exist (defensive programming)
                         if (typeof (window as any).__tabActivityTime === 'undefined') {
                             (window as any).__tabActivityTime = 0;
+                            
+                            // If tracking wasn't set up, return -1 as a signal
+                            if (!(window as any).__tabListeners) {
+                                return -1;
+                            }
                         }
                         return (window as any).__tabActivityTime;
                     });
+                    
+                    // If tracking isn't set up (-1), inject it now
+                    if (lastActivity === -1) {
+                        logger.debug(`Tracking not set up for ${page.url()}, injecting now...`);
+                        await this.setupPageTracking(page);
+                        continue; // Skip this page for this polling cycle
+                    }
                     
                     if (lastActivity > mostRecentTime) {
                         mostRecentTime = lastActivity;
@@ -239,18 +288,49 @@ export class TabManager {
                 mostRecentTime > Date.now() - 1000) { // Activity within last second
                 logger.trace(`Activity detected on ${mostRecentPage.url()}, switching...`);
                 this.setActivePage(mostRecentPage);
+            } else if (mostRecentPage) {
+                const timeDiff = Date.now() - mostRecentTime;
+                logger.trace(`No switch: activePage=${this.activePage?.url()}, mostRecentPage=${mostRecentPage.url()}, timeDiff=${timeDiff}ms, threshold=1000ms`);
             }
         }, 200);
     }
 
     public setActivePage(page: Page) {
-        if (this.activePage === page) {
+        const isInitialPage = !this.activePage;
+        
+        if (this.activePage === page && !isInitialPage) {
             return;
         }
         
         logger.debug(`Active tab changed to: ${page.url()}`);
         this.activePage = page;
         this.events.emit('tabChanged', page);
+
+        // ALWAYS inject tracking when a page becomes active, with aggressive retries
+        if (this.options.switchOnActivity) {
+            logger.debug(`Starting emergency tracking injection for: ${page.url()}`);
+            retryOnErrorIsSuccess(
+                async () => {
+                    const result = await page.evaluate(() => {
+                        // Set both markers so polling knows tracking is set up
+                        (window as any).__tabActivityTime = Date.now();
+                        (window as any).__tabListeners = [];  // Mark as set up even if empty
+                        return {
+                            success: true,
+                            time: (window as any).__tabActivityTime,
+                            hasListeners: !!(window as any).__tabListeners
+                        };
+                    });
+                    logger.debug(`Emergency injection result: ${JSON.stringify(result)}`);
+                    return result;
+                },
+                { mode: 'retry_all', delayMs: 100, retryLimit: 20 }
+            ).then((result) => {
+                logger.debug(`Emergency tracking injection successful for: ${page.url()}, result: ${JSON.stringify(result)}`);
+            }).catch((err) => {
+                logger.warn(`Emergency tracking injection failed for: ${page.url()}, error: ${err.message}`);
+            });
+        }
 
         page.removeAllListeners('framenavigated');
         page.on('framenavigated', async (frame) => {
