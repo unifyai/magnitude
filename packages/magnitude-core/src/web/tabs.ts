@@ -26,7 +26,6 @@ export class TabManager {
     private options: TabManagerOptions;
     private pollInterval?: NodeJS.Timeout;
     public readonly events: EventEmitter<TabEvents>;
-    private trackingInProgress = new Set<Page>();
 
     constructor(context: BrowserContext, options: TabManagerOptions = {}) {
         this.context = context;
@@ -53,18 +52,6 @@ export class TabManager {
         for (const page of pages) {
             logger.debug(`Setting up page: ${page.url()}`);
             await this.onPageCreated(page);
-            
-            // Force initial activity time for existing pages
-            if (this.options.switchOnActivity) {
-                try {
-                    await page.evaluate(() => {
-                        (window as any).__tabActivityTime = Date.now();
-                    });
-                    logger.debug(`Set initial activity time for existing page: ${page.url()}`);
-                } catch (e) {
-                    logger.debug(`Failed to set initial activity time for: ${page.url()}`);
-                }
-            }
         }
         
         // Start polling for activity if enabled
@@ -109,7 +96,6 @@ export class TabManager {
 
         // Clean up when page closes
         page.on('close', () => {
-            this.trackingInProgress.delete(page);
             if (this.activePage === page) {
                 const pages = this.context.pages();
                 if (pages.length > 0) {
@@ -127,18 +113,9 @@ export class TabManager {
 
 
     private async setupPageTracking(page: Page) {
-        // Prevent concurrent tracking setups on the same page
-        if (this.trackingInProgress.has(page)) {
-            logger.trace(`Tracking already in progress for: ${page.url()}, skipping`);
-            return;
-        }
-        
-        this.trackingInProgress.add(page);
-        
-        try {
-            // Inject the tracking script with retries
-            await retryOnErrorIsSuccess(
-                async () => {
+        // Inject the tracking script with retries
+        await retryOnErrorIsSuccess(
+            async () => {
                     const currentUrl = page.url();
                     logger.debug(`Setting up tracking for: ${currentUrl}`);
                     
@@ -221,11 +198,8 @@ export class TabManager {
                     
                 });
             },
-            { mode: 'retry_all', delayMs: 200, retryLimit: 10 }
+            { mode: 'retry_all', delayMs: 200, retryLimit: 5 }
         );
-        } finally {
-            this.trackingInProgress.delete(page);
-        }
     }
 
     private startActivityPolling() {
@@ -240,19 +214,6 @@ export class TabManager {
                 if (page.isClosed()) continue;
                 
                 try {
-                    const debugInfo = await page.evaluate(() => {
-                        return {
-                            url: window.location.href,
-                            hasTabActivityTime: typeof (window as any).__tabActivityTime !== 'undefined',
-                            tabActivityTime: (window as any).__tabActivityTime || 0,
-                            hasTabListeners: !!(window as any).__tabListeners,
-                            listenersLength: (window as any).__tabListeners ? (window as any).__tabListeners.length : 0,
-                            timestamp: Date.now()
-                        };
-                    });
-                    
-                    logger.trace(`Polling page ${debugInfo.url}: hasTime=${debugInfo.hasTabActivityTime}, time=${debugInfo.tabActivityTime}, hasListeners=${debugInfo.hasTabListeners}, listeners=${debugInfo.listenersLength}`);
-                    
                     const lastActivity = await page.evaluate(() => {
                         // Initialize if it doesn't exist (defensive programming)
                         if (typeof (window as any).__tabActivityTime === 'undefined') {
@@ -288,9 +249,6 @@ export class TabManager {
                 mostRecentTime > Date.now() - 1000) { // Activity within last second
                 logger.trace(`Activity detected on ${mostRecentPage.url()}, switching...`);
                 this.setActivePage(mostRecentPage);
-            } else if (mostRecentPage) {
-                const timeDiff = Date.now() - mostRecentTime;
-                logger.trace(`No switch: activePage=${this.activePage?.url()}, mostRecentPage=${mostRecentPage.url()}, timeDiff=${timeDiff}ms, threshold=1000ms`);
             }
         }, 200);
     }
@@ -305,32 +263,6 @@ export class TabManager {
         logger.debug(`Active tab changed to: ${page.url()}`);
         this.activePage = page;
         this.events.emit('tabChanged', page);
-
-        // ALWAYS inject tracking when a page becomes active, with aggressive retries
-        if (this.options.switchOnActivity) {
-            logger.debug(`Starting emergency tracking injection for: ${page.url()}`);
-            retryOnErrorIsSuccess(
-                async () => {
-                    const result = await page.evaluate(() => {
-                        // Set both markers so polling knows tracking is set up
-                        (window as any).__tabActivityTime = Date.now();
-                        (window as any).__tabListeners = [];  // Mark as set up even if empty
-                        return {
-                            success: true,
-                            time: (window as any).__tabActivityTime,
-                            hasListeners: !!(window as any).__tabListeners
-                        };
-                    });
-                    logger.debug(`Emergency injection result: ${JSON.stringify(result)}`);
-                    return result;
-                },
-                { mode: 'retry_all', delayMs: 100, retryLimit: 20 }
-            ).then((result) => {
-                logger.debug(`Emergency tracking injection successful for: ${page.url()}, result: ${JSON.stringify(result)}`);
-            }).catch((err) => {
-                logger.warn(`Emergency tracking injection failed for: ${page.url()}, error: ${err.message}`);
-            });
-        }
 
         page.removeAllListeners('framenavigated');
         page.on('framenavigated', async (frame) => {
