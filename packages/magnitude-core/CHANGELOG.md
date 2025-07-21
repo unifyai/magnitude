@@ -1,5 +1,11 @@
 # magnitude-core
 
+## 0.2.24
+
+### Patch Changes
+
+- [`5703f04`](https://github.com/magnitudedev/magnitude/commit/5703f0454378197268cdb95d382f0bf8859cd0b3) Thanks [@anerli](https://github.com/anerli)! - improve tab tracking, make page tracking work for general interactions
+
 ## 0.2.23
 
 ### Patch Changes
