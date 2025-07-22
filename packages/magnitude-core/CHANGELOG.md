@@ -1,5 +1,11 @@
 # magnitude-core
 
+## 0.2.25
+
+### Patch Changes
+
+- [`6392151`](https://github.com/magnitudedev/magnitude/commit/6392151921b5f9544441fe9f8acb1d45de165c3d) Thanks [@anerli](https://github.com/anerli)! - option to disable virtual screen space transform on each harness op
+
 ## 0.2.24
 
 ### Patch Changes

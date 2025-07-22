@@ -1,5 +1,16 @@
 # magnitude-test
 
+## 0.3.4
+
+### Patch Changes
+
+- [`eef2210`](https://github.com/magnitudedev/magnitude/commit/eef2210f88e37f334fdd2d2d5d76ca66705b768a) Thanks [@ewired](https://github.com/ewired)! - test runner option to continue after failure
+
+- [#103](https://github.com/magnitudedev/magnitude/pull/103) [`d28af95`](https://github.com/magnitudedev/magnitude/commit/d28af95ad94e495017b3b57b27fdfa33e13b782c) Thanks [@ashutosh-rath02](https://github.com/ashutosh-rath02)! - improve api key validation
+
+- Updated dependencies [[`6392151`](https://github.com/magnitudedev/magnitude/commit/6392151921b5f9544441fe9f8acb1d45de165c3d)]:
+  - magnitude-core@0.2.25
+
 ## 0.3.3
 
 ### Patch Changes
