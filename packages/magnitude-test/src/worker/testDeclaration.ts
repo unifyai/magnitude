@@ -2,6 +2,7 @@ import { TestDeclaration, TestOptions, TestFunction, TestGroupFunction } from '.
 import { addProtocolIfMissing, processUrl } from '@/util';
 import { getTestWorkerData } from '@/worker/util';
 import { currentGroupOptions, registerTest, setCurrentGroup } from '@/worker/localTestRegistry';
+import { addHook, type HookFn, type TestHooks } from "./localTestRegistry";
 
 const workerData = getTestWorkerData();
 
@@ -79,3 +80,17 @@ testDecl.group = function (
 export const test = testDecl as TestDeclaration;
 
 export { testPromptStack };
+
+function createHookRegistrar(kind: keyof TestHooks) {
+    return function (fn: HookFn) {
+        if (typeof fn !== "function") {
+            throw new Error(`${kind} expects a function`);
+        }
+        addHook(kind as any, fn);
+    };
+}
+
+export const beforeAll = createHookRegistrar("beforeAll");
+export const afterAll = createHookRegistrar("afterAll");
+export const beforeEach = createHookRegistrar("beforeEach");
+export const afterEach = createHookRegistrar("afterEach");

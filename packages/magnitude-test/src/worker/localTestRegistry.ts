@@ -28,6 +28,30 @@ export function registerTest(testFn: TestFunction, title: string, url: string) {
     });
 }
 
+export type HookFn = () => void | Promise<void>;
+
+export interface TestHooks {
+    beforeAll: HookFn[];
+    afterAll: HookFn[];
+    beforeEach: HookFn[];
+    afterEach: HookFn[];
+}
+
+const hooks: TestHooks = {
+    beforeAll: [],
+    afterAll: [],
+    beforeEach: [],
+    afterEach: [],
+};
+
+export function addHook(kind: keyof TestHooks, fn: HookFn) {
+    (hooks[kind] as HookFn[]).push(fn);
+}
+
+export function getHooks(): TestHooks {
+    return hooks;
+}
+
 let currentGroup: TestGroup | undefined;
 export function setCurrentGroup(group?: TestGroup) {
     currentGroup = group;
