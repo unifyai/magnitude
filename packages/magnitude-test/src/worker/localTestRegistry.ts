@@ -52,6 +52,10 @@ export function getHooks(): TestHooks {
     return hooks;
 }
 
+let beforeAllExecuted = false;
+let beforeAllError: Error | null = null;
+// No state reset is needed because each test file is run in a separate worker
+
 let currentGroup: TestGroup | undefined;
 export function setCurrentGroup(group?: TestGroup) {
     currentGroup = group;
@@ -110,6 +114,24 @@ messageEmitter.on('message', async (message: TestWorkerIncomingMessage) => {
 
         try {
             const hooks = getHooks();
+
+            if (!beforeAllExecuted && hooks.beforeAll.length > 0) {
+                try {
+                    for (const beforeAllHook of hooks.beforeAll) {
+                        await beforeAllHook();
+                    }
+                    beforeAllExecuted = true;
+                } catch (error) {
+                    beforeAllError = error instanceof Error ? error : new Error(String(error));
+                    beforeAllExecuted = true;
+                }
+            }
+
+            if (beforeAllError) {
+                // TODO improve error cause handling across the test runner
+                throw new Error(`beforeAll hook failed: ${beforeAllError.message}`);
+            }
+
             for (const beforeEachHook of hooks.beforeEach) {
                 await beforeEachHook();
             }
@@ -130,6 +152,7 @@ messageEmitter.on('message', async (message: TestWorkerIncomingMessage) => {
             finalResult = { passed: true };
         } catch (error) {
             try {
+                // TODO afterEach should coordinate with main thread to allow it to run when the pool aborts everyone
                 const hooks = getHooks();
                 for (const afterEachHook of hooks.afterEach) {
                     await afterEachHook();
