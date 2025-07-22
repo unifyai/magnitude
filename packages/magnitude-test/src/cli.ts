@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { Command } from 'commander';
+import { Command } from '@commander-js/extra-typings';
 import path from 'node:path';
 import fs from 'node:fs';
 import { glob } from 'glob';
@@ -23,13 +23,6 @@ import { TermAppRenderer } from '@/term-app'; // Import TermAppRenderer
 // Removed import { initializeUI, updateUI, cleanupUI } from '@/term-app';
 import { startWebServers, stopWebServers } from './webServer';
 import chalk from 'chalk';
-
-interface CliOptions {
-    workers?: number;
-    plain: boolean;
-    debug: boolean;
-    failFast: boolean;
-}
 
 function getRelativePath(projectRoot: string, absolutePath: string): string {
     // Ensure both paths are absolute and normalized
@@ -145,7 +138,7 @@ program
     .option('-p, --plain', 'disable pretty output and print lines instead')
     .option('-d, --debug', 'enable debug logs')
     .option('--no-fail-fast', 'continue running tests even if some fail')
-    .action(async (filter, options: CliOptions) => {
+    .action(async (filter, options) => {
         dotenv.config();
         let logLevel: string;
 
@@ -160,7 +153,7 @@ program
             logLevel = 'warn';
         }
         coreLogger.level = logLevel;
-        logger.level =logLevel;
+        logger.level = logLevel;
 
         const patterns = [
             '!**/node_modules/**',
