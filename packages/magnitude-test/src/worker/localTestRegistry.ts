@@ -109,7 +109,18 @@ messageEmitter.on('message', async (message: TestWorkerIncomingMessage) => {
         let finalResult: TestResult;
 
         try {
+            const hooks = getHooks();
+            for (const beforeEachHook of hooks.beforeEach) {
+                await beforeEachHook();
+            }
+
+            // Execute the test function
             await testFn(agent);
+
+            for (const afterEachHook of hooks.afterEach) {
+                await afterEachHook();
+            }
+
             finalState = {
                 ...tracker.getState(),
                 status: 'passed' as const,
@@ -118,6 +129,17 @@ messageEmitter.on('message', async (message: TestWorkerIncomingMessage) => {
 
             finalResult = { passed: true };
         } catch (error) {
+            try {
+                const hooks = getHooks();
+                for (const afterEachHook of hooks.afterEach) {
+                    await afterEachHook();
+                }
+            } catch (afterEachError) {
+                const originalMessage = error instanceof Error ? error.message : String(error);
+                const afterEachMessage = afterEachError instanceof Error ? afterEachError.message : String(afterEachError);
+                error = new Error(`Test failed: ${originalMessage}. Additionally, afterEach hook failed: ${afterEachMessage}`);
+            }
+
             const failure = {
                 message: error instanceof Error ? error.message : String(error)
             };
