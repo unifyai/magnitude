@@ -140,7 +140,11 @@ export class TestSuiteRunner {
             .filter(result => result.status === 'rejected');
 
         if (afterAllErrors.length > 0) {
-            console.error(`${afterAllErrors.length} afterAll hook(s) failed during cleanup`);
+            overallSuccess = false;
+            console.error(`${afterAllErrors.length} workers failed to stop`);
+            for (const error of afterAllErrors) {
+                console.error(error);
+            }
         }
 
         this.renderer.stop?.();
