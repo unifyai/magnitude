@@ -9,6 +9,7 @@ import { isBun, isDeno } from 'std-env';
 import { EventEmitter } from 'node:events';
 
 const TEST_FILE_LOADING_TIMEOUT = 30000;
+const AFTER_ALL_HOOK_TIMEOUT = 60000;
 
 export interface TestSuiteRunnerConfig {
     workerCount: number;
@@ -130,8 +131,18 @@ export class TestSuiteRunner {
         } catch (error) {
             overallSuccess = false;
         }
-        // TODO error handling for afterAll is necessary
-        await Promise.all(this.workerStoppers.map(stopper => stopper()));
+
+        const afterAllResults = await Promise.allSettled(
+            this.workerStoppers.map(stopper => stopper())
+        );
+
+        const afterAllErrors = afterAllResults
+            .filter(result => result.status === 'rejected');
+
+        if (afterAllErrors.length > 0) {
+            console.error(`${afterAllErrors.length} afterAll hook(s) failed during cleanup`);
+        }
+
         this.renderer.stop?.();
         return overallSuccess;
 
@@ -176,12 +187,17 @@ const createNodeTestWorker: CreateTestWorker = async (workerData) =>
                 return;
             }
 
-            // Send afterAll execution message
             worker.postMessage({ type: 'execute_after_all' });
 
-            // Wait for afterAll completion
-            return new Promise((resolve) => {
+            return new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    worker.off('message', afterAllHandler);
+                    worker.terminate();
+                    reject(new Error('afterAll hook timeout'));
+                }, AFTER_ALL_HOOK_TIMEOUT);
+
                 const afterAllHandler = (msg: TestWorkerOutgoingMessage) => {
+                    clearTimeout(timeout);
                     if (msg.type === 'after_all_complete') {
                         worker.off('message', afterAllHandler);
                         worker.terminate();
@@ -297,12 +313,17 @@ const createBunTestWorker: CreateTestWorker = async (workerData) =>
                 return;
             }
 
-            // Send afterAll execution message
             proc.send({ type: 'execute_after_all' });
 
-            // Wait for afterAll completion
-            return new Promise((resolve) => {
+            return new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    emit.off('message', afterAllHandler);
+                    proc.kill("SIGKILL");
+                    reject(new Error('afterAll hook timeout'));
+                }, AFTER_ALL_HOOK_TIMEOUT);
+
                 const afterAllHandler = (msg: TestWorkerOutgoingMessage) => {
+                    clearTimeout(timeout);
                     if (msg.type === 'after_all_complete') {
                         emit.off('message', afterAllHandler);
                         proc.kill("SIGKILL");
@@ -310,7 +331,7 @@ const createBunTestWorker: CreateTestWorker = async (workerData) =>
                     } else if (msg.type === 'after_all_error') {
                         emit.off('message', afterAllHandler);
                         proc.kill("SIGKILL");
-                        reject(new Error(msg.error));
+                        resolve();
                     }
                 };
                 emit.on('message', afterAllHandler);

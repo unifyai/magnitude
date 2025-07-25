@@ -82,6 +82,8 @@ messageEmitter.on('message', async (message: TestWorkerIncomingMessage) => {
             postToParent({ type: 'after_all_complete' });
         } catch (error) {
             afterAllExecuted = true;
+            console.error("afterAll hook failed:\n", error);
+
             postToParent({
                 type: 'after_all_error',
                 error: error instanceof Error ? error.message : String(error)
