@@ -1,6 +1,6 @@
 import { TestFunction, TestGroup, TestOptions } from "@/discovery/types";
 import cuid2 from "@paralleldrive/cuid2";
-import { getTestWorkerData, postToParent, testFunctions, messageEmitter, TestWorkerIncomingMessage } from "./util";
+import { getTestWorkerData, postToParent, testFunctions, messageEmitter, TestWorkerIncomingMessage, hooks } from "./util";
 import { TestCaseAgent } from "@/agent";
 import { TestResult, TestState, TestStateTracker } from "@/runner/state";
 import { buildDefaultBrowserAgentOptions } from "magnitude-core";
@@ -28,30 +28,6 @@ export function registerTest(testFn: TestFunction, title: string, url: string) {
     });
 }
 
-export type HookFn = () => void | Promise<void>;
-
-export interface TestHooks {
-    beforeAll: HookFn[];
-    afterAll: HookFn[];
-    beforeEach: HookFn[];
-    afterEach: HookFn[];
-}
-
-const hooks: TestHooks = {
-    beforeAll: [],
-    afterAll: [],
-    beforeEach: [],
-    afterEach: [],
-};
-
-export function addHook(kind: keyof TestHooks, fn: HookFn) {
-    (hooks[kind] as HookFn[]).push(fn);
-}
-
-export function getHooks(): TestHooks {
-    return hooks;
-}
-
 let beforeAllExecuted = false;
 let beforeAllError: Error | null = null;
 let afterAllExecuted = false;
@@ -74,7 +50,6 @@ messageEmitter.on('message', async (message: TestWorkerIncomingMessage) => {
         }
 
         try {
-            const hooks = getHooks();
             for (const afterAllHook of hooks.afterAll) {
                 await afterAllHook();
             }
@@ -139,8 +114,6 @@ messageEmitter.on('message', async (message: TestWorkerIncomingMessage) => {
         let finalResult: TestResult;
 
         try {
-            const hooks = getHooks();
-
             if (!beforeAllExecuted && hooks.beforeAll.length > 0) {
                 try {
                     for (const beforeAllHook of hooks.beforeAll) {
@@ -179,7 +152,6 @@ messageEmitter.on('message', async (message: TestWorkerIncomingMessage) => {
         } catch (error) {
             try {
                 // TODO afterEach should coordinate with main thread to allow it to run when the pool aborts everyone
-                const hooks = getHooks();
                 for (const afterEachHook of hooks.afterEach) {
                     await afterEachHook();
                 }

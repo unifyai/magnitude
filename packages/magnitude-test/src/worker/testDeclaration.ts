@@ -1,8 +1,7 @@
 import { TestDeclaration, TestOptions, TestFunction, TestGroupFunction } from '../discovery/types';
 import { addProtocolIfMissing, processUrl } from '@/util';
-import { getTestWorkerData } from '@/worker/util';
+import { getTestWorkerData, hooks, TestHooks } from '@/worker/util';
 import { currentGroupOptions, registerTest, setCurrentGroup } from '@/worker/localTestRegistry';
-import { addHook, type HookFn, type TestHooks } from "./localTestRegistry";
 
 const workerData = getTestWorkerData();
 
@@ -82,11 +81,11 @@ export const test = testDecl as TestDeclaration;
 export { testPromptStack };
 
 function createHookRegistrar(kind: keyof TestHooks) {
-    return function (fn: HookFn) {
+    return function (fn: TestHooks[typeof kind][number]) {
         if (typeof fn !== "function") {
             throw new Error(`${kind} expects a function`);
         }
-        addHook(kind as any, fn);
+        hooks[kind].push(fn);
     };
 }
 
