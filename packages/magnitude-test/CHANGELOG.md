@@ -1,5 +1,14 @@
 # magnitude-test
 
+## 0.3.5
+
+### Patch Changes
+
+- [`6424a0a`](https://github.com/magnitudedev/magnitude/commit/6424a0a8bfe24dc3de292670ccdb47e3f8de0d80) Thanks [@anerli](https://github.com/anerli)! - fix faulty api key check
+
+- Updated dependencies [[`f1ae52e`](https://github.com/magnitudedev/magnitude/commit/f1ae52e7e812434d1b4a5468d0797ca13237d056)]:
+  - magnitude-core@0.2.26
+
 ## 0.3.4
 
 ### Patch Changes

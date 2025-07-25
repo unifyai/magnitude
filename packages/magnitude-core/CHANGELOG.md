@@ -1,5 +1,11 @@
 # magnitude-core
 
+## 0.2.26
+
+### Patch Changes
+
+- [`f1ae52e`](https://github.com/magnitudedev/magnitude/commit/f1ae52e7e812434d1b4a5468d0797ca13237d056) Thanks [@anerli](https://github.com/anerli)! - retry get full page content in extract
+
 ## 0.2.25
 
 ### Patch Changes
