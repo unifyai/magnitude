@@ -54,6 +54,7 @@ export function getHooks(): TestHooks {
 
 let beforeAllExecuted = false;
 let beforeAllError: Error | null = null;
+let afterAllExecuted = false;
 // No state reset is needed because each test file is run in a separate worker
 
 let currentGroup: TestGroup | undefined;
@@ -66,6 +67,29 @@ export function currentGroupOptions(): TestOptions {
 
 messageEmitter.removeAllListeners('message');
 messageEmitter.on('message', async (message: TestWorkerIncomingMessage) => {
+    if (message.type === 'execute_after_all') {
+        if (afterAllExecuted) {
+            postToParent({ type: 'after_all_complete' });
+            return;
+        }
+
+        try {
+            const hooks = getHooks();
+            for (const afterAllHook of hooks.afterAll) {
+                await afterAllHook();
+            }
+            afterAllExecuted = true;
+            postToParent({ type: 'after_all_complete' });
+        } catch (error) {
+            afterAllExecuted = true;
+            postToParent({
+                type: 'after_all_error',
+                error: error instanceof Error ? error.message : String(error)
+            });
+        }
+        return;
+    }
+
     if (message.type !== 'execute') return;
     const { test, browserOptions, llm, grounding, telemetry } = message;
     const testFn = testFunctions.get(test.id);

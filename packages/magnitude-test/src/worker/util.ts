@@ -28,6 +28,8 @@ export type TestWorkerIncomingMessage = {
     llm?: LLMClient;
     grounding?: GroundingClient;
     telemetry?: boolean;
+} | {
+    type: "execute_after_all"
 }
 
 export type TestWorkerOutgoingMessage = {
@@ -50,6 +52,11 @@ export type TestWorkerOutgoingMessage = {
     type: "test_state_change";
     testId: string;
     state: TestState;
+} | {
+    type: "after_all_complete";
+} | {
+    type: "after_all_error";
+    error: string;
 }
 
 export function postToParent(message: TestWorkerOutgoingMessage) {

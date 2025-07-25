@@ -24,7 +24,7 @@ export class TestSuiteRunner {
 
     private tests: RegisteredTest[];
     private executors: Map<string, ClosedTestExecutor> = new Map();
-    private workerAborters: AbortController[] = [];
+    private workerStoppers: (() => Promise<void>)[] = [];
 
     constructor(
         config: TestSuiteRunnerConfig
@@ -95,7 +95,7 @@ export class TestSuiteRunner {
             for (const test of result.tests) {
                 this.executors.set(test.id, result.executor);
             }
-            this.workerAborters.push(result.aborter);
+            this.workerStoppers.push(result.stopper);
         } catch (error) {
             console.error(`Failed to load test file ${relativeFilePath}:`, error);
             throw error;
@@ -130,9 +130,8 @@ export class TestSuiteRunner {
         } catch (error) {
             overallSuccess = false;
         }
-        for (const aborter of this.workerAborters) {
-            aborter.abort();
-        }
+        // TODO error handling for afterAll is necessary
+        await Promise.all(this.workerStoppers.map(stopper => stopper()));
         this.renderer.stop?.();
         return overallSuccess;
 
@@ -150,7 +149,7 @@ type CreateTestWorker = (workerData: TestWorkerData) =>
     Promise<{
         tests: RegisteredTest[];
         executor: ClosedTestExecutor;
-        aborter: AbortController;
+        stopper: () => Promise<void>;
     }>;
 
 const createNodeTestWorker: CreateTestWorker = async (workerData) =>
@@ -170,15 +169,38 @@ const createNodeTestWorker: CreateTestWorker = async (workerData) =>
             }
         );
 
-        const aborter = new AbortController();
-        aborter.signal.addEventListener('abort', () => {
-            worker.terminate();
-        });
+        let hasRunTests = false;
+        const stopper = async (): Promise<void> => {
+            if (!hasRunTests) {
+                worker.terminate();
+                return;
+            }
+
+            // Send afterAll execution message
+            worker.postMessage({ type: 'execute_after_all' });
+
+            // Wait for afterAll completion
+            return new Promise((resolve) => {
+                const afterAllHandler = (msg: TestWorkerOutgoingMessage) => {
+                    if (msg.type === 'after_all_complete') {
+                        worker.off('message', afterAllHandler);
+                        worker.terminate();
+                        resolve();
+                    } else if (msg.type === 'after_all_error') {
+                        worker.off('message', afterAllHandler);
+                        worker.terminate();
+                        resolve();
+                    }
+                };
+                worker.on('message', afterAllHandler);
+            });
+        };
 
         const executor: ClosedTestExecutor =
             (executeMessage, onStateChange, signal) => new Promise((res, rej) => {
                 const messageHandler = (msg: TestWorkerOutgoingMessage) => {
-                    if (!("testId" in msg) || msg.testId !== executeMessage.test.id) return;
+                    if ("test" in executeMessage && "testId" in msg && msg.testId !== executeMessage.test.id) return;
+                    hasRunTests = true;
 
                     if (msg.type === "test_result") {
                         worker.off("message", messageHandler);
@@ -216,7 +238,7 @@ const createNodeTestWorker: CreateTestWorker = async (workerData) =>
                     reject(new Error(`No tests registered for file ${relativeFilePath}`));
                     return;
                 }
-                resolve({ tests: registeredTests, executor, aborter });
+                resolve({ tests: registeredTests, executor, stopper });
             }
         });
 
@@ -268,15 +290,38 @@ const createBunTestWorker: CreateTestWorker = async (workerData) =>
             },
         });
 
-        const aborter = new AbortController();
-        aborter.signal.addEventListener('abort', () => {
-            proc.kill("SIGKILL");
-        });
+        let hasRunTests = false;
+        const stopper = async (): Promise<void> => {
+            if (!hasRunTests) {
+                proc.kill("SIGKILL");
+                return;
+            }
+
+            // Send afterAll execution message
+            proc.send({ type: 'execute_after_all' });
+
+            // Wait for afterAll completion
+            return new Promise((resolve) => {
+                const afterAllHandler = (msg: TestWorkerOutgoingMessage) => {
+                    if (msg.type === 'after_all_complete') {
+                        emit.off('message', afterAllHandler);
+                        proc.kill("SIGKILL");
+                        resolve();
+                    } else if (msg.type === 'after_all_error') {
+                        emit.off('message', afterAllHandler);
+                        proc.kill("SIGKILL");
+                        reject(new Error(msg.error));
+                    }
+                };
+                emit.on('message', afterAllHandler);
+            });
+        };
 
         const executor: ClosedTestExecutor = (executeMessage, onStateChange, signal) =>
             new Promise((res, rej) => {
                 const messageHandler = (msg: TestWorkerOutgoingMessage) => {
-                    if (!("testId" in msg) || msg.testId !== executeMessage.test.id) return;
+                    if ("test" in executeMessage && "testId" in msg && msg.testId !== executeMessage.test.id) return;
+                    hasRunTests = true;
 
                     if (msg.type === "test_result") {
                         emit.off('message', messageHandler);
@@ -315,7 +360,7 @@ const createBunTestWorker: CreateTestWorker = async (workerData) =>
                     reject(new Error(`No tests registered for file ${relativeFilePath}`));
                     return;
                 }
-                resolve({ tests: registeredTests, executor, aborter });
+                resolve({ tests: registeredTests, executor, stopper });
             }
         }));
 
