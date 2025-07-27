@@ -31,6 +31,8 @@ export function registerTest(testFn: TestFunction, title: string, url: string) {
 let beforeAllExecuted = false;
 let beforeAllError: Error | null = null;
 let afterAllExecuted = false;
+let isShuttingDown = false;
+let pendingAfterEach: Set<string> = new Set();
 // No state reset is needed because each test file is run in a separate worker
 
 let currentGroup: TestGroup | undefined;
@@ -43,31 +45,51 @@ export function currentGroupOptions(): TestOptions {
 
 messageEmitter.removeAllListeners('message');
 messageEmitter.on('message', async (message: TestWorkerIncomingMessage) => {
-    if (message.type === 'execute_after_all') {
-        if (afterAllExecuted) {
-            postToParent({ type: 'after_all_complete' });
-            return;
-        }
+    if (message.type === 'graceful_shutdown') {
+        isShuttingDown = true;
 
-        try {
-            for (const afterAllHook of hooks.afterAll) {
-                await afterAllHook();
+        if (pendingAfterEach.size > 0) {
+            try {
+                await Promise.all(
+                    [...pendingAfterEach].map(async (_testId) => {
+                        for (const afterEachHook of hooks.afterEach) {
+                            await afterEachHook();
+                        }
+                    })
+                );
+            } catch (error) {
+                console.error("afterEach hooks failed during graceful shutdown:", error);
             }
-            afterAllExecuted = true;
-            postToParent({ type: 'after_all_complete' });
-        } catch (error) {
-            afterAllExecuted = true;
-            console.error("afterAll hook failed:\n", error);
-
-            postToParent({
-                type: 'after_all_error',
-                error: error instanceof Error ? error.message : String(error)
-            });
         }
+
+        if (!afterAllExecuted) {
+            try {
+                for (const afterAllHook of hooks.afterAll) {
+                    await afterAllHook();
+                }
+                afterAllExecuted = true;
+            } catch (error) {
+                console.error("afterAll hook failed during graceful shutdown:\n", error);
+            }
+        }
+
+        postToParent({ type: 'graceful_shutdown_complete' });
         return;
     }
 
+
     if (message.type !== 'execute') return;
+
+    // Don't start new tests if shutting down
+    if (isShuttingDown) {
+        postToParent({
+            type: 'test_error',
+            testId: message.test.id,
+            error: 'Test cancelled due to graceful shutdown'
+        });
+        return;
+    }
+
     const { test, browserOptions, llm, grounding, telemetry } = message;
     const testFn = testFunctions.get(test.id);
 
@@ -134,12 +156,15 @@ messageEmitter.on('message', async (message: TestWorkerIncomingMessage) => {
             for (const beforeEachHook of hooks.beforeEach) {
                 await beforeEachHook();
             }
+            pendingAfterEach.add(test.id);
 
-            // Execute the test function
             await testFn(agent);
 
-            for (const afterEachHook of hooks.afterEach) {
-                await afterEachHook();
+            if (!isShuttingDown) {
+                pendingAfterEach.delete(test.id);
+                for (const afterEachHook of hooks.afterEach) {
+                    await afterEachHook();
+                }
             }
 
             finalState = {
@@ -150,15 +175,18 @@ messageEmitter.on('message', async (message: TestWorkerIncomingMessage) => {
 
             finalResult = { passed: true };
         } catch (error) {
-            try {
-                // TODO afterEach should coordinate with main thread to allow it to run when the pool aborts everyone
-                for (const afterEachHook of hooks.afterEach) {
-                    await afterEachHook();
+            if (!isShuttingDown) {
+                pendingAfterEach.delete(test.id);
+                try {
+                    for (const afterEachHook of hooks.afterEach) {
+                        await afterEachHook();
+                    }
+                } catch (afterEachError) {
+                    // TODO improve error cause handling across the test runner
+                    const originalMessage = error instanceof Error ? error.message : String(error);
+                    const afterEachMessage = afterEachError instanceof Error ? afterEachError.message : String(afterEachError);
+                    error = new Error(`Test failed: ${originalMessage}. Additionally, afterEach hook failed: ${afterEachMessage}`);
                 }
-            } catch (afterEachError) {
-                const originalMessage = error instanceof Error ? error.message : String(error);
-                const afterEachMessage = afterEachError instanceof Error ? afterEachError.message : String(afterEachError);
-                error = new Error(`Test failed: ${originalMessage}. Additionally, afterEach hook failed: ${afterEachMessage}`);
             }
 
             const failure = {

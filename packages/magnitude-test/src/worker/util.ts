@@ -46,7 +46,7 @@ export type TestWorkerIncomingMessage = {
     grounding?: GroundingClient;
     telemetry?: boolean;
 } | {
-    type: "execute_after_all"
+    type: "graceful_shutdown"
 }
 
 export type TestWorkerOutgoingMessage = {
@@ -70,10 +70,7 @@ export type TestWorkerOutgoingMessage = {
     testId: string;
     state: TestState;
 } | {
-    type: "after_all_complete";
-} | {
-    type: "after_all_error";
-    error: string;
+    type: "graceful_shutdown_complete";
 }
 
 export function postToParent(message: TestWorkerOutgoingMessage) {

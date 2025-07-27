@@ -9,7 +9,7 @@ import { isBun, isDeno } from 'std-env';
 import { EventEmitter } from 'node:events';
 
 const TEST_FILE_LOADING_TIMEOUT = 30000;
-const AFTER_ALL_HOOK_TIMEOUT = 60000;
+const WORKER_SHUTDOWN_TIMEOUT = 60000;
 
 export interface TestSuiteRunnerConfig {
     workerCount: number;
@@ -57,6 +57,15 @@ export class TestSuiteRunner {
                 signal
             );
         } catch (err: unknown) {
+            if (signal.aborted) {
+                return {
+                    passed: false,
+                    failure: {
+                        message: 'Test execution aborted'
+                    }
+                };
+            }
+
             const errorMessage = err instanceof Error ? err.message : String(err);
             // user-facing, can happen e.g. when URL is not running
             console.error(`Unexpected error during test '${test.title}':\n${errorMessage}`);
@@ -191,28 +200,25 @@ const createNodeTestWorker: CreateTestWorker = async (workerData) =>
                 return;
             }
 
-            worker.postMessage({ type: 'execute_after_all' });
+            worker.postMessage({ type: 'graceful_shutdown' });
 
             return new Promise((resolve, reject) => {
                 const timeout = setTimeout(() => {
-                    worker.off('message', afterAllHandler);
+                    worker.off('message', shutdownHandler);
                     worker.terminate();
-                    reject(new Error('afterAll hook timeout'));
-                }, AFTER_ALL_HOOK_TIMEOUT);
+                    reject(new Error('graceful shutdown timeout'));
+                }, WORKER_SHUTDOWN_TIMEOUT);
 
-                const afterAllHandler = (msg: TestWorkerOutgoingMessage) => {
-                    clearTimeout(timeout);
-                    if (msg.type === 'after_all_complete') {
-                        worker.off('message', afterAllHandler);
-                        worker.terminate();
-                        resolve();
-                    } else if (msg.type === 'after_all_error') {
-                        worker.off('message', afterAllHandler);
+                const shutdownHandler = (msg: TestWorkerOutgoingMessage) => {
+                    if (msg.type === 'graceful_shutdown_complete') {
+                        clearTimeout(timeout);
+                        worker.off('message', shutdownHandler);
                         worker.terminate();
                         resolve();
                     }
                 };
-                worker.on('message', afterAllHandler);
+
+                worker.on('message', shutdownHandler);
             });
         };
 
@@ -317,28 +323,25 @@ const createBunTestWorker: CreateTestWorker = async (workerData) =>
                 return;
             }
 
-            proc.send({ type: 'execute_after_all' });
+            proc.send({ type: 'graceful_shutdown' });
 
             return new Promise((resolve, reject) => {
                 const timeout = setTimeout(() => {
-                    emit.off('message', afterAllHandler);
+                    emit.off('message', shutdownHandler);
                     proc.kill("SIGKILL");
-                    reject(new Error('afterAll hook timeout'));
-                }, AFTER_ALL_HOOK_TIMEOUT);
+                    reject(new Error('graceful shutdown timeout'));
+                }, WORKER_SHUTDOWN_TIMEOUT);
 
-                const afterAllHandler = (msg: TestWorkerOutgoingMessage) => {
-                    clearTimeout(timeout);
-                    if (msg.type === 'after_all_complete') {
-                        emit.off('message', afterAllHandler);
-                        proc.kill("SIGKILL");
-                        resolve();
-                    } else if (msg.type === 'after_all_error') {
-                        emit.off('message', afterAllHandler);
+                const shutdownHandler = (msg: TestWorkerOutgoingMessage) => {
+                    if (msg.type === 'graceful_shutdown_complete') {
+                        clearTimeout(timeout);
+                        emit.off('message', shutdownHandler);
                         proc.kill("SIGKILL");
                         resolve();
                     }
                 };
-                emit.on('message', afterAllHandler);
+
+                emit.on('message', shutdownHandler);
             });
         };
 
