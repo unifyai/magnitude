@@ -141,20 +141,25 @@ messageEmitter.on('message', async (message: TestWorkerIncomingMessage) => {
                     for (const beforeAllHook of hooks.beforeAll) {
                         await beforeAllHook();
                     }
-                    beforeAllExecuted = true;
                 } catch (error) {
+                    console.error("beforeAll hooks failed:", error);
                     beforeAllError = error instanceof Error ? error : new Error(String(error));
+                } finally {
                     beforeAllExecuted = true;
                 }
             }
 
             if (beforeAllError) {
-                // TODO improve error cause handling across the test runner
                 throw new Error(`beforeAll hook failed: ${beforeAllError.message}`);
             }
 
             for (const beforeEachHook of hooks.beforeEach) {
-                await beforeEachHook();
+                try {
+                    await beforeEachHook();
+                } catch (error) {
+                    console.error(`beforeEach hook failed for test '${test.title}':`, error);
+                    throw error;
+                }
             }
             pendingAfterEach.add(test.id);
 
@@ -163,7 +168,12 @@ messageEmitter.on('message', async (message: TestWorkerIncomingMessage) => {
             if (!isShuttingDown) {
                 pendingAfterEach.delete(test.id);
                 for (const afterEachHook of hooks.afterEach) {
-                    await afterEachHook();
+                    try {
+                        await afterEachHook();
+                    } catch (error) {
+                        console.error(`afterEach hook failed for test '${test.title}':`, error);
+                        throw error;
+                    }
                 }
             }
 
@@ -182,7 +192,7 @@ messageEmitter.on('message', async (message: TestWorkerIncomingMessage) => {
                         await afterEachHook();
                     }
                 } catch (afterEachError) {
-                    // TODO improve error cause handling across the test runner
+                    console.error(`afterEach hook failed for failing test '${test.title}':`, afterEachError);
                     const originalMessage = error instanceof Error ? error.message : String(error);
                     const afterEachMessage = afterEachError instanceof Error ? afterEachError.message : String(afterEachError);
                     error = new Error(`Test failed: ${originalMessage}. Additionally, afterEach hook failed: ${afterEachMessage}`);
