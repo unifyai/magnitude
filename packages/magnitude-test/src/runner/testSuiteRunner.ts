@@ -141,17 +141,17 @@ export class TestSuiteRunner {
             overallSuccess = false;
         }
 
-        const afterAllResults = await Promise.allSettled(
+        const stopperResults = await Promise.allSettled(
             this.workerStoppers.map(stopper => stopper())
         );
 
-        const afterAllErrors = afterAllResults
+        const stopperErrors = stopperResults
             .filter(result => result.status === 'rejected');
 
-        if (afterAllErrors.length > 0) {
+        if (stopperErrors.length > 0) {
             overallSuccess = false;
-            console.error(`${afterAllErrors.length} workers failed to stop`);
-            for (const error of afterAllErrors) {
+            console.error(`${stopperErrors.length} workers failed to stop`);
+            for (const error of stopperErrors) {
                 console.error(error);
             }
         }
