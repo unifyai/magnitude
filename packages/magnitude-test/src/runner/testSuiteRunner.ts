@@ -201,16 +201,34 @@ const createNodeTestWorker: CreateTestWorker = async (workerData) =>
 
             worker.postMessage({ type: 'graceful_shutdown' });
 
-            return new Promise((resolve) => {
+            return new Promise((resolve, reject) => {
                 const shutdownHandler = (msg: TestWorkerOutgoingMessage) => {
                     if (msg.type === 'graceful_shutdown_complete') {
                         worker.off('message', shutdownHandler);
+                        worker.off('error', errorHandler);
+                        worker.off('exit', exitHandler);
                         worker.terminate();
                         resolve();
                     }
                 };
 
+                const errorHandler = (error: Error) => {
+                    worker.off('message', shutdownHandler);
+                    worker.off('error', errorHandler);
+                    worker.off('exit', exitHandler);
+                    reject(new Error(`Worker error during shutdown: ${error.message}`));
+                };
+
+                const exitHandler = (code: number) => {
+                    worker.off('message', shutdownHandler);
+                    worker.off('error', errorHandler);
+                    worker.off('exit', exitHandler);
+                    reject(new Error(`Worker exited unexpectedly during shutdown with code: ${code}`));
+                };
+
                 worker.on('message', shutdownHandler);
+                worker.on('error', errorHandler);
+                worker.on('exit', exitHandler);
             });
         };
 
@@ -317,7 +335,7 @@ const createBunTestWorker: CreateTestWorker = async (workerData) =>
 
             proc.send({ type: 'graceful_shutdown' });
 
-            return new Promise((resolve) => {
+            return new Promise((resolve, reject) => {
                 const shutdownHandler = (msg: TestWorkerOutgoingMessage) => {
                     if (msg.type === 'graceful_shutdown_complete') {
                         emit.off('message', shutdownHandler);
@@ -326,7 +344,13 @@ const createBunTestWorker: CreateTestWorker = async (workerData) =>
                     }
                 };
 
+                const exitHandler = (code: number) => {
+                    emit.off('message', shutdownHandler);
+                    reject(new Error(`Bun worker exited unexpectedly during shutdown with code: ${code}`));
+                };
+
                 emit.on('message', shutdownHandler);
+                proc.exited.then(exitHandler);
             });
         };
 
