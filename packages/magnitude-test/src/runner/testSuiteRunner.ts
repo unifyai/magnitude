@@ -9,7 +9,6 @@ import { isBun, isDeno } from 'std-env';
 import { EventEmitter } from 'node:events';
 
 const TEST_FILE_LOADING_TIMEOUT = 30000;
-const WORKER_SHUTDOWN_TIMEOUT = 60000;
 
 export interface TestSuiteRunnerConfig {
     workerCount: number;
@@ -202,16 +201,9 @@ const createNodeTestWorker: CreateTestWorker = async (workerData) =>
 
             worker.postMessage({ type: 'graceful_shutdown' });
 
-            return new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    worker.off('message', shutdownHandler);
-                    worker.terminate();
-                    reject(new Error('graceful shutdown timeout'));
-                }, WORKER_SHUTDOWN_TIMEOUT);
-
+            return new Promise((resolve) => {
                 const shutdownHandler = (msg: TestWorkerOutgoingMessage) => {
                     if (msg.type === 'graceful_shutdown_complete') {
-                        clearTimeout(timeout);
                         worker.off('message', shutdownHandler);
                         worker.terminate();
                         resolve();
@@ -325,16 +317,9 @@ const createBunTestWorker: CreateTestWorker = async (workerData) =>
 
             proc.send({ type: 'graceful_shutdown' });
 
-            return new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    emit.off('message', shutdownHandler);
-                    proc.kill("SIGKILL");
-                    reject(new Error('graceful shutdown timeout'));
-                }, WORKER_SHUTDOWN_TIMEOUT);
-
+            return new Promise((resolve) => {
                 const shutdownHandler = (msg: TestWorkerOutgoingMessage) => {
                     if (msg.type === 'graceful_shutdown_complete') {
-                        clearTimeout(timeout);
                         emit.off('message', shutdownHandler);
                         proc.kill("SIGKILL");
                         resolve();
