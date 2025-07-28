@@ -1,5 +1,16 @@
 # magnitude-test
 
+## 0.3.6
+
+### Patch Changes
+
+- [#112](https://github.com/magnitudedev/magnitude/pull/112) [`c568651`](https://github.com/magnitudedev/magnitude/commit/c568651b186bb3fa94f7b3cd7f855f3bfc718762) Thanks [@ewired](https://github.com/ewired)! - Use inferred types for command line options
+
+- [#113](https://github.com/magnitudedev/magnitude/pull/113) [`368405d`](https://github.com/magnitudedev/magnitude/commit/368405ddc045ec4940d32789c9ca488b91b75a2f) Thanks [@ewired](https://github.com/ewired)! - beforeAll/beforeEach/afterEach/afterAll hooks for mag.ts tests. Group-level hooks are coming in a future update.
+
+- Updated dependencies [[`caf39dc`](https://github.com/magnitudedev/magnitude/commit/caf39dcaa9d7715f7b950251abaedecf728bf707)]:
+  - magnitude-core@0.2.27
+
 ## 0.3.5
 
 ### Patch Changes

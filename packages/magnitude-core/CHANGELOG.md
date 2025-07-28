@@ -1,5 +1,11 @@
 # magnitude-core
 
+## 0.2.27
+
+### Patch Changes
+
+- [`caf39dc`](https://github.com/magnitudedev/magnitude/commit/caf39dcaa9d7715f7b950251abaedecf728bf707) Thanks [@anerli](https://github.com/anerli)! - fix agent hang after stop by cleaning up webharness interval
+
 ## 0.2.26
 
 ### Patch Changes
