@@ -11,7 +11,7 @@ declare global {
     var __magnitudeMessageEmitter: EventEmitter | undefined;
     var __magnitudeTestHooks: TestHooks | undefined;
     var __magnitudeTestPromptStack: Record<string, string[]> | undefined;
-    var __magnitudeTestRegistry: Map<string, TestMetadata> | undefined;
+    var __magnitudeTestRegistry: Map<string, RegisteredTest> | undefined;
     var __magnitudeGroupTestHooks: GroupTestHooks | undefined;
 }
 
@@ -30,13 +30,6 @@ export type TestHooks = Record<
     'beforeAll' | 'afterAll' | 'beforeEach' | 'afterEach',
     (() => void | Promise<void>)[]
 >;
-
-export type TestMetadata = {
-    title: string;
-    url: string;
-    filepath: string;
-    group?: string;
-};
 
 /** Group-level test hooks keyed by group name */
 export type GroupTestHooks = Record<string, TestHooks>;
@@ -57,7 +50,7 @@ if (!globalThis.__magnitudeTestPromptStack) {
 export const testPromptStack = globalThis.__magnitudeTestPromptStack;
 
 if (!globalThis.__magnitudeTestRegistry) {
-    globalThis.__magnitudeTestRegistry = new Map<string, TestMetadata>();
+    globalThis.__magnitudeTestRegistry = new Map<string, RegisteredTest>();
 }
 export const testRegistry = globalThis.__magnitudeTestRegistry;
 
