@@ -12,6 +12,7 @@ declare global {
     var __magnitudeTestHooks: TestHooks | undefined;
     var __magnitudeTestPromptStack: Record<string, string[]> | undefined;
     var __magnitudeTestRegistry: Map<string, TestMetadata> | undefined;
+    var __magnitudeGroupTestHooks: GroupTestHooks | undefined;
 }
 
 if (!globalThis.__magnitudeTestFunctions) {
@@ -37,6 +38,9 @@ export type TestMetadata = {
     group?: string;
 };
 
+/** Group-level test hooks keyed by group name */
+export type GroupTestHooks = Record<string, TestHooks>;
+
 if (!globalThis.__magnitudeTestHooks) {
     globalThis.__magnitudeTestHooks = {
         beforeAll: [],
@@ -57,6 +61,10 @@ if (!globalThis.__magnitudeTestRegistry) {
 }
 export const testRegistry = globalThis.__magnitudeTestRegistry;
 
+if (!globalThis.__magnitudeGroupTestHooks) {
+    globalThis.__magnitudeGroupTestHooks = {};
+}
+export const groupHooks = globalThis.__magnitudeGroupTestHooks;
 export type TestWorkerIncomingMessage = {
     type: "execute"
     testId: string;
