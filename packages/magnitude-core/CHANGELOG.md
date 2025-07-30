@@ -1,5 +1,11 @@
 # magnitude-core
 
+## 0.2.28
+
+### Patch Changes
+
+- [`aa3dadb`](https://github.com/magnitudedev/magnitude/commit/aa3dadb9b4662d610809191b84aa59cb017981f6) Thanks [@anerli](https://github.com/anerli)! - throw on failure to get conn observations - prevents potential infinite wait loop if browser closed
+
 ## 0.2.27
 
 ### Patch Changes
