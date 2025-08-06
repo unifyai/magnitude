@@ -1,5 +1,11 @@
 # magnitude-core
 
+## 0.2.29
+
+### Patch Changes
+
+- [`870d225`](https://github.com/magnitudedev/magnitude/commit/870d2257c21cef24b4c14938fc20ae23fb369a80) Thanks [@anerli](https://github.com/anerli)! - disable temp config in vertex for now, seems format does not align with expected
+
 ## 0.2.28
 
 ### Patch Changes
