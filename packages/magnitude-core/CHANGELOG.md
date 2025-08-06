@@ -1,5 +1,11 @@
 # magnitude-core
 
+## 0.2.30
+
+### Patch Changes
+
+- [`c99f62c`](https://github.com/magnitudedev/magnitude/commit/c99f62c644b550c2eee74a42f27a72707c56628f) Thanks [@anerli](https://github.com/anerli)! - make location optional in vertex-ai
+
 ## 0.2.29
 
 ### Patch Changes
