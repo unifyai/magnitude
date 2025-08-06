@@ -1,5 +1,11 @@
 # magnitude-core
 
+## 0.2.31
+
+### Patch Changes
+
+- [`e54e4e1`](https://github.com/magnitudedev/magnitude/commit/e54e4e10ab05b8de593ba97eedf89121a3235971) Thanks [@anerli](https://github.com/anerli)! - add anthropic version config option to vertex
+
 ## 0.2.30
 
 ### Patch Changes
