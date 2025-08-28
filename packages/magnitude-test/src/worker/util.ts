@@ -10,6 +10,7 @@ declare global {
     var __magnitudeTestFunctions: Map<string, TestFunction> | undefined;
     var __magnitudeMessageEmitter: EventEmitter | undefined;
     var __magnitudeTestHooks: TestHooks | undefined;
+    var __magnitudeTestPromptStack: Record<string, string[]> | undefined;
 }
 
 if (!globalThis.__magnitudeTestFunctions) {
@@ -37,6 +38,11 @@ if (!globalThis.__magnitudeTestHooks) {
     };
 }
 export const hooks = globalThis.__magnitudeTestHooks;
+
+if (!globalThis.__magnitudeTestPromptStack) {
+    globalThis.__magnitudeTestPromptStack = {};
+}
+export const testPromptStack = globalThis.__magnitudeTestPromptStack;
 
 export type TestWorkerIncomingMessage = {
     type: "execute"
