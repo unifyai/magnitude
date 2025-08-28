@@ -44,11 +44,7 @@ export class TestSuiteRunner {
             return await executor(
                 {
                     type: "execute",
-                    test,
-                    browserOptions: this.config.browser,
-                    llm: this.config.llm,
-                    grounding: this.config.grounding,
-                    telemetry: this.config.telemetry
+                    test
                 },
                 (state: TestState) => {
                     this.renderer?.onTestStateUpdated(test, state);
@@ -95,6 +91,10 @@ export class TestSuiteRunner {
                 relativeFilePath,
                 absoluteFilePath,
                 options: this.getActiveOptions(),
+                browserOptions: this.config.browser,
+                llm: this.config.llm,
+                grounding: this.config.grounding,
+                telemetry: this.config.telemetry
             } satisfies TestWorkerData;
 
             const createWorker = isBun ? createBunTestWorker : createNodeTestWorker;

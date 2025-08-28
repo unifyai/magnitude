@@ -89,7 +89,8 @@ messageEmitter.on('message', async (message: TestWorkerIncomingMessage) => {
         return;
     }
 
-    const { test, browserOptions, llm, grounding, telemetry } = message;
+    const { test } = message;
+    const { browserOptions, llm, grounding, telemetry } = workerData;
     const testFn = testFunctions.get(test.id);
 
     if (!testFn) {

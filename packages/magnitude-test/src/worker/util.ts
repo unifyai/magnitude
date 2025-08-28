@@ -47,10 +47,6 @@ export const testPromptStack = globalThis.__magnitudeTestPromptStack;
 export type TestWorkerIncomingMessage = {
     type: "execute"
     test: RegisteredTest;
-    browserOptions?: BrowserOptions;
-    llm?: LLMClient | LLMClient[];
-    grounding?: GroundingClient;
-    telemetry?: boolean;
 } | {
     type: "graceful_shutdown"
 }
@@ -95,6 +91,10 @@ export type TestWorkerData = {
     absoluteFilePath: string;
     options: TestOptions;
     relativeFilePath: string;
+    browserOptions?: BrowserOptions;
+    llm?: LLMClient | LLMClient[];
+    grounding?: GroundingClient;
+    telemetry?: boolean;
 }
 
 export function getTestWorkerData() {
