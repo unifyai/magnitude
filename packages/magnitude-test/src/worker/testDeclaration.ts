@@ -1,10 +1,12 @@
 import { TestDeclaration, TestOptions, TestFunction, TestGroupFunction } from '../discovery/types';
 import { addProtocolIfMissing, processUrl } from '@/util';
 import { getTestWorkerData, hooks, TestHooks, testPromptStack, groupHooks } from '@/worker/util';
-import { currentGroupOptions, registerTest, setCurrentGroup, getCurrentGroup } from '@/worker/localTestRegistry';
+import { currentGroupOptions, registerTest, pushCurrentGroup, popCurrentGroup, getCurrentGroup } from '@/worker/localTestRegistry';
+import cuid2 from "@paralleldrive/cuid2";
 
 const workerData = getTestWorkerData();
 
+const genGroupId = cuid2.init({ length: 6 });
 function testDecl(
     title: string,
     optionsOrTestFn: TestOptions | TestFunction,
@@ -50,7 +52,7 @@ function testDecl(
 }
 
 testDecl.group = function (
-    id: string,
+    name: string,
     optionsOrTestFn: TestOptions | TestGroupFunction,
     testFnOrNothing?: TestGroupFunction
 ): void {
@@ -69,9 +71,12 @@ testDecl.group = function (
         testFn = testFnOrNothing;
     }
 
-    setCurrentGroup({ name: id, options });
-    testFn();
-    setCurrentGroup(undefined);
+    pushCurrentGroup({ name, id: `grp${genGroupId()}`, options });
+    try {
+        testFn();
+    } finally {
+        popCurrentGroup();
+    }
 }
 
 export const test = testDecl as TestDeclaration;
