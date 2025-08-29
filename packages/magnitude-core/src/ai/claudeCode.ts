@@ -4,6 +4,7 @@ import { join, dirname } from 'path';
 import crypto from 'crypto';
 import { bold, cyanBright } from 'ansis';
 import { exec } from 'node:child_process';
+import { createInterface } from 'readline';
 
 // Simple cross-platform function to open URLs
 function openUrl(url: string): Promise<void> {
@@ -194,8 +195,14 @@ export async function completeClaudeCodeAuthFlow(): Promise<string> {
     console.log(bold`\nPaste the authorization code here:`);
     
     const code = await new Promise<string>((resolve) => {
-        process.stdin.once('data', (data) => {
-            resolve(data.toString().trim());
+        const rl = createInterface({
+            input: process.stdin,
+            output: process.stdout
+        });
+        
+        rl.question('', (answer) => {
+            rl.close();
+            resolve(answer.trim());
         });
     });
 
