@@ -31,10 +31,6 @@ export type TestHooks = Record<
     (() => void | Promise<void>)[]
 >;
 
-
-/** Group-level test hooks keyed by group name */
-export type GroupTestHooks = Record<string, TestHooks>;
-
 if (!globalThis.__magnitudeTestHooks) {
     globalThis.__magnitudeTestHooks = {
         beforeAll: [],
@@ -45,6 +41,11 @@ if (!globalThis.__magnitudeTestHooks) {
 }
 export const hooks = globalThis.__magnitudeTestHooks;
 
+
+
+/** Group-level test hooks keyed by hierarchy key */
+export type GroupTestHooks = Record<string, TestHooks>;
+
 if (!globalThis.__magnitudeTestPromptStack) {
     globalThis.__magnitudeTestPromptStack = {};
 }
@@ -54,11 +55,22 @@ if (!globalThis.__magnitudeTestRegistry) {
     globalThis.__magnitudeTestRegistry = new Map<string, RegisteredTest>();
 }
 export const testRegistry = globalThis.__magnitudeTestRegistry;
-
 if (!globalThis.__magnitudeGroupTestHooks) {
     globalThis.__magnitudeGroupTestHooks = {};
 }
 export const groupHooks = globalThis.__magnitudeGroupTestHooks;
+/** Helper to get or initialize hook set for a hierarchy key */
+export function getOrInitGroupHookSet(key: string): TestHooks {
+    if (!groupHooks[key]) {
+        groupHooks[key] = {
+            beforeAll: [],
+            afterAll: [],
+            beforeEach: [],
+            afterEach: [],
+        };
+    }
+    return groupHooks[key];
+}
 export type TestWorkerIncomingMessage = {
     type: "execute"
     testId: string;
