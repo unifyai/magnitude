@@ -29,6 +29,7 @@ function buildTestContext(state: TestState): {
         stepStatus?: string;
         check?: string;
         checkStatus?: string;
+        thought?: string;
     };
 } {
     const now = Date.now();
@@ -38,7 +39,7 @@ function buildTestContext(state: TestState): {
 
     let steps = 0;
     let checks = 0;
-    let ctxParts: { step?: string; action?: string; stepStatus?: string; check?: string; checkStatus?: string; } = {};
+    let ctxParts: { step?: string; action?: string; stepStatus?: string; check?: string; checkStatus?: string; thought?: string } = {};
 
     if (Array.isArray(state.stepsAndChecks)) {
         for (const item of state.stepsAndChecks) {
@@ -60,6 +61,9 @@ function buildTestContext(state: TestState): {
                 }
                 if (latest.status === 'failed') {
                     ctxParts.stepStatus = 'failed';
+                }
+                if (latest.thoughts && latest.thoughts.length > 0) {
+                    ctxParts.thought = latest.thoughts[latest.thoughts.length - 1];
                 }
             } else {
                 if (latest.description) {
