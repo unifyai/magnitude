@@ -23,14 +23,23 @@ export class TermAppRenderer implements TestRenderer {
     // To manage SIGINT listener
     private sigintListener: (() => void) | null = null;
 
+    private applyDisplaySettings(): void {
+        const newSettings = { ...uiState.renderSettings };
+        if (this.magnitudeConfig.display?.showActions !== undefined) {
+            newSettings.showActions = this.magnitudeConfig.display.showActions;
+        }
+        if (this.magnitudeConfig.display?.showThoughts !== undefined) {
+            newSettings.showThoughts = this.magnitudeConfig.display.showThoughts;
+        }
+        uiState.setRenderSettings(newSettings);
+    }
+
     constructor(config: MagnitudeConfig, initialTests: RegisteredTest[]) {
         this.magnitudeConfig = config;
         this.initialTests = [...initialTests]; // Store a copy
 
         // Initial setup based on config, if needed immediately
-        if (this.magnitudeConfig.display?.showActions !== undefined) {
-            uiState.setRenderSettings({ showActions: this.magnitudeConfig.display.showActions });
-        }
+        this.applyDisplaySettings();
         uiState.setCurrentModel(""); // Set to blank
         // uiState.setAllRegisteredTests will be called in start() after resetState()
     }
@@ -40,9 +49,7 @@ export class TermAppRenderer implements TestRenderer {
         uiState.resetState(); // Reset all UI state
 
         // Re-apply initial settings after reset
-        if (this.magnitudeConfig.display?.showActions !== undefined) {
-            uiState.setRenderSettings({ showActions: this.magnitudeConfig.display.showActions });
-        }
+        this.applyDisplaySettings();
         // uiState.setCurrentModel(""); // No longer needed here, resetState handles it.
         this.firstModelReportedInUI = false; // Reset flag on start
         uiState.setAllRegisteredTests(this.initialTests); // Set the tests

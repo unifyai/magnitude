@@ -8,11 +8,12 @@ export const spinnerChars = localSpinnerChars;
 
 export interface RenderSettings {
     showActions: boolean;
+    showThoughts: boolean;
 }
 
 // currentWidth removed as it's no longer used for layout
 export let redrawScheduled = false;
-export let renderSettings: RenderSettings = { showActions: true };
+export let renderSettings: RenderSettings = { showActions: true, showThoughts: false };
 export let timerInterval: NodeJS.Timeout | null = null;
 export let currentTestStates: AllTestStates = {};
 export let allRegisteredTests: RegisteredTest[] = []; // Changed from currentTests
@@ -31,7 +32,7 @@ export let isFirstDraw = true; // Flag to handle the first redraw specially
 export function resetState() {
     // currentWidth reset removed
     redrawScheduled = false;
-    renderSettings = { showActions: true }; // Reset render settings
+    renderSettings = { showActions: true, showThoughts: false }; // Reset render settings
     timerInterval = null;
     currentTestStates = {};
     allRegisteredTests = []; // Changed from currentTests

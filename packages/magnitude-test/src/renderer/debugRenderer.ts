@@ -63,7 +63,7 @@ function buildTestContext(state: TestState): {
                     ctxParts.stepStatus = 'failed';
                 }
                 if (latest.thoughts && latest.thoughts.length > 0) {
-                    ctxParts.thought = latest.thoughts[latest.thoughts.length - 1];
+                    ctxParts.thought = latest.thoughts[latest.thoughts.length - 1].text;
                 }
             } else {
                 if (latest.description) {

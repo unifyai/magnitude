@@ -31,6 +31,7 @@ export type MagnitudeConfig = {
     continueAfterFailure?: boolean,
     display?: {
         showActions?: boolean;
+        showThoughts?: boolean;
     }
 }
 

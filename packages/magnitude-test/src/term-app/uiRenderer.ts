@@ -95,13 +95,30 @@ export function generateTestString(test: RegisteredTest, state: RunnerTestState,
             // No wrapping for description
             output.push(UI_LEFT_PADDING + ' '.repeat(stepIndent) + `${styledChar} ${itemDesc}`);
 
-            if (renderSettings.showActions && item.variant === 'step' && (item as RunnerStepDescriptor).actions.length > 0) {
-                (item as RunnerStepDescriptor).actions.forEach((action) => {
-                    // const actionSymbol = `${ANSI_GRAY}▶${ANSI_RESET}`; 
-                    // const actionDesc = JSON.stringify(action);
-                    // No wrapping for action description
-                    output.push(UI_LEFT_PADDING + ' '.repeat(actionIndent) + `${ANSI_GRAY}${action.pretty}${ANSI_RESET}`);//`${actionSymbol} ${ANSI_GRAY}${actionDesc}${ANSI_RESET}`);
-                });
+            if (item.variant === 'step') {
+                const actions = item.actions?.map(a => ({
+                    kind: 'action' as const,
+                    text: a.pretty,
+                    t: a.time
+                })) ?? [];
+
+                const thoughts = item.thoughts?.map(th => ({
+                    kind: 'thought' as const,
+                    text: th.text,
+                    t: th.time
+                })) ?? [];
+
+                const merged = [...thoughts, ...actions].sort((a, b) =>
+                    a.t === b.t ? (a.kind === 'thought' ? -1 : 1) : a.t - b.t
+                );
+
+                for (const mergedItem of merged) {
+                    if (mergedItem.kind === 'thought' && renderSettings.showThoughts) {
+                        output.push(UI_LEFT_PADDING + ' '.repeat(actionIndent) + `${ANSI_DIM}💭 ${mergedItem.text}${ANSI_RESET}`);
+                    } else if (mergedItem.kind === 'action' && renderSettings.showActions) {
+                        output.push(UI_LEFT_PADDING + ' '.repeat(actionIndent) + `${ANSI_GRAY}${mergedItem.text}${ANSI_RESET}`);
+                    }
+                }
             }
         });
     }
@@ -250,6 +267,22 @@ export function calculateTestListHeight(tests: RegisteredTest[], testStates: All
     let height = 0;
     const groupedDisplayTests = groupRegisteredTestsForDisplay(tests);
 
+    const addStepsAndChecksHeight = (state: RunnerTestState) => {
+        if (state.stepsAndChecks) {
+            state.stepsAndChecks.forEach((item: RunnerStepDescriptor | RunnerCheckDescriptor) => {
+                height++; // Item description line
+                if (item.variant === 'step') {
+                    if (renderSettings.showActions) {
+                        height += item.actions?.length ?? 0;
+                    }
+                    if (renderSettings.showThoughts) {
+                        height += item.thoughts?.length ?? 0;
+                    }
+                }
+            });
+        }
+    };
+
     for (const [filepath, { ungrouped, groups }] of Object.entries(groupedDisplayTests)) {
         height++; // File header line
         
@@ -258,21 +291,14 @@ export function calculateTestListHeight(tests: RegisteredTest[], testStates: All
                 const state = testStates[test.id];
                 if (state) {
                     height++; // Test title line
-                    if (state.stepsAndChecks) {
-                        state.stepsAndChecks.forEach((item: RunnerStepDescriptor | RunnerCheckDescriptor) => {
-                            height++; // Item description line
-                            if (renderSettings.showActions && item.variant === 'step' && (item as RunnerStepDescriptor).actions.length > 0) {
-                                (item as RunnerStepDescriptor).actions.forEach(() => height++);
-                            }
-                        });
-                    }
+                    addStepsAndChecksHeight(state);
                     if (state.failure) {
                         height++; // generateFailureString returns 1 line
                     }
                 }
             }
         }
-        
+
         if (Object.entries(groups).length > 0) {
             for (const [groupName, groupTests] of Object.entries(groups)) {
                 height++; // Group header line
@@ -280,14 +306,7 @@ export function calculateTestListHeight(tests: RegisteredTest[], testStates: All
                     const state = testStates[test.id];
                     if (state) {
                         height++; // Test title line
-                        if (state.stepsAndChecks) {
-                            state.stepsAndChecks.forEach((item: RunnerStepDescriptor | RunnerCheckDescriptor) => {
-                                height++; // Item description line
-                                if (renderSettings.showActions && item.variant === 'step' && (item as RunnerStepDescriptor).actions.length > 0) {
-                                    (item as RunnerStepDescriptor).actions.forEach(() => height++);
-                                }
-                            });
-                        }
+                        addStepsAndChecksHeight(state);
                         if (state.failure) {
                             height++; // generateFailureString returns 1 line
                         }

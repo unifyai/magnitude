@@ -4,7 +4,8 @@ import EventEmitter from "eventemitter3";
 
 export interface ActionDescriptor {
     action: Action,
-    pretty: string
+    pretty: string,
+    time: number
 }
 
 export interface StepDescriptor {
@@ -13,7 +14,7 @@ export interface StepDescriptor {
     actions: ActionDescriptor[],
     //actions: Action[]
     status: 'pending' | 'running' | 'passed' | 'failed' | 'cancelled',
-    thoughts: string[]
+    thoughts: Array<{ text: string, time: number }>
 }
 
 export interface CheckDescriptor {
@@ -166,7 +167,7 @@ export class TestStateTracker {
 
     onThought(thought: string) {
         if (this.lastStepOrCheck && this.lastStepOrCheck.variant === 'step') {
-            this.lastStepOrCheck.thoughts.push(thought);
+            this.lastStepOrCheck.thoughts.push({ text: thought, time: Date.now() });
             this.events.emit('stateChanged', this.state);
         }
     }
@@ -178,7 +179,8 @@ export class TestStateTracker {
         }
         this.lastStepOrCheck.actions.push({
             action: action,
-            pretty: this.agent.identifyAction(action).render(action)
+            pretty: this.agent.identifyAction(action).render(action),
+            time: Date.now()
         });
         this.events.emit('stateChanged', this.state);
     }
