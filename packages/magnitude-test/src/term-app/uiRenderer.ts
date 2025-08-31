@@ -21,7 +21,7 @@ import {
     lastOutputLineCount, isFirstDraw, /* isResizing, */ renderSettings, // isResizing removed from uiState
     setRedrawScheduled, setLastOutputLineCount, setIsFirstDraw, spinnerChars
 } from './uiState';
-import { knownCostMap } from '@/util';
+import { calculateCost } from '@/util';
 
 const UI_LEFT_PADDING = '  ';
 
@@ -236,12 +236,9 @@ export function generateSummaryString(): string[] {
     if (statusCounts.cancelled > 0) statusLine += `${ANSI_GRAY}⊘ ${statusCounts.cancelled} cancelled${ANSI_RESET}  `;
 
     let costDescription = '';
-    for (const [model, costs] of Object.entries(knownCostMap)) {
-        if (currentModel.includes(model)) {
-            const inputCost = costs[0];
-            const outputCost = costs[1];
-            costDescription = ` (\$${((totalInputTokens * inputCost + totalOutputTokens * outputCost) / 1000000).toFixed(2)})`;
-        }
+    const cost = calculateCost(currentModel, totalInputTokens, totalOutputTokens);
+    if (cost !== undefined) {
+        costDescription = ` (\$${cost.toFixed(2)})`;
     }
     let tokenText = `${ANSI_GRAY}tokens: ${totalInputTokens} in, ${totalOutputTokens} out${costDescription}${ANSI_RESET}`;
     

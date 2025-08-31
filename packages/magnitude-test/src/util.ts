@@ -209,6 +209,15 @@ export const knownCostMap: Record<string, number[]> = {
     'gpt-4o': [3.75, 15.00],
 }
 
+export function calculateCost(modelId: string, inTokens: number, outTokens: number) {
+    const modelEntry = Object.entries(knownCostMap)
+        .find(([model]) => modelId.includes(model));
+    if (!modelEntry) return undefined;
+
+    const [inputCost, outputCost] = modelEntry[1];
+    return (inTokens * inputCost + outTokens * outputCost) / 1000000;
+}
+
 export function processUrl(...urls: (string | undefined)[]): string | undefined {
     if (urls.length === 0) return;
     if (urls.length === 1) return urls[0];

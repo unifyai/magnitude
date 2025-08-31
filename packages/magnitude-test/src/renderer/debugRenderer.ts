@@ -2,6 +2,7 @@ import { RegisteredTest } from "@/discovery/types";
 import { TestState } from "@/runner/state";
 import { TestRenderer } from "@/renderer";
 import logger from '@/logger';
+import { calculateCost } from '@/util';
 
 function statusFromState(state: TestState): 'pending' | 'running' | 'passed' | 'failed' {
     return state.failure
@@ -23,6 +24,11 @@ function buildTestContext(state: TestState): {
     startedAt?: number;
     doneAt?: number;
     elapsedMs?: number;
+    tokens?: {
+        input: number;
+        output: number;
+        cost?: number;
+    };
     context: {
         step?: string;
         action?: string;
@@ -40,6 +46,23 @@ function buildTestContext(state: TestState): {
     let steps = 0;
     let checks = 0;
     let ctxParts: { step?: string; action?: string; stepStatus?: string; check?: string; checkStatus?: string; thought?: string } = {};
+
+    let totalInputTokens = 0;
+    let totalOutputTokens = 0;
+    let cost: number | undefined;
+
+    if (state.modelUsage && state.modelUsage.length > 0) {
+        for (const usage of state.modelUsage) {
+            totalInputTokens += usage.inputTokens;
+            totalOutputTokens += usage.outputTokens;
+        }
+
+        const firstModelEntry = state.modelUsage[0];
+        if (firstModelEntry && firstModelEntry.llm) {
+            const modelKey = typeof firstModelEntry.llm === 'string' ? firstModelEntry.llm : JSON.stringify(firstModelEntry.llm);
+            cost = calculateCost(modelKey, totalInputTokens, totalOutputTokens);
+        }
+    }
 
     if (Array.isArray(state.stepsAndChecks)) {
         for (const item of state.stepsAndChecks) {
@@ -82,6 +105,11 @@ function buildTestContext(state: TestState): {
         startedAt: startedAt ?? undefined,
         doneAt: doneAt ?? undefined,
         elapsedMs: elapsedMs ?? undefined,
+        tokens: totalInputTokens > 0 || totalOutputTokens > 0 ? {
+            input: totalInputTokens,
+            output: totalOutputTokens,
+            cost: cost
+        } : undefined,
         context: ctxParts
     };
 }
@@ -99,7 +127,7 @@ export class DebugRenderer implements TestRenderer {
     public onTestStateUpdated(test: RegisteredTest, state: TestState): void {
         const status = statusFromState(state);
         const testMeta = testToMeta(test);
-        const { steps, checks, startedAt, doneAt, elapsedMs, context } = buildTestContext(state);
+        const { steps, checks, startedAt, doneAt, elapsedMs, tokens, context } = buildTestContext(state);
 
         const payload = {
             test: testMeta,
@@ -110,6 +138,7 @@ export class DebugRenderer implements TestRenderer {
                 elapsedMs
             },
             progress: { steps, checks },
+            tokens,
             context,
             err: state.failure || undefined
         };
