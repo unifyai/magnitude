@@ -147,9 +147,6 @@ program
             logLevel = process.env.MAGNITUDE_LOG_LEVEL;
         } else if (options.debug) {
             logLevel = 'trace';
-        } else if (options.plain) {
-            // TODO: have distinct / nicer clean logs for plain output instead of just changing log level
-            logLevel = 'info';
         } else {
             logLevel = 'warn';
         }
@@ -249,7 +246,7 @@ program
                 : !config.continueAfterFailure,
             createRenderer: (tests) => showUI
                 ? new TermAppRenderer(config, tests)
-                : new DebugRenderer(),
+                : new DebugRenderer(options.plain),
         });
 
         for (const filePath of absoluteFilePaths) {

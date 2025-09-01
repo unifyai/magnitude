@@ -115,6 +115,12 @@ function buildTestContext(state: TestState): {
 }
 
 export class DebugRenderer implements TestRenderer {
+    private plain: boolean;
+
+    constructor(plain: boolean = false) {
+        this.plain = plain;
+    }
+
     public stop() {
         return new Promise<void>((resolve, reject) => {
             logger.flush((err) => {
@@ -128,6 +134,18 @@ export class DebugRenderer implements TestRenderer {
         const status = statusFromState(state);
         const testMeta = testToMeta(test);
         const { steps, checks, startedAt, doneAt, elapsedMs, tokens, context } = buildTestContext(state);
+
+        if (this.plain) {
+            let message = `${testMeta.file} "${testMeta.title || testMeta.id}": ${status}`;
+            if (status === 'running') {
+                if (context.step) message += ` - step: ${context.step}`;
+                if (context.action) message += ` / ${context.action}`;
+            }
+            if (status === 'failed' && state.failure) {
+                message += `\n  failure: ${state.failure.message || state.failure}`;
+            }
+            console.log(message);
+        }
 
         const payload = {
             test: testMeta,
