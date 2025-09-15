@@ -6,8 +6,6 @@ import z from 'zod';
 import EventEmitter from 'eventemitter3';
 import { jsonToObservableData, MultiMediaJson, observableDataToJson } from './serde';
 import { applyMask, maskObservations } from './masking';
-import { mergeMessages } from './util';
-import { Image as BamlImage} from '@boundaryml/baml';
 
 // export interface AgentMemoryEvents {
 //     'thought': (thought: string) => void;
@@ -28,10 +26,6 @@ export interface AgentMemoryOptions {
     instructions?: string | null,
     promptCaching?: boolean,
     thoughtLimit?: number, // TTL for thoughts
-}
-
-export interface MemoryRenderOptions {
-
 }
 
 // export interface FreezeState {
@@ -70,7 +64,7 @@ export class AgentMemory {
         return this.options.instructions;
     }
 
-    public async render(options?: MemoryRenderOptions): Promise<MultiMediaMessage[]> {
+    public async render(): Promise<MultiMediaMessage[]> {
         if (this.options.promptCaching && this.cacheControlIndices.length >= CACHE_CONTROL_LIMIT) {
             this.freezeMask = undefined;
             this.cacheControlIndices = [];
@@ -97,21 +91,6 @@ export class AgentMemory {
         }
 
         return messages;
-    }
-
-    public async simpleRender(): Promise<(BamlImage | string)[]> {
-        // Render with no filtering, no masking, no cache control
-        //let messages: MultiMediaMessage[] = [];
-        let content: (BamlImage | string)[] = [];
-        for (const observation of this.observations) {
-            const message = await observation.render({
-                prefix: observation.source.startsWith('action:taken') || observation.source.startsWith('thought') ?
-                    [`[${new Date(observation.timestamp).toTimeString().split(' ')[0]}]: `] : []
-            });
-            // ignore message stuff, just push content
-            content = [...content, ...message.content];
-        }
-        return content;
     }
 
     public isEmpty(): boolean {
