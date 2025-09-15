@@ -16,7 +16,6 @@ export interface WebHarnessOptions {
     // Some LLM operate best on certain screen dims
     virtualScreenDimensions?: { width: number, height: number }
     visuals?: ActionVisualizerOptions
-    switchTabsOnActivity?: boolean  // Whether to automatically switch tabs when user activity is detected vs only if switchTab is used
 }
 
 export interface WebHarnessEvents {
@@ -44,9 +43,7 @@ export class WebHarness { // implements StateComponent
         this.stability = new PageStabilityAnalyzer({ disableVisualStability: true });
         this.visualizer = new ActionVisualizer(this.context, this.options.visuals ?? {});
         this.transformer = new DOMTransformer();
-        this.tabs = new TabManager(context, {
-            switchOnActivity: options.switchTabsOnActivity ?? true
-        });
+        this.tabs = new TabManager(context);
 
         // this.context.on('page', (page: Page) => {
         //     this.setActivePage(page);
@@ -63,7 +60,6 @@ export class WebHarness { // implements StateComponent
     }
 
     async setActivePage(page: Page) {
-        logger.trace(`WebHarness active page: ${page.url()}`);
         this.stability.setActivePage(page);
         await this.visualizer.setActivePage(page);
         this.transformer.setActivePage(page);
@@ -81,23 +77,14 @@ export class WebHarness { // implements StateComponent
     // }
 
     async start() {
-        // Initialize tab manager first
-        await this.tabs.initialize();
-        
         if (this.context.pages().length > 0) {
             // If context already contains a page, set it as active
             this.tabs.setActivePage(this.context.pages()[0]);
         } else {
-            const page = await this.context.newPage();
-            // Force the initial page to be set as active and emit tabChanged
-            this.tabs.setActivePage(page);
+            await this.context.newPage();
+            // Other logic for page tracking is automatically handled by TabManager
         }
         await this.visualizer.setup();
-    }
-
-    async stop() {
-        // Clean up tab manager resources
-        this.tabs.destroy();
     }
 
     get page() {
@@ -108,35 +95,18 @@ export class WebHarness { // implements StateComponent
         /**
          * Get b64 encoded string of screenshot (PNG) with screen dimensions
          */
-        
-        // Target page, context or browser has been closed
-        
-        let dpr!: number;
-        let buffer!: Buffer<ArrayBufferLike>;
+        const dpr = await this.page.evaluate(() => window.devicePixelRatio);
+        //console.log("DPR:", dpr);
+        //const viewportSize = this.page.viewportSize();
+        const buffer = await this.page.screenshot({ type: 'png', ...options }, );
 
-        const retries = 3;
+        // if (!viewportSize) {
+        //     throw Error("Invalid viewport for screenshot");
+        // }
 
-        for (let attempt = 0; attempt <= retries; attempt++) {
-            try {
-                dpr = await this.page.evaluate(() => window.devicePixelRatio)
-                buffer = await this.page.screenshot({ type: 'png', ...options }, );
-            } catch (err) {
-                // A few possibilities:
-                // 1. Target page, context or browser has been closed
-                // 2. Page navigation in progress
-                // In theory 2 shouldn't shouldn't happen during typical execution as we wait for page load - unless screenshot is triggered at an usual time.
-                const error = err as Error;
-                if (error.message.includes('Target page, context or browser has been closed')) {
-                    // Irrecoverable, no point in retrying
-                    throw new Error("Attempted to take screenshot but page, context or browser is closed");
-                }
-                if (attempt >= retries) {
-                    throw new Error(`Unable to capture screenshot after retries, error: ${error.message}`);
-                }
-            }
-        }
         const base64data = buffer.toString('base64');
 
+        //console.log("Screenshot DATA:", base64data.substring(0, 100));
         const image = Image.fromBase64(base64data);
 
         // Now, need to rescale the image based on DPR. This is so that:
@@ -144,8 +114,21 @@ export class WebHarness { // implements StateComponent
         // (2) More importantly, clicks happen in the standard resolution space, so need to do this for coordinates to be correct
         //     for any agent not using a virtual screen space (e.g. those that aren't Claude)
         const { width, height } = await image.getDimensions();
+        //console.log("Original screenshot dims:", { width, height });
+        //console.log("DPR-scaled dims:", { width: width / dpr, height: height / dpr });
         const rescaledImage = await image.resize(width / dpr, height / dpr);
+        //console.log("screenshot() final dims:", await rescaledImage.getDimensions());
+
+        //console.log("_locateTarget dims:", await screenshot.getDimensions());
         return rescaledImage;
+
+        // return {
+        //     image: `data:image/png;base64,${base64data}`,//buffer.toString('base64'),
+        //     dimensions: {
+        //         width: viewportSize.width,
+        //         height: viewportSize.height
+        //     }
+        // };
     }
  
     // async goto(url: string) {
@@ -201,8 +184,8 @@ export class WebHarness { // implements StateComponent
         };
     }
 
-    async click({ x, y }: { x: number, y: number }, options?: { transform: boolean }) {
-        if (options?.transform ?? true) ({ x, y } = await this.transformCoordinates({ x, y }));
+    async click({ x, y }: { x: number, y: number }) {
+        ({ x, y } = await this.transformCoordinates({ x, y }));
         // console.log("x:", x);
         // console.log("y:", y);
         //await this.visualizer.visualizeAction(x, y);
@@ -287,14 +270,14 @@ export class WebHarness { // implements StateComponent
         await this.visualizer.showAll();
     }
 
-    async rightClick({ x, y }: { x: number, y: number }, options?: { transform: boolean }) {
-        if (options?.transform ?? true) ({ x, y } = await this.transformCoordinates({ x, y }));
+    async rightClick({ x, y }: { x: number, y: number }) {
+        ({ x, y } = await this.transformCoordinates({ x, y }));
         await this._click(x, y, { button: "right" });
         await this.waitForStability();
     }
 
-    async doubleClick({ x, y }: { x: number, y: number }, options?: { transform: boolean }) {
-        if (options?.transform ?? true) ({ x, y } = await this.transformCoordinates({ x, y }));
+    async doubleClick({ x, y }: { x: number, y: number }) {
+        ({ x, y } = await this.transformCoordinates({ x, y }));
         await this.visualizer.moveVirtualCursor(x, y);
         await this.visualizer.hideAll();
         await this.page.mouse.dblclick(x, y);
@@ -302,9 +285,9 @@ export class WebHarness { // implements StateComponent
         await this.waitForStability();
     }
 
-    async drag({ x1, y1, x2, y2 }: { x1: number, y1: number, x2: number, y2: number }, options?: { transform: boolean }) {
-        if (options?.transform ?? true) ({ x: x1, y: y1 } = await this.transformCoordinates({ x: x1, y: y1 }));
-        if (options?.transform ?? true) ({ x: x2, y: y2 } = await this.transformCoordinates({ x: x2, y: y2 }));
+    async drag({ x1, y1, x2, y2 }: { x1: number, y1: number, x2: number, y2: number }) {
+        ({ x: x1, y: y1 } = await this.transformCoordinates({ x: x1, y: y1 }));
+        ({ x: x2, y: y2 } = await this.transformCoordinates({ x: x2, y: y2 }));
 
         //console.log(`Dragging: (${x1}, ${y1}) -> (${x2}, ${y2})`);
         
@@ -329,10 +312,10 @@ export class WebHarness { // implements StateComponent
         await this.waitForStability();
     }
 
-    async clickAndType({ x, y, content }: { x: number, y: number, content: string }, options?: { transform: boolean }) {
+    async clickAndType({ x, y, content }: { x: number, y: number, content: string }) {
         // TODO: transforms incorrect for moondream grounding with virtual screen dims (claude) - unsure why
         //console.log(`Pre transform: ${x}, ${y}`);
-        if (options?.transform ?? true) ({ x, y } = await this.transformCoordinates({ x, y }));
+        ({ x, y } = await this.transformCoordinates({ x, y }));
         //console.log(`Post transform: ${x}, ${y}`);
         await this.visualizer.moveVirtualCursor(x, y);
         this._click(x, y);
@@ -340,8 +323,8 @@ export class WebHarness { // implements StateComponent
         await this.waitForStability();
     }
     
-    async scroll({ x, y, deltaX, deltaY }: { x: number, y: number, deltaX: number, deltaY: number }, options?: { transform: boolean }) {
-        if (options?.transform ?? true) ({ x, y } = await this.transformCoordinates({ x, y }));
+    async scroll({ x, y, deltaX, deltaY }: { x: number, y: number, deltaX: number, deltaY: number }) {
+        ({ x, y } = await this.transformCoordinates({ x, y }));
         await this.visualizer.moveVirtualCursor(x, y);
         await this.page.mouse.move(x, y);
         await this.page.mouse.wheel(deltaX, deltaY);
@@ -353,10 +336,15 @@ export class WebHarness { // implements StateComponent
         await this.waitForStability();
     }
 
+    async closeTab({ index }: { index: number }) {
+        await this.tabs.closeTab(index);
+        await this.waitForStability();
+    }
+
     async newTab() {
+        console.log("switching to new tab...");
         await this.context.newPage();
-        // Reasonable default and less confusing than white about:blank page
-        await this.navigate("https://google.com");
+        await this.waitForStability(); // Wait for the new blank page to be ready
     }
 
     async navigate(url: string) {

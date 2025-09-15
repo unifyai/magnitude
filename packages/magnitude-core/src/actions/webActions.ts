@@ -193,6 +193,20 @@ export const switchTabAction = createAction({
     render: ({ index }) => `⧉ switch to tab ${index}`
 });
 
+export const closeTabAction = createAction({
+    name: 'browser:tab:close',
+    description: "Close a tab by index",
+    schema: z.object({
+        index: z.number().int().describe("Index of tab to close"),
+    }),
+    resolver: async ({ input: { index }, agent }) => {
+        const webConnector = agent.require(BrowserConnector);
+        const harness = webConnector.getHarness();
+        await harness.closeTab({ index });
+    },
+    render: ({ index }) => `✖ close tab ${index}`
+});
+
 export const newTabAction = createAction({
     name: 'browser:tab:new',
     description: "Open and switch to a new tab",
@@ -255,6 +269,7 @@ export const waitAction = createAction({
 export const agnosticWebActions = [
     newTabAction,
     switchTabAction,
+    closeTabAction,
     navigateAction,
     typeAction,
     keyboardEnterAction,
