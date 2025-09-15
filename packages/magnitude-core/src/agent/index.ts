@@ -57,6 +57,7 @@ export class Agent {
     private options: Required<AgentOptions>//Omit<Required<AgentOptions>, 'actions'>;
     private connectors: AgentConnector[];
     private actions: ActionDefinition<any>[]; // actions from connectors + any other additional ones configured
+    private actionAbortController: AbortController | null = null;
 
     private memoryOptions: AgentMemoryOptions;
 
@@ -219,11 +220,15 @@ export class Agent {
 
     protected async _recordConnectorObservations(memory: AgentMemory) {
         for (const connector of this.connectors) {
-            // could do Promise.all if matters
-            const connObservations = connector.collectObservations ? await connector.collectObservations() : [];
-            //observations.push(...connObservations);
-            for (const obs of connObservations) {
-                memory.recordObservation(obs);
+            try {
+                // could do Promise.all if matters
+                const connObservations = connector.collectObservations ? await connector.collectObservations() : [];
+                //observations.push(...connObservations);
+                for (const obs of connObservations) {
+                    memory.recordObservation(obs);
+                }
+            } catch (error) {
+                logger.warn(`Agent: Error getting observations from connector ${connector.id}: ${error instanceof Error ? error.message : String(error)}`);
             }
         }
     }
@@ -298,8 +303,18 @@ export class Agent {
         };
     }
 
+    public interrupt(): void {
+        if (this.actionAbortController) {
+            console.log("Interrupting current action...");
+            this.actionAbortController.abort();
+            this.actionAbortController = null;
+        }
+    }
+
     async _act(description: string, memory: AgentMemory, options: ActOptions = {}): Promise<void> {
         this.doneActing = false;
+        this.actionAbortController = new AbortController();
+        const signal = this.actionAbortController.signal;
         logger.info(`Act: ${description}`);
 
         // for now simply add data to task
@@ -330,9 +345,13 @@ export class Agent {
         await this._recordConnectorObservations(memory);
         logger.info("Initial observations recorded");
 
-        while (true) {
-            // Removed direct screenshot/tabState access here; it's part of memoryContext via connectors
-            logger.info(`Creating partial recipe`);
+        try {
+            while (true) {
+                if (signal.aborted) {
+                    throw new AgentError("Action was interrupted by the user.", { variant: 'cancelled' });
+                }
+                // Removed direct screenshot/tabState access here; it's part of memoryContext via connectors
+                logger.info(`Creating partial recipe`);
 
             let reasoning: string = "";
             let actions: Action[] = [];
@@ -387,6 +406,9 @@ export class Agent {
 
             // Execute partial recipe
             for (const action of actions) {
+                if (signal.aborted) {
+                    throw new AgentError("Action was interrupted by the user.", { variant: 'cancelled' });
+                }
                 await this.exec(action, memory);
 
                 // const postActionScreenshot = await this.screenshot();
@@ -402,6 +424,17 @@ export class Agent {
             if (this.doneActing) {
                 break;
             }
+        }
+        } catch (error) {
+            if (error instanceof AgentError && error.options.variant === 'cancelled') {
+                logger.info("Act loop gracefully terminated due to interruption.");
+                return; // Suppress the error and exit cleanly
+            }
+            // Re-throw other errors
+            throw error;
+        } finally {
+            // Clean up the controller when the act loop finishes
+            this.actionAbortController = null;
         }
 
         logger.info(`Done with step`);
