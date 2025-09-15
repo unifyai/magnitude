@@ -228,10 +228,19 @@ export class ModelHarness {
         );
         this._reportUsage();
 
-        if (schema instanceof z.ZodObject) {
-            return resp;
+        // Log reasoning if available (similar to how narrator logs extract actions)
+        if (resp.reasoning) {
+            console.log(`REASONING: ${resp.reasoning}`);
         } else {
-            return resp.data;
+            console.log('⚠️  No reasoning field found in response');
+        }
+
+        if (schema instanceof z.ZodObject) {
+            // Extract all fields except reasoning to maintain original API
+            const { reasoning: _, ...extractedData } = resp;
+            return extractedData as z.infer<T>;
+        } else {
+            return resp.data as z.infer<T>;
         }
     }
     // ^ extract could prob be a subset of query w trimmed mem
