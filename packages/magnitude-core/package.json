@@ -58,6 +58,7 @@
     "ansis": "^4.1.0",
     "commander": "^13.1.0",
     "eventemitter3": "^5.0.1",
+    "google-auth-library": "^9.0.0",
     "magnitude-extract": "0.0.2",
     "object-hash": "^3.0.0",
     "pino": "^9.6.0",
@@ -65,6 +66,7 @@
     "playwright": "npm:patchright@^1.52.0",
     "posthog-node": "^5.1.1",
     "sharp": "^0.33.5",
+    "sharp-phash": "^2.0.0",
     "zod": "^3.24.4",
     "zod-to-json-schema": "^3.24.5"
   }
