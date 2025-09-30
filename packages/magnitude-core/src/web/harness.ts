@@ -384,7 +384,25 @@ export class WebHarness { // implements StateComponent
     }
 
     async goBack() {
-        await this.page.goBack();
+        // Initiate the back navigation. On SPAs, this may time out while waiting for an
+        // event that never fires. We'll catch this specific error and proceed.
+        try {
+            // We use a shorter, reasonable timeout.
+            await this.page.goBack({ waitUntil: 'domcontentloaded', timeout: 5000 });
+        } catch (error) {
+            if (error instanceof Error && error.message.includes('Timeout')) {
+                // This is an expected outcome on SPAs. We can safely ignore the timeout
+                // and rely on our visual stability check below.
+                logger.trace('page.goBack() timed out, which is expected for a Single-Page Application. Continuing...');
+            } else {
+                // If it's a different error, we should re-throw it.
+                throw error;
+            }
+        }
+        
+        // This will now wait for the page to become visually and network-stable,
+        // which is a much more reliable way to handle SPA navigation.
+        await this.waitForStability();
     }
 
     async executeAction(action: WebAction) {
