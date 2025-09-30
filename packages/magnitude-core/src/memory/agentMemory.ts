@@ -6,6 +6,7 @@ import z from 'zod';
 import EventEmitter from 'eventemitter3';
 import { jsonToObservableData, MultiMediaJson, observableDataToJson } from './serde';
 import { applyMask, maskObservations } from './masking';
+import { Image } from './image';
 
 // export interface AgentMemoryEvents {
 //     'thought': (thought: string) => void;
@@ -159,5 +160,16 @@ export class AgentMemory {
         //     ...(this.instructions ? { instructions: this.instructions } : {}),
         //     observations: observations
         // };
+    }
+
+    public getLatestScreenshot(): Image | null {
+        // Iterate backwards to find the most recent screenshot observation
+        for (let i = this.observations.length - 1; i >= 0; i--) {
+            const obs = this.observations[i];
+            if (obs.retention?.type === 'screenshot' && obs.content instanceof Image) {
+                return obs.content;
+            }
+        }
+        return null;
     }
 }
