@@ -18,6 +18,10 @@ import { isClaude } from '@/ai/util';
 import { retryOnError } from '@/common';
 import { renderContentParts } from '@/memory/rendering';
 import { MultiModelHarness } from '@/ai/multiModelHarness';
+import { Image } from '@/memory/image';
+import { computePHash } from './cacheUtils';
+import fs from 'fs';
+import path from 'path';
 
 
 export interface AgentOptions {
@@ -77,6 +81,15 @@ export class Agent {
 
     protected latestTaskMemory: AgentMemory;// | null = null;
 
+    private visualCacheConfig = {
+        enabled: process.env.CACHE_ENABLED === 'true',
+        apiUrl: process.env.UNIFY_BASE_URL || 'https://api.unify.ai/v0',
+        project: process.env.UNIFY_PROJECT || 'Assistant',
+        context: process.env.CACHE_CONTEXT || 'VisualSemanticCache',
+        visualsimilarityThreshold: 30, // Max hamming distance for pHash comparison
+        textSimilarityThreshold: 0.2, // Max cosine similarity for text comparison
+        overwrite: process.env.UNIFY_OVERWRITE_PROJECT === 'true' // Whether to overwrite existing project/context
+    };
     constructor(baseConfig: Partial<AgentOptions> = {}) {
         this.options = {
             ...DEFAULT_CONFIG,
@@ -150,6 +163,9 @@ export class Agent {
         // Register telemetry if enabled - do on start instead of cons to prevent weird subclass event issues
         if (this.options.telemetry) telemetrifyAgent(this);
 
+        if (this.visualCacheConfig.enabled) {
+            await this._setupVisualCache();
+        }
         //console.log('setting up model')
         await this.models.setup();
         //console.log('done setting up model')
@@ -349,6 +365,25 @@ export class Agent {
         await this._recordConnectorObservations(memory);
         logger.info("Initial observations recorded");
 
+        const initialScreenshot = memory.getLatestScreenshot();
+
+        if (this.visualCacheConfig.enabled && initialScreenshot) {
+            const cachedResult = await this.queryCache(description, initialScreenshot);
+            if (cachedResult && cachedResult.actions.length > 0)  {
+                console.log("⚡ CACHE HIT. Replaying full action trajectory.");
+                this.events.emit('thought', "Found a similar past situation in my cache. Replaying the full set of actions I took before.");
+
+                // Replay the entire cached trajectory
+                for (const action of cachedResult.actions) {
+                    if (signal.aborted) throw new AgentError("Action was interrupted.", { variant: 'cancelled' });
+                    await this.exec(action, memory);
+                }
+                return; // The task is complete, so we exit the _act method.
+            }
+        }
+
+        const fullTrajectory: Action[] = []; // To store all actions for this task
+
         try {
             while (true) {
                 if (signal.aborted) {
@@ -416,6 +451,7 @@ export class Agent {
                     throw new AgentError("Action was interrupted by the user.", { variant: 'cancelled' });
                 }
                 await this.exec(action, memory);
+                fullTrajectory.push(action); // Add executed action to the full trajectory
 
                 // const postActionScreenshot = await this.screenshot();
                 // const actionDescriptor: ActionDescriptor = { ...action, screenshot: postActionScreenshot.image } as ActionDescriptor;
@@ -429,6 +465,11 @@ export class Agent {
             // }
             await this._waitIfPaused();
             if (this.doneActing) {
+                if (this.visualCacheConfig.enabled && initialScreenshot && fullTrajectory.length > 0) {
+                    logger.info("Task complete. Populating cache with full trajectory.");
+                    this.populateCache(description, initialScreenshot, fullTrajectory)
+                        .catch(err => logger.warn(`Failed to populate visual cache: ${err.message}`));
+                }
                 break;
             }
         }
@@ -447,6 +488,232 @@ export class Agent {
         logger.info(`Done with step`);
         //this.events.emit('stepSuccess');
         //this.currentTaskMemory = null;
+    }
+
+    // --- CACHE HELPER METHODS ---
+
+    private async _setupVisualCache(): Promise<void> {
+        const { apiUrl, project, context, overwrite } = this.visualCacheConfig;
+
+        try {
+            const unifyKey = process.env.UNIFY_KEY || '';
+            const authHeader = `Bearer ${unifyKey}`.trim();
+
+            // Step 1: Handle project creation/overwrite
+            const projectCheckResponse = await fetch(`${apiUrl}/project/${project}`, { headers: { 'Authorization': authHeader } });
+            
+            if (projectCheckResponse.status === 200 && overwrite) {
+                // Project exists and overwrite is enabled - delete it first
+                const deleteResponse = await fetch(`${apiUrl}/project/${project}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': authHeader }
+                });
+                if (!deleteResponse.ok && deleteResponse.status !== 404) {
+                    throw new Error(`Failed to delete existing project: ${await deleteResponse.text()}`);
+                }
+            }
+            
+            // Create project if it doesn't exist or was just deleted
+            if (projectCheckResponse.status === 404 || overwrite) {
+                const projectCreateResponse = await fetch(`${apiUrl}/project`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
+                    body: JSON.stringify({ name: project })
+                });
+                if (!projectCreateResponse.ok) {
+                    throw new Error(`Failed to create project: ${await projectCreateResponse.text()}`);
+                }
+            } else if (!projectCheckResponse.ok) {
+                throw new Error(`Failed to check for project: ${await projectCheckResponse.text()}`);
+            }
+
+            // Step 2: Check if the context exists
+            const contextCheckResponse = await fetch(`${apiUrl}/project/${project}/contexts/${context}`, { headers: { 'Authorization': authHeader } });
+            if (contextCheckResponse.status === 404) {
+                const contextCreateResponse = await fetch(`${apiUrl}/project/${project}/contexts`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
+                    body: JSON.stringify({
+                        name: context,
+                        description: "Cache for UI automation screenshots and instructions."
+                    })
+                });
+                if (!contextCreateResponse.ok) {
+                    throw new Error(`Failed to create context: ${await contextCreateResponse.text()}`);
+                }
+            } else if (!contextCheckResponse.ok) {
+                throw new Error(`Failed to check for context: ${await contextCheckResponse.text()}`);
+            }
+
+
+        } catch (error: any) {
+            console.error(`Could not initialize Visual Semantic Cache. Caching will be disabled. Error: ${error.message}`);
+            this.visualCacheConfig.enabled = false;
+        }
+    }
+
+    private async queryCache(instruction: string, screenshot: Image): Promise<{ actions: Action[] } | null> {
+        const { apiUrl, project, context, visualsimilarityThreshold, textSimilarityThreshold } = this.visualCacheConfig;
+        // Get authentication headers
+        const unifyKey = process.env.UNIFY_KEY || '';
+        const authHeader = `Bearer ${unifyKey}`.trim();
+
+        try {
+            // Escape single quotes in the instruction to prevent SQL/expression injection
+            const escapedInstruction = instruction.replace(/'/g, "''");
+            
+            // Compute pHash locally
+            const currentPHash = await computePHash(screenshot);
+            
+            // Build the query parameters
+            const params = new URLSearchParams();
+            params.append('project', project);
+            params.append('context', context);
+            params.append('filter_expr', `phash_distance(image_phash, '${currentPHash}') < ${visualsimilarityThreshold} and cosine(instruction_embed, embed('${escapedInstruction}')) < ${textSimilarityThreshold}`);
+            params.append('limit', '1');
+
+            // The sorting object needs to be properly escaped and stringified
+            const sortingObject = {
+                [`(cosine(instruction_embed, embed('${escapedInstruction}'))) + (phash_distance(image_phash, '${currentPHash}'))`]: "ascending"
+            };
+            params.append('sorting', JSON.stringify(sortingObject));
+
+            const fullUrl = `${apiUrl}/logs?${params.toString()}`;
+            const response = await fetch(fullUrl, {
+                method: 'GET',
+                headers: { 
+                    'Authorization': authHeader
+                }
+            });
+
+            // Save screenshot for debugging with timestamp as filename
+            try {
+                const debugDir = path.join(process.cwd(), 'debug_screenshots');
+                
+                // Create debug directory if it doesn't exist
+                if (!fs.existsSync(debugDir)) {
+                    fs.mkdirSync(debugDir, { recursive: true });
+                }
+                
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const filename = `query_screenshot_${currentPHash}_${timestamp}.png`;
+                const filepath = path.join(debugDir, filename);
+                
+                await screenshot.saveToFile(filepath);
+            } catch (error) {
+                logger.warn('Failed to save debug screenshot:', error);
+            }
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                logger.error("Error response body:", errorText);
+                logger.error(`Cache query failed with status ${response.status}: ${errorText}`);
+                return null;
+            }
+
+            const results = await response.json();
+            
+            if (results && results.logs && results.logs.length > 0) {
+                const bestMatch = results.logs[0].entries;
+                logger.info("Best match entries:", bestMatch);
+                const parsedResult = {
+                    actions: JSON.parse(bestMatch.tool_trajectory)
+                };
+                logger.info("Parsed result:", parsedResult);
+                return parsedResult;
+            } else {
+                logger.info("No matching logs found");
+            }
+        } catch (error) {
+            logger.error(`Error during cache query: ${error instanceof Error ? error.message : String(error)}`);
+        }
+
+        return null;
+    }
+
+    private async populateCache(instruction: string, screenshot: Image, actions: Action[]): Promise<void> {
+        const { apiUrl, project, context } = this.visualCacheConfig;
+        
+        logger.info("Input instruction:", instruction);
+        logger.info("Input actions:", actions);
+        logger.info("Config:", { apiUrl, project, context });
+        
+        // Get authentication headers
+        const unifyKey = process.env.UNIFY_KEY || '';
+        const authHeader = `Bearer ${unifyKey}`.trim();
+        
+        const authHeaders = {
+            'Content-Type': 'application/json',
+            'Authorization': authHeader
+        };
+        
+        // Step 1: Create the Base Log with pHash instead of screenshot
+        const imagePHash = await computePHash(screenshot);
+        
+        const baseLogPayload = {
+            project,
+            context,
+            entries: {
+                image_phash: imagePHash,
+                instruction,
+                tool_trajectory: JSON.stringify(actions),
+            }
+        };
+        
+        // Save screenshot for debugging with timestamp as filename
+        try {
+            const debugDir = path.join(process.cwd(), 'debug_screenshots');
+            
+            // Create debug directory if it doesn't exist
+            if (!fs.existsSync(debugDir)) {
+                fs.mkdirSync(debugDir, { recursive: true });
+            }
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const filename = `populate_screenshot_${imagePHash}_${timestamp}.png`;
+            const filepath = path.join(debugDir, filename);
+            
+            await screenshot.saveToFile(filepath);
+        } catch (error) {
+            logger.warn('Failed to save debug screenshot:', error);
+        }
+        const baseLogResponse = await fetch(`${apiUrl}/logs`, {
+            method: 'POST',
+            headers: authHeaders,
+            body: JSON.stringify(baseLogPayload)
+        });
+
+        if (!baseLogResponse.ok) {
+            const errorText = await baseLogResponse.text();
+            logger.error("Base log error response:", errorText);
+            throw new Error(`Failed to create base log: ${errorText}`);
+        }
+        
+        const baseLogData = await baseLogResponse.json();
+        
+        const logEventId = baseLogData.log_event_ids[0];
+        if (!logEventId) throw new Error("Did not receive a log_event_id from base log creation.");
+        // Step 2: Create Derived Logs
+        const createDerivedLog = async (key: string, equation: string) => {
+            const derivedPayload = {
+                project, context, key, equation,
+                referenced_logs: { "log": [logEventId] }
+            };
+            
+            const response = await fetch(`${apiUrl}/logs/derived`, {
+                method: 'POST',
+                headers: authHeaders,
+                body: JSON.stringify(derivedPayload)
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                logger.error(`Failed to create derived log for '${key}': ${errorText}`);
+            } else {
+                await response.json();
+            }
+        };
+        await createDerivedLog("instruction_embed", "embed({log:instruction})");
+
     }
 
     async query<T extends z.Schema>(query: string, schema: T): Promise<z.infer<T>> {
