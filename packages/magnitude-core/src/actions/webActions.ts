@@ -217,6 +217,7 @@ export const webActions = [
     switchTabAction,
     closeTabAction,
     navigateAction,
+    goBackAction, 
     typeAction,
     keyboardEnterAction,
     keyboardTabAction,
