@@ -20,6 +20,7 @@ import { renderContentParts } from '@/memory/rendering';
 import { MultiModelHarness } from '@/ai/multiModelHarness';
 import { Image } from '@/memory/image';
 import { computePHash } from './cacheUtils';
+import { yellowBright } from 'ansis';
 import fs from 'fs';
 import path from 'path';
 
@@ -370,7 +371,7 @@ export class Agent {
         if (this.visualCacheConfig.enabled && initialScreenshot) {
             const cachedResult = await this.queryCache(description, initialScreenshot);
             if (cachedResult && cachedResult.actions.length > 0)  {
-                console.log("⚡ CACHE HIT. Replaying full action trajectory.");
+                console.log(yellowBright("⚡ CACHE HIT. Replaying full action trajectory."));
                 this.events.emit('thought', "Found a similar past situation in my cache. Replaying the full set of actions I took before.");
 
                 // Replay the entire cached trajectory
