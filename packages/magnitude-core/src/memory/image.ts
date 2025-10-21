@@ -121,4 +121,32 @@ export class Image {
 
         return resizedImage
     }
+
+    async crop(x: number, y: number, width: number, height: number): Promise<Image> {
+        const { width: originalWidth, height: originalHeight } = await this.getDimensions();
+
+        const left = Math.max(0, Math.round(x));
+        const top = Math.max(0, Math.round(y));
+
+        if (left >= originalWidth || top >= originalHeight) {
+            throw new Error(`Crop region (${left}, ${top}) outside bounds (${originalWidth}x${originalHeight})`);
+        }
+
+        const maxWidth = originalWidth - left;
+        const maxHeight = originalHeight - top;
+        const cropWidth = Math.max(1, Math.min(Math.round(width), maxWidth));
+        const cropHeight = Math.max(1, Math.min(Math.round(height), maxHeight));
+
+        try {
+            const croppedSharp = this.img.clone().extract({
+                left: left,
+                top: top,
+                width: cropWidth,
+                height: cropHeight
+            });
+            return new Image(croppedSharp);
+        } catch (error) {
+            throw new Error(`Image cropping failed: ${(error as Error).message}`);
+        }
+    }
 }
