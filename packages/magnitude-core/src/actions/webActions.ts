@@ -1,9 +1,44 @@
 import { ActionDefinition, ActionPayload, createAction } from ".";
 import { z } from "zod";
-import { BrowserConnector } from "@/connectors/browserConnector"; // Changed from WebInteractionFacet
-import { AgentError } from "@/agent/errors"; // For error handling
-import { Agent } from "@/agent"; // Import Agent type for agent parameter
+import { BrowserConnector } from "@/connectors/browserConnector";
+import { AgentError } from "@/agent/errors";
+import { Agent } from "@/agent";
 
+export const clickTargetAction = createAction({
+    name: 'mouse:click',
+    description: "Click something based on a textual description",
+    schema: z.object({
+        target: z.string().describe("Where exactly to click"),
+    }),
+    resolver: async ({ input: { target }, agent }) => {
+        const web = agent.require(BrowserConnector);
+        const harness = web.getHarness();
+        const screenshot = await web.getLastScreenshot();
+        const coords = await web.requireGrounding().locateTarget(screenshot, target);
+        await harness.click(coords);
+        return { resolvedCoords: coords };
+    },
+    render: ({ target }) => `⊙ click target "${target}"`
+});
+
+export const scrollTargetAction = createAction({
+    name: 'mouse:scroll',
+    description: "Hover mouse over target based on description and scroll",
+    schema: z.object({
+        target: z.string().describe("Somewhere specific inside the container to scroll in"),
+        deltaX: z.number().int().describe("Pixels to scroll horizontally"),
+        deltaY: z.number().int().describe("Pixels to scroll vertically"),
+    }),
+    resolver: async ({ input: { target, deltaX, deltaY }, agent }) => {
+        const web = agent.require(BrowserConnector);
+        const harness = web.getHarness();
+        const screenshot = await web.getLastScreenshot();
+        const coords = await web.requireGrounding().locateTarget(screenshot, target);
+        await harness.scroll({ ...coords, deltaX, deltaY });
+        return { resolvedCoords: coords };
+    },
+    render: ({ target, deltaX, deltaY }) => `↕ scroll target "${target}" (${deltaX}px, ${deltaY}px)`
+});
 
 export const clickCoordAction = createAction({
     name: 'mouse:click',
@@ -208,6 +243,8 @@ export const waitAction = createAction({
 
 
 export const webActions = [
+    clickTargetAction,
+    scrollTargetAction,
     clickCoordAction,
     mouseDoubleClickAction,
     mouseRightClickAction,

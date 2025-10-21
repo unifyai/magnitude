@@ -19,7 +19,8 @@ import { retryOnError } from '@/common';
 import { renderContentParts } from '@/memory/rendering';
 import { MultiModelHarness } from '@/ai/multiModelHarness';
 import { Image } from '@/memory/image';
-import { computePHash } from './cacheUtils';
+import { computePHash, calculateHammingDistance, calculateCosineSimilarity } from './cacheUtils';
+import { initializeVertexClient, getEmbeddingForImage } from '@/ai/vertexClient';
 import { yellowBright } from 'ansis';
 import fs from 'fs';
 import path from 'path';
@@ -84,12 +85,21 @@ export class Agent {
 
     private visualCacheConfig = {
         enabled: process.env.CACHE_ENABLED === 'true',
-        apiUrl: process.env.UNIFY_BASE_URL || 'https://api.unify.ai/v0',
+        apiUrl: process.env.UNIFY_BASE_URL || 'http://localhost:8000/v0',
         project: process.env.UNIFY_PROJECT || 'Assistant',
         context: process.env.CACHE_CONTEXT || 'VisualSemanticCache',
-        visualsimilarityThreshold: 30, // Max hamming distance for pHash comparison
-        textSimilarityThreshold: 0.2, // Max cosine similarity for text comparison
-        overwrite: process.env.UNIFY_OVERWRITE_PROJECT === 'true' // Whether to overwrite existing project/context
+        // Embedding-based caching (primary method when enabled)
+        useImageEmbedding: process.env.CACHE_USE_IMAGE_EMBEDDING === 'true', // Controls whether to use embeddings or pHash
+        imageEmbeddingThreshold: parseFloat(process.env.CACHE_IMAGE_EMBEDDING_THRESHOLD || '0.15'), // Max cosine distance for full image embedding
+        roiEmbeddingThreshold: parseFloat(process.env.CACHE_ROI_EMBEDDING_THRESHOLD || '0.15'), // Max cosine distance for ROI embedding
+        // pHash-based caching (fallback when embeddings disabled)
+        visualsimilarityThreshold: parseInt(process.env.CACHE_VISUAL_SIMILARITY_THRESHOLD || '35', 10), // Max hamming distance for pHash comparison
+        roiPhashThreshold: parseInt(process.env.CACHE_ROI_PHASH_THRESHOLD || '3', 10), // Max hamming distance for ROI pHash comparison
+        // Common settings
+        textSimilarityThreshold: parseFloat(process.env.CACHE_TEXT_SIMILARITY_THRESHOLD || '0.1'), // Max cosine similarity for text comparison
+        overwrite: process.env.UNIFY_OVERWRITE_PROJECT === 'true', // Whether to overwrite existing project/context
+        roiWidth: parseInt(process.env.CACHE_ROI_WIDTH || '100', 10), // Width of ROI around first interaction
+        roiHeight: parseInt(process.env.CACHE_ROI_HEIGHT || '100', 10), // Height of ROI around first interaction
     };
     constructor(baseConfig: Partial<AgentOptions> = {}) {
         this.options = {
@@ -166,6 +176,18 @@ export class Agent {
 
         if (this.visualCacheConfig.enabled) {
             await this._setupVisualCache();
+            
+            // Initialize Vertex AI if embeddings are enabled
+            if (this.visualCacheConfig.useImageEmbedding) {
+                try {
+                    await initializeVertexClient();
+                    logger.info("Vertex AI client initialized for image embeddings");
+                } catch (error) {
+                    logger.warn(`Failed to initialize Vertex AI client: ${(error as Error).message}. Falling back to pHash.`);
+                    // Disable embeddings if initialization failed
+                    this.visualCacheConfig.useImageEmbedding = false;
+                }
+            }
         }
         //console.log('setting up model')
         await this.models.setup();
@@ -219,19 +241,50 @@ export class Agent {
 
         this.events.emit('actionStarted', action);
         
-        const data = await actionDefinition.resolver(
+        let resolvedCoords: { x: number; y: number } | null = null;
+        const resolverResult = await actionDefinition.resolver(
             { input: parsed.data, agent: this }
         );
+
+        // Capture coordinates from resolver or input
+        if (resolverResult && typeof resolverResult === 'object' && 'resolvedCoords' in resolverResult) {
+            const coords = resolverResult.resolvedCoords;
+            if (coords && typeof coords === 'object' && 'x' in coords && 'y' in coords &&
+                typeof coords.x === 'number' && typeof coords.y === 'number') {
+                resolvedCoords = { x: coords.x, y: coords.y };
+            }
+        } else {
+            const inputData = parsed.data as any;
+            if (inputData && typeof inputData === 'object') {
+                if (typeof inputData.x === 'number' && typeof inputData.y === 'number') {
+                    resolvedCoords = { x: inputData.x, y: inputData.y };
+                } else if (inputData.from && typeof inputData.from === 'object' && 
+                           typeof inputData.from.x === 'number' && typeof inputData.from.y === 'number') {
+                    resolvedCoords = { x: inputData.from.x, y: inputData.from.y };
+                }
+            }
+        }
+
+        if (resolvedCoords) {
+            (action as any)._resolvedCoords = resolvedCoords;
+        }
 
         this.events.emit('actionDone', action);
 
         if (memory) {
-            // Record action taken
             memory.recordObservation(Observation.fromActionTaken(actionDefinition.name, JSON.stringify(action)));
 
-            // Record results of action
-            if (data) {
-                memory.recordObservation(Observation.fromActionResult(actionDefinition.name, data));
+            let contentToRecord: RenderableContent | undefined = undefined;
+            if (resolverResult) {
+                if (typeof resolverResult === 'object' && 'resolvedCoords' in resolverResult) {
+                    contentToRecord = (resolverResult as any).renderableContent;
+                } else {
+                    contentToRecord = resolverResult as RenderableContent;
+                }
+            }
+
+            if (contentToRecord !== undefined && contentToRecord !== null) {
+                memory.recordObservation(Observation.fromActionResult(actionDefinition.name, contentToRecord));
             }
 
             // Collect and record observations from connectors
@@ -468,7 +521,35 @@ export class Agent {
             if (this.doneActing) {
                 if (this.visualCacheConfig.enabled && initialScreenshot && fullTrajectory.length > 0) {
                     logger.info("Task complete. Populating cache with full trajectory.");
-                    this.populateCache(description, initialScreenshot, fullTrajectory)
+                    
+                    let firstActionCoords: { x: number; y: number } | null = null;
+                    for (const action of fullTrajectory) {
+                        const coords = (action as any)._resolvedCoords;
+                        if (coords && typeof coords.x === 'number' && typeof coords.y === 'number') {
+                            firstActionCoords = { x: coords.x, y: coords.y };
+                            break;
+                        }
+                        else if ('x' in action && 'y' in action && 
+                                 typeof action.x === 'number' && typeof action.y === 'number') {
+                            firstActionCoords = { x: action.x, y: action.y };
+                            break;
+                        }
+                        else if ('input' in action && typeof action.input === 'object' && action.input) {
+                            if ('x' in action.input && 'y' in action.input && 
+                                typeof action.input.x === 'number' && typeof action.input.y === 'number') {
+                                firstActionCoords = { x: action.input.x, y: action.input.y };
+                                break;
+                            }
+                            else if ('from' in action.input && typeof action.input.from === 'object' && 
+                                     action.input.from && 'x' in action.input.from && 'y' in action.input.from &&
+                                     typeof action.input.from.x === 'number' && typeof action.input.from.y === 'number') {
+                                firstActionCoords = { x: action.input.from.x, y: action.input.from.y };
+                                break;
+                            }
+                        }
+                    }
+                    
+                    this.populateCache(description, initialScreenshot, fullTrajectory, firstActionCoords)
                         .catch(err => logger.warn(`Failed to populate visual cache: ${err.message}`));
                 }
                 break;
@@ -554,53 +635,71 @@ export class Agent {
     }
 
     private async queryCache(instruction: string, screenshot: Image): Promise<{ actions: Action[] } | null> {
-        const { apiUrl, project, context, visualsimilarityThreshold, textSimilarityThreshold } = this.visualCacheConfig;
-        // Get authentication headers
+        const queryStartTime = Date.now();
+        console.log("🔍 [CACHE PERF] Starting cache query...");
+        
+        const { apiUrl, project, context, visualsimilarityThreshold, textSimilarityThreshold, roiWidth, roiHeight, roiPhashThreshold, useImageEmbedding, imageEmbeddingThreshold, roiEmbeddingThreshold } = this.visualCacheConfig;
         const unifyKey = process.env.UNIFY_KEY || '';
         const authHeader = `Bearer ${unifyKey}`.trim();
 
         try {
-            // Escape single quotes in the instruction to prevent SQL/expression injection
             const escapedInstruction = instruction.replace(/'/g, "''");
             
-            // Compute pHash locally
-            const currentPHash = await computePHash(screenshot);
+            let filterClauses: string[] = [];
+            let sortingObject: Record<string, string> = {};
             
-            // Build the query parameters
-            const params = new URLSearchParams();
-            params.append('project', project);
-            params.append('context', context);
-            params.append('filter_expr', `phash_distance(image_phash, '${currentPHash}') < ${visualsimilarityThreshold} and cosine(instruction_embed, embed('${escapedInstruction}')) < ${textSimilarityThreshold}`);
-            params.append('limit', '1');
+            // Text similarity (always included)
+            filterClauses.push(`cosine(instruction_embed, embed('${escapedInstruction}')) < ${textSimilarityThreshold}`);
+            sortingObject[`cosine(instruction_embed, embed('${escapedInstruction}'))`] = "ascending";
+            
+            if (useImageEmbedding) {
+                logger.info("Using embedding mode for cache query");
+                const currentScreenshotB64 = await screenshot.toBase64();
+                const imageDataUri = `data:image/png;base64,${currentScreenshotB64}`;
+                const escapedImageDataUri = imageDataUri.replace(/'/g, "''");
+                const imageSimilarityExpr = `cosine(image_embedding, embed_image('${escapedImageDataUri}'))`;
 
-            // The sorting object needs to be properly escaped and stringified
-            const sortingObject = {
-                [`(cosine(instruction_embed, embed('${escapedInstruction}'))) + (phash_distance(image_phash, '${currentPHash}'))`]: "ascending"
+                filterClauses.push(`${imageSimilarityExpr} < ${imageEmbeddingThreshold}`);
+                sortingObject[imageSimilarityExpr] = "ascending"; // Sort by the same expression
+                logger.info("Using embed_image() with base64 for cache query filter.");
+            } else {
+                // *** pHash Mode: Compute hash for filtering ***
+                logger.info("Using pHash mode for cache query");
+                const currentPHash = await computePHash(screenshot);
+                filterClauses.push(`phash_distance(image_phash, '${currentPHash}') < ${visualsimilarityThreshold}`);
+                sortingObject[`phash_distance(image_phash, '${currentPHash}')`] = "ascending";
+                logger.info("Using pHash for initial cache query filter.");
+            }
+            
+            const queryPayload = {
+                project: project,
+                context: context,
+                filter_expr: filterClauses.join(' and '),
+                limit: 3,
+                sorting: JSON.stringify(sortingObject)
             };
-            params.append('sorting', JSON.stringify(sortingObject));
-
-            const fullUrl = `${apiUrl}/logs?${params.toString()}`;
+            
+            const fullUrl = `${apiUrl}/logs/query`;
+            logger.debug(`Querying cache: POST ${fullUrl}`);
+            
             const response = await fetch(fullUrl, {
-                method: 'GET',
-                headers: { 
-                    'Authorization': authHeader
-                }
+                method: 'POST',
+                headers: {
+                    'Authorization': authHeader,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(queryPayload)
             });
 
-            // Save screenshot for debugging with timestamp as filename
+            // Debug: save screenshot
             try {
                 const debugDir = path.join(process.cwd(), 'debug_screenshots');
-                
-                // Create debug directory if it doesn't exist
                 if (!fs.existsSync(debugDir)) {
                     fs.mkdirSync(debugDir, { recursive: true });
                 }
-                
                 const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-                const filename = `query_screenshot_${currentPHash}_${timestamp}.png`;
-                const filepath = path.join(debugDir, filename);
-                
-                await screenshot.saveToFile(filepath);
+                const mode = useImageEmbedding ? 'embedding' : 'phash';
+                await screenshot.saveToFile(path.join(debugDir, `query_screenshot_${mode}_${timestamp}.png`));
             } catch (error) {
                 logger.warn('Failed to save debug screenshot:', error);
             }
@@ -615,15 +714,150 @@ export class Agent {
             const results = await response.json();
             
             if (results && results.logs && results.logs.length > 0) {
-                const bestMatch = results.logs[0].entries;
-                logger.info("Best match entries:", bestMatch);
-                const parsedResult = {
-                    actions: JSON.parse(bestMatch.tool_trajectory)
-                };
-                logger.info("Parsed result:", parsedResult);
-                return parsedResult;
+                logger.info(`Cache query returned ${results.logs.length} candidates. Verifying...`);
+                
+                let currentRoiVector: number[] | null = null;
+                if (useImageEmbedding) {
+                    const firstCandidateCoords = results.logs[0]?.entries?.first_action_coords;
+                    if (firstCandidateCoords && typeof firstCandidateCoords.x === 'number' && typeof firstCandidateCoords.y === 'number') {
+                        try {
+                            const cropX = firstCandidateCoords.x - roiWidth / 2;
+                            const cropY = firstCandidateCoords.y - roiHeight / 2;
+                            const currentRoiImage = await screenshot.crop(cropX, cropY, roiWidth, roiHeight);
+                            const currentRoiB64 = await currentRoiImage.toBase64();
+                            // Get embedding for the current ROI once
+                            currentRoiVector = await getEmbeddingForImage(currentRoiB64);
+                            if (!currentRoiVector) {
+                                logger.warn("Failed to get precomputed ROI embedding. ROI verification will be skipped.");
+                            } else {
+                                logger.debug(`Successfully precomputed ROI embedding (dimension: ${currentRoiVector.length})`);
+                            }
+                        } catch (cropOrEmbedError) {
+                            logger.warn(`Error precomputing ROI embedding: ${(cropOrEmbedError as Error).message}. ROI verification will be skipped.`);
+                        }
+                    } else {
+                        logger.info("First cache candidate lacks ROI coords.");
+                    }
+                }
+                
+                for (const log of results.logs) {
+                    const candidateEntries = log.entries;
+                    const derivedEntries = log.derived_entries;
+                    const candidateCoords = candidateEntries?.first_action_coords;
+                    
+                    if (useImageEmbedding) {
+                        if (candidateCoords && typeof candidateCoords.x === 'number' && typeof candidateCoords.y === 'number' && currentRoiVector) {
+                            const candidateRoiVector = derivedEntries?.roi_embedding;
+                            if (!candidateRoiVector || !Array.isArray(candidateRoiVector)) {
+                                logger.warn(`Candidate ${log.id} ROI embedding vector missing. Skipping.`);
+                                continue;
+                            }
+                            
+                            const similarity = calculateCosineSimilarity(currentRoiVector, candidateRoiVector);
+                            const distance = 1.0 - similarity;
+                            
+                            if (distance <= roiEmbeddingThreshold) {
+                                logger.info(`ROI verified for ${log.id}.`);
+                                if (candidateEntries.tool_trajectory) {
+                                    try {
+                                        const totalQueryDuration = Date.now() - queryStartTime;
+                                        console.log(`⏱️  [CACHE PERF] ✅ CACHE HIT (embedding+ROI) - Total: ${totalQueryDuration}ms`);
+                                        return { actions: JSON.parse(candidateEntries.tool_trajectory) };
+                                    } catch (parseError) {
+                                        logger.warn(`Failed to parse tool_trajectory for ${log.id}.`);
+                                        continue;
+                                    }
+                                } else {
+                                    logger.warn(`Candidate ${log.id} missing tool_trajectory.`);
+                                    continue;
+                                }
+                            } else {
+                                logger.info(`ROI verification failed for ${log.id}.`);
+                                continue;
+                            }
+                        } else {
+                            logger.info(`Accepting ${log.id} based on global match.`);
+                            if (candidateEntries.tool_trajectory) {
+                                try {
+                                    const totalQueryDuration = Date.now() - queryStartTime;
+                                    console.log(`⏱️  [CACHE PERF] ✅ CACHE HIT (embedding global) - Total: ${totalQueryDuration}ms`);
+                                    return { actions: JSON.parse(candidateEntries.tool_trajectory) };
+                                } catch (parseError) {
+                                    logger.warn(`Failed to parse tool_trajectory for ${log.id}.`);
+                                    continue;
+                                }
+                            } else {
+                                logger.warn(`Candidate ${log.id} missing tool_trajectory.`);
+                                continue;
+                            }
+                        }
+                    } else {
+                        if (candidateCoords && typeof candidateCoords.x === 'number' && typeof candidateCoords.y === 'number') {
+                            const candidateRoiPHash = candidateEntries?.roi_phash;
+                            if (candidateRoiPHash && typeof candidateRoiPHash === 'string') {
+                                try {
+                                    const cropX = candidateCoords.x - roiWidth / 2;
+                                    const cropY = candidateCoords.y - roiHeight / 2;
+                                    const currentRoiImage = await screenshot.crop(cropX, cropY, roiWidth, roiHeight);
+                                    const currentRoiPHash = await computePHash(currentRoiImage);
+                                    const distance = calculateHammingDistance(currentRoiPHash, candidateRoiPHash);
+                                    logger.info(`ROI pHash: Candidate ${log.id}, distance ${distance} (threshold ${roiPhashThreshold})`);
+                                    if (distance <= roiPhashThreshold) {
+                                        logger.info(`ROI verified for ${log.id}. Using cache.`);
+                                        if (candidateEntries.tool_trajectory) {
+                                            try {
+                                                return { actions: JSON.parse(candidateEntries.tool_trajectory) };
+                                            } catch (parseError) {
+                                                logger.warn(`Failed to parse tool_trajectory for pHash hit ${log.id}: ${parseError}. Trying next candidate.`);
+                                                continue;
+                                            }
+                                        } else {
+                                            logger.warn(`pHash cache candidate ${log.id} missing tool_trajectory. Trying next candidate.`);
+                                            continue;
+                                        }
+                                    } else {
+                                        logger.info(`ROI verification failed for ${log.id}.`);
+                                        continue;
+                                    }
+                                } catch (error) {
+                                    logger.warn(`ROI pHash error for ${log.id}: ${(error as Error).message}`);
+                                    continue;
+                                }
+                            } else {
+                                logger.warn(`Candidate ${log.id} lacks ROI data. Accepting based on global match.`);
+                                if (candidateEntries.tool_trajectory) {
+                                    try {
+                                        return { actions: JSON.parse(candidateEntries.tool_trajectory) };
+                                    } catch (parseError) {
+                                        logger.warn(`Failed to parse tool_trajectory for pHash global match ${log.id}: ${parseError}. Trying next candidate.`);
+                                        continue;
+                                    }
+                                } else {
+                                    logger.warn(`pHash global match candidate ${log.id} missing tool_trajectory. Trying next candidate.`);
+                                    continue;
+                                }
+                            }
+                        } else {
+                            // Candidate lacks ROI coords - accept based on global match
+                            logger.info(`Candidate ${log.id} (pHash) lacks ROI data. Accepting based on global match.`);
+                            if (candidateEntries.tool_trajectory) {
+                                try {
+                                    return { actions: JSON.parse(candidateEntries.tool_trajectory) };
+                                } catch (parseError) {
+                                    logger.warn(`Failed to parse tool_trajectory for pHash global match ${log.id}: ${parseError}. Trying next candidate.`);
+                                    continue;
+                                }
+                            } else {
+                                logger.warn(`pHash global match candidate ${log.id} missing tool_trajectory. Trying next candidate.`);
+                                continue;
+                            }
+                        }
+                    }
+                } // End candidate loop
+                logger.info("No cache candidates passed verification.");
+                return null;
             } else {
-                logger.info("No matching logs found");
+                logger.info("No matching logs found (initial query)");
             }
         } catch (error) {
             logger.error(`Error during cache query: ${error instanceof Error ? error.message : String(error)}`);
@@ -632,12 +866,13 @@ export class Agent {
         return null;
     }
 
-    private async populateCache(instruction: string, screenshot: Image, actions: Action[]): Promise<void> {
-        const { apiUrl, project, context } = this.visualCacheConfig;
+    private async populateCache(instruction: string, screenshot: Image, actions: Action[], firstActionCoords: { x: number; y: number } | null): Promise<void> {
+        const { apiUrl, project, context, roiWidth, roiHeight, useImageEmbedding } = this.visualCacheConfig;
         
         logger.info("Input instruction:", instruction);
         logger.info("Input actions:", actions);
-        logger.info("Config:", { apiUrl, project, context });
+        logger.info("First action coords:", firstActionCoords);
+        logger.info("Config:", { apiUrl, project, context, useImageEmbedding });
         
         // Get authentication headers
         const unifyKey = process.env.UNIFY_KEY || '';
@@ -648,35 +883,109 @@ export class Agent {
             'Authorization': authHeader
         };
         
-        // Step 1: Create the Base Log with pHash instead of screenshot
-        const imagePHash = await computePHash(screenshot);
+        // Prepare entries based on embedding mode
+        const entries: any = {
+            instruction,
+            tool_trajectory: JSON.stringify(actions)
+        };
+        
+        let derivedLogsToCreate: Array<{ key: string; equation: string }> = [];
+        let roiPHash: string | null = null;
+        let storedCoords: { x: number; y: number } | null = null;
+        
+        if (useImageEmbedding) {
+            logger.info("Using embedding mode for cache population");
+            
+            const screenshotB64 = await screenshot.toBase64();
+            entries.initial_screenshot_b64 = screenshotB64;
+            
+            derivedLogsToCreate.push({
+                key: 'image_embedding',
+                equation: 'embed_image({log:initial_screenshot_b64})'
+            });
+            
+            if (firstActionCoords) {
+                try {
+                    const cropX = firstActionCoords.x - roiWidth / 2;
+                    const cropY = firstActionCoords.y - roiHeight / 2;
+                    const roiImage = await screenshot.crop(cropX, cropY, roiWidth, roiHeight);
+                    const roiB64 = await roiImage.toBase64();
+                    
+                    entries.roi_screenshot_b64 = roiB64;
+                    entries.first_action_coords = firstActionCoords;
+                    storedCoords = firstActionCoords;
+                    
+                    derivedLogsToCreate.push({
+                        key: 'roi_embedding',
+                        equation: 'embed_image({log:roi_screenshot_b64})'
+                    });
+                    
+                    logger.info(`Stored ROI base64 at coords (${firstActionCoords.x}, ${firstActionCoords.y})`);
+                    
+                    // Debug: save ROI
+                    try {
+                        const debugDir = path.join(process.cwd(), 'debug_screenshots');
+                        if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
+                        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                        await roiImage.saveToFile(path.join(debugDir, `populate_roi_embedding_${timestamp}.png`));
+                    } catch (error) {
+                        logger.warn('Failed to save debug ROI:', error);
+                    }
+                } catch (error) {
+                    logger.warn(`Failed to process ROI for embedding: ${(error as Error).message}`);
+                }
+            }
+        } else {
+            logger.info("Using pHash mode for cache population");
+            
+            const imagePHash = await computePHash(screenshot);
+            entries.image_phash = imagePHash;
+            
+            if (firstActionCoords) {
+                try {
+                    const cropX = firstActionCoords.x - roiWidth / 2;
+                    const cropY = firstActionCoords.y - roiHeight / 2;
+                    const roiImage = await screenshot.crop(cropX, cropY, roiWidth, roiHeight);
+                    
+                    roiPHash = await computePHash(roiImage);
+                    entries.roi_phash = roiPHash;
+                    entries.first_action_coords = firstActionCoords;
+                    storedCoords = firstActionCoords;
+                    
+                    logger.info(`Computed ROI pHash: ${roiPHash} at coords (${firstActionCoords.x}, ${firstActionCoords.y})`);
+                    
+                    // Debug: save ROI
+                    try {
+                        const debugDir = path.join(process.cwd(), 'debug_screenshots');
+                        if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
+                        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                        await roiImage.saveToFile(path.join(debugDir, `populate_roi_${roiPHash}_${timestamp}.png`));
+                    } catch (error) {
+                        logger.warn('Failed to save debug ROI:', error);
+                    }
+                } catch (error) {
+                    logger.warn(`Failed to compute ROI pHash: ${(error as Error).message}`);
+                }
+            }
+        }
         
         const baseLogPayload = {
             project,
             context,
-            entries: {
-                image_phash: imagePHash,
-                instruction,
-                tool_trajectory: JSON.stringify(actions),
-            }
+            entries
         };
         
-        // Save screenshot for debugging with timestamp as filename
+        // Debug: save screenshot
         try {
             const debugDir = path.join(process.cwd(), 'debug_screenshots');
-            
-            // Create debug directory if it doesn't exist
-            if (!fs.existsSync(debugDir)) {
-                fs.mkdirSync(debugDir, { recursive: true });
-            }
+            if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const filename = `populate_screenshot_${imagePHash}_${timestamp}.png`;
-            const filepath = path.join(debugDir, filename);
-            
-            await screenshot.saveToFile(filepath);
+            const mode = useImageEmbedding ? 'embedding' : 'phash';
+            await screenshot.saveToFile(path.join(debugDir, `populate_screenshot_${mode}_${timestamp}.png`));
         } catch (error) {
             logger.warn('Failed to save debug screenshot:', error);
         }
+        
         const baseLogResponse = await fetch(`${apiUrl}/logs`, {
             method: 'POST',
             headers: authHeaders,
@@ -686,14 +995,18 @@ export class Agent {
         if (!baseLogResponse.ok) {
             const errorText = await baseLogResponse.text();
             logger.error("Base log error response:", errorText);
-            throw new Error(`Failed to create base log: ${errorText}`);
+            logger.warn(`Failed to create base log: ${errorText}`);
+            return; // Exit if base log creation failed
         }
         
         const baseLogData = await baseLogResponse.json();
         
-        const logEventId = baseLogData.log_event_ids[0];
-        if (!logEventId) throw new Error("Did not receive a log_event_id from base log creation.");
-        // Step 2: Create Derived Logs
+        const logEventId = baseLogData.log_event_ids?.[0];
+        if (!logEventId) {
+            logger.warn("Did not receive log_event_id. Cannot create derived logs.");
+            return;
+        }
+        
         const createDerivedLog = async (key: string, equation: string) => {
             const derivedPayload = {
                 project, context, key, equation,
@@ -708,13 +1021,15 @@ export class Agent {
             
             if (!response.ok) {
                 const errorText = await response.text();
-                logger.error(`Failed to create derived log for '${key}': ${errorText}`);
-            } else {
-                await response.json();
+                logger.warn(`Failed to create derived log for '${key}': ${errorText}`);
             }
         };
+        
         await createDerivedLog("instruction_embed", "embed({log:instruction})");
-
+        
+        for (const derivedLog of derivedLogsToCreate) {
+            await createDerivedLog(derivedLog.key, derivedLog.equation);
+        }
     }
 
     async query<T extends z.Schema>(query: string, schema: T): Promise<z.infer<T>> {

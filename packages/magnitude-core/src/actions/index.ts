@@ -2,11 +2,16 @@ import { Agent } from "@/agent"
 import { RenderableContent } from "@/memory/observation";
 import { z, Schema, ZodTypeAny } from "zod"
 
+export type ResolverResultWithCoords = void | RenderableContent | {
+    renderableContent?: RenderableContent;
+    resolvedCoords: { x: number; y: number };
+};
+
 export interface ActionDefinition<T> {
     name: string;
     description?: string;
     schema: Schema<T>;
-    resolver: ({ input, agent }: { input: T, agent: Agent }) => Promise<void | RenderableContent>;
+    resolver: ({ input, agent }: { input: T, agent: Agent }) => Promise<ResolverResultWithCoords>;
     render: (action: T) => string
 }
 
@@ -15,7 +20,7 @@ export function createAction<S extends ZodTypeAny>(
         name: string;
         description?: string;
         schema?: S;
-        resolver: ({ input, agent }: { input: z.infer<S>; agent: Agent }) => Promise<void | RenderableContent>;
+        resolver: ({ input, agent }: { input: z.infer<S>; agent: Agent }) => Promise<ResolverResultWithCoords>;
         render?: (action: z.infer<S>) => string
     }
 ): ActionDefinition<z.infer<S>> {
