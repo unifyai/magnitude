@@ -52,11 +52,11 @@ export class CursorVisual {
         try {
             await this.page.evaluate(
                 ({ x, y, id, showClickEffect }) => {
-                    // Use viewport coordinates directly (no scroll adjustment for fixed positioning)
+                    // Use viewport coordinates directly for fixed positioning
                     const viewportX = x;
                     const viewportY = y;
 
-                    // Document coordinates for the click effect circle (which uses absolute positioning)
+                    // Document coordinates for the click effect circle (absolute positioning)
                     const docX = x + window.scrollX;
                     const docY = y + window.scrollY;
 
