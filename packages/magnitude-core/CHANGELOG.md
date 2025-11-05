@@ -1,6 +1,5 @@
 # magnitude-core
 
-<<<<<<< HEAD
 ## 0.3.0
 
 ### Minor Changes
@@ -76,8 +75,6 @@
 
 - [`0159e6a`](https://github.com/magnitudedev/magnitude/commit/0159e6a3fe4c0186ae115cb0f8d52d55d10d1064) Thanks [@anerli](https://github.com/anerli)! - update baml to 202, memory options
 
-=======
->>>>>>> 57d2a02 (chore: update package configuration and exports)
 ## 0.2.22
 
 ### Patch Changes

@@ -24,6 +24,8 @@ import { initializeVertexClient, getEmbeddingForImage } from '@/ai/vertexClient'
 import { yellowBright } from 'ansis';
 import fs from 'fs';
 import path from 'path';
+import sharp from 'sharp';
+import { Storage } from '@google-cloud/storage';
 
 
 export interface AgentOptions {
@@ -40,6 +42,7 @@ export interface ActOptions {
     // TODO: reimpl, or maybe for tc agent specifically
 	data?: RenderableContent,//string | Record<string, string>
     memory?: AgentMemory,// optional memory starting point
+    override_cache?: boolean // if true, delete matching cache entries before execution
 }
 
 // Options for the startAgent helper function
@@ -417,18 +420,31 @@ export class Agent {
 
         const initialScreenshot = memory.getLatestScreenshot();
 
+        // Query cache to check for matches and get log IDs
+        let cacheEntryIdsToUpdate: number[] = [];
         if (this.visualCacheConfig.enabled && initialScreenshot) {
             const cachedResult = await this.queryCache(description, initialScreenshot);
-            if (cachedResult && cachedResult.actions.length > 0)  {
-                console.log(yellowBright("⚡ CACHE HIT. Replaying full action trajectory."));
-                this.events.emit('thought', "Found a similar past situation in my cache. Replaying the full set of actions I took before.");
+            
+            if (cachedResult && cachedResult.actions.length > 0) {
+                // Store log IDs for potential cache update
+                cacheEntryIdsToUpdate = cachedResult.logIds || [];
+                
+                // If override_cache is enabled, skip cache replay and execute fresh
+                if (options.override_cache) {
+                    logger.info(`override_cache is enabled. Found ${cacheEntryIdsToUpdate.length} matching cache entries. Skipping cache replay and executing fresh.`);
+                    // Continue with normal execution below, which will update the cache entries later
+                } else {
+                    // Normal cache hit - replay the cached trajectory
+                    console.log(yellowBright("⚡ CACHE HIT. Replaying full action trajectory."));
+                    this.events.emit('thought', "Found a similar past situation in my cache. Replaying the full set of actions I took before.");
 
-                // Replay the entire cached trajectory
-                for (const action of cachedResult.actions) {
-                    if (signal.aborted) throw new AgentError("Action was interrupted.", { variant: 'cancelled' });
-                    await this.exec(action, memory);
+                    // Replay the entire cached trajectory
+                    for (const action of cachedResult.actions) {
+                        if (signal.aborted) throw new AgentError("Action was interrupted.", { variant: 'cancelled' });
+                        await this.exec(action, memory);
+                    }
+                    return; // The task is complete, so we exit the _act method.
                 }
-                return; // The task is complete, so we exit the _act method.
             }
         }
 
@@ -542,7 +558,7 @@ export class Agent {
                         }
                     }
                     
-                    this.populateCache(description, initialScreenshot, fullTrajectory, firstActionCoords)
+                    this.populateCache(description, initialScreenshot, fullTrajectory, firstActionCoords, cacheEntryIdsToUpdate)
                         .catch(err => logger.warn(`Failed to populate visual cache: ${err.message}`));
                 }
                 break;
@@ -566,6 +582,72 @@ export class Agent {
     }
 
     // --- CACHE HELPER METHODS ---
+
+    private async _loadImageFromValue(value: string): Promise<Image> {
+        /**
+         * Loads an Image from a URL (http/https/gs://) or base64 string.
+         * Handles GCS URLs using the GCS SDK with credentials from environment variables.
+         */
+        if (value.startsWith('gs://') || value.includes('storage.googleapis.com')) {
+            // GCS URL - use GCS SDK (handles both gs:// and storage.googleapis.com URLs)
+            try {
+                let bucketName: string;
+                let objectPath: string;
+                
+                if (value.startsWith('gs://')) {
+                    // Parse gs:// URL: gs://bucket-name/path/to/file
+                    const urlMatch = value.match(/^gs:\/\/([^\/]+)\/(.+)$/);
+                    if (!urlMatch) {
+                        throw new Error(`Invalid gs:// URL format: ${value}`);
+                    }
+                    [, bucketName, objectPath] = urlMatch;
+                } else {
+                    // Parse storage.googleapis.com URL: https://storage.googleapis.com/bucket-name/path/to/file
+                    const urlMatch = value.match(/https?:\/\/storage\.googleapis\.com\/([^\/]+)\/(.+)$/);
+                    if (!urlMatch) {
+                        throw new Error(`Invalid storage.googleapis.com URL format: ${value}`);
+                    }
+                    [, bucketName, objectPath] = urlMatch;
+                }
+                
+                // Initialize GCS client with credentials from environment
+                const credentialsPath = process.env.ORCHESTRA_VERTEXAI_SERVICE_ACC_JSON || process.env.GOOGLE_APPLICATION_CREDENTIALS;
+                const projectId = process.env.ORCHESTRA_VERTEXAI_PROJECT || process.env.GOOGLE_CLOUD_PROJECT;
+                
+                // Build storage options - use keyFilename if available, otherwise rely on ADC
+                const storageOptions: any = {};
+                if (credentialsPath) {
+                    storageOptions.keyFilename = credentialsPath;
+                }
+                if (projectId) {
+                    storageOptions.projectId = projectId;
+                }
+                
+                // If no explicit credentials, Storage will use Application Default Credentials (ADC)
+                const storage = new Storage(storageOptions);
+                
+                const bucket = storage.bucket(bucketName);
+                const file = bucket.file(objectPath);
+                
+                // Download the file as a buffer
+                const [imageBuffer] = await file.download();
+                return new Image(sharp(imageBuffer));
+            } catch (gcsError) {
+                throw new Error(`Failed to load image from GCS: ${(gcsError as Error).message}`);
+            }
+        } else if (value.startsWith('http://') || value.startsWith('https://')) {
+            // HTTP/HTTPS URL - fetch directly (for public URLs or signed URLs)
+            const response = await fetch(value);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch image from URL: ${response.status} ${response.statusText}`);
+            }
+            const imageBuffer = Buffer.from(await response.arrayBuffer());
+            return new Image(sharp(imageBuffer));
+        } else {
+            // Assume it's base64
+            return Image.fromBase64(value);
+        }
+    }
 
     private async _setupVisualCache(): Promise<void> {
         const { apiUrl, project, context, overwrite } = this.visualCacheConfig;
@@ -620,6 +702,69 @@ export class Agent {
                 throw new Error(`Failed to check for context: ${await contextCheckResponse.text()}`);
             }
 
+            // Step 3: Create cache fields as mutable so they can be updated later
+            const fieldsPayload = {
+                project: project,
+                context: context,
+                fields: {
+                    instruction: {
+                        description: "Natural language instruction for the cached action",
+                        mutable: true,
+                        type: "str"
+                    },
+                    tool_trajectory: {
+                        description: "JSON stringified array of actions executed for this instruction",
+                        mutable: true,
+                        type: "str"
+                    },
+                    initial_screenshot_b64: {
+                        description: "Base64 encoded screenshot at the start of the action",
+                        mutable: true,
+                        type: "image"
+                    },
+                    roi_screenshot_b64: {
+                        description: "Base64 encoded ROI (region of interest) screenshot around the first action",
+                        mutable: true,
+                        type: "image"
+                    },
+                    first_action_coords: {
+                        description: "Coordinates (x, y) of the first action in the trajectory",
+                        mutable: true,
+                        type: "dict"
+                    },
+                    roi_embedding: {
+                        description: "Image embedding vector for the ROI (used in embedding mode)",
+                        mutable: true,
+                        type: "list"
+                    },
+                    image_phash: {
+                        description: "Perceptual hash of the full screenshot (used in pHash mode)",
+                        mutable: true,
+                        type: "str"
+                    },
+                    roi_phash: {
+                        description: "Perceptual hash of the ROI screenshot (used in pHash mode)",
+                        mutable: true,
+                        type: "str"
+                    }
+                }
+            };
+
+            const fieldsResponse = await fetch(`${apiUrl}/logs/fields`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
+                body: JSON.stringify(fieldsPayload)
+            });
+
+            if (!fieldsResponse.ok) {
+                const errorText = await fieldsResponse.text();
+                // Don't fail if fields already exist - that's okay
+                if (fieldsResponse.status !== 400 && fieldsResponse.status !== 409) {
+                    logger.warn(`Failed to create cache fields: ${errorText}. Fields may already exist or will be created implicitly.`);
+                }
+            } else {
+                logger.info("Cache fields created successfully.");
+            }
 
         } catch (error: any) {
             console.error(`Could not initialize Visual Semantic Cache. Caching will be disabled. Error: ${error.message}`);
@@ -627,7 +772,7 @@ export class Agent {
         }
     }
 
-    private async queryCache(instruction: string, screenshot: Image): Promise<{ actions: Action[] } | null> {
+    private async queryCache(instruction: string, screenshot: Image): Promise<{ actions: Action[], logIds: number[] } | null> {
         const queryStartTime = Date.now();
         console.log("🔍 [CACHE PERF] Starting cache query...");
         
@@ -645,24 +790,24 @@ export class Agent {
             filterClauses.push(`cosine(instruction_embed, embed('${escapedInstruction}')) < ${textSimilarityThreshold}`);
             sortingObject[`cosine(instruction_embed, embed('${escapedInstruction}'))`] = "ascending";
             
-            if (useImageEmbedding) {
-                logger.info("Using embedding mode for cache query");
-                const currentScreenshotB64 = await screenshot.toBase64();
-                const imageDataUri = `data:image/png;base64,${currentScreenshotB64}`;
-                const escapedImageDataUri = imageDataUri.replace(/'/g, "''");
-                const imageSimilarityExpr = `cosine(image_embedding, embed_image('${escapedImageDataUri}'))`;
+            // if (useImageEmbedding) {
+            //     logger.info("Using embedding mode for cache query");
+            //     const currentScreenshotB64 = await screenshot.toBase64();
+            //     const imageDataUri = `data:image/png;base64,${currentScreenshotB64}`;
+            //     const escapedImageDataUri = imageDataUri.replace(/'/g, "''");
+            //     const imageSimilarityExpr = `cosine(image_embedding, embed_image('${escapedImageDataUri}'))`;
 
-                filterClauses.push(`${imageSimilarityExpr} < ${imageEmbeddingThreshold}`);
-                sortingObject[imageSimilarityExpr] = "ascending"; // Sort by the same expression
-                logger.info("Using embed_image() with base64 for cache query filter.");
-            } else {
-                // *** pHash Mode: Compute hash for filtering ***
-                logger.info("Using pHash mode for cache query");
-                const currentPHash = await computePHash(screenshot);
-                filterClauses.push(`phash_distance(image_phash, '${currentPHash}') < ${visualsimilarityThreshold}`);
-                sortingObject[`phash_distance(image_phash, '${currentPHash}')`] = "ascending";
-                logger.info("Using pHash for initial cache query filter.");
-            }
+            //     filterClauses.push(`${imageSimilarityExpr} < ${imageEmbeddingThreshold}`);
+            //     sortingObject[imageSimilarityExpr] = "ascending"; // Sort by the same expression
+            //     logger.info("Using embed_image() with base64 for cache query filter.");
+            // } else {
+            //     // *** pHash Mode: Compute hash for filtering ***
+            //     logger.info("Using pHash mode for cache query");
+            //     const currentPHash = await computePHash(screenshot);
+            //     filterClauses.push(`phash_distance(image_phash, '${currentPHash}') < ${visualsimilarityThreshold}`);
+            //     sortingObject[`phash_distance(image_phash, '${currentPHash}')`] = "ascending";
+            //     logger.info("Using pHash for initial cache query filter.");
+            // }
             
             const queryPayload = {
                 project: project,
@@ -685,17 +830,17 @@ export class Agent {
             });
 
             // Debug: save screenshot
-            try {
-                const debugDir = path.join(process.cwd(), 'debug_screenshots');
-                if (!fs.existsSync(debugDir)) {
-                    fs.mkdirSync(debugDir, { recursive: true });
-                }
-                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-                const mode = useImageEmbedding ? 'embedding' : 'phash';
-                await screenshot.saveToFile(path.join(debugDir, `query_screenshot_${mode}_${timestamp}.png`));
-            } catch (error) {
-                logger.warn('Failed to save debug screenshot:', error);
-            }
+            // try {
+            //     const debugDir = path.join(process.cwd(), 'debug_screenshots');
+            //     if (!fs.existsSync(debugDir)) {
+            //         fs.mkdirSync(debugDir, { recursive: true });
+            //     }
+            //     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            //     const mode = useImageEmbedding ? 'embedding' : 'phash';
+            //     await screenshot.saveToFile(path.join(debugDir, `query_screenshot_${mode}_${timestamp}.png`));
+            // } catch (error) {
+            //     logger.warn('Failed to save debug screenshot:', error);
+            // }
 
             if (!response.ok) {
                 const errorText = await response.text();
@@ -708,6 +853,9 @@ export class Agent {
             
             if (results && results.logs && results.logs.length > 0) {
                 logger.info(`Cache query returned ${results.logs.length} candidates. Verifying...`);
+                
+                // Collect all log IDs from matching candidates
+                const matchingLogIds: number[] = [];
                 
                 let currentRoiVector: number[] | null = null;
                 if (useImageEmbedding) {
@@ -735,12 +883,12 @@ export class Agent {
                 
                 for (const log of results.logs) {
                     const candidateEntries = log.entries;
-                    const derivedEntries = log.derived_entries;
                     const candidateCoords = candidateEntries?.first_action_coords;
                     
                     if (useImageEmbedding) {
                         if (candidateCoords && typeof candidateCoords.x === 'number' && typeof candidateCoords.y === 'number' && currentRoiVector) {
-                            const candidateRoiVector = derivedEntries?.roi_embedding;
+                            // Read ROI embedding directly from entries (computed client-side during populateCache)
+                            const candidateRoiVector = candidateEntries?.roi_embedding;
                             if (!candidateRoiVector || !Array.isArray(candidateRoiVector)) {
                                 logger.warn(`Candidate ${log.id} ROI embedding vector missing. Skipping.`);
                                 continue;
@@ -751,11 +899,12 @@ export class Agent {
                             
                             if (distance <= roiEmbeddingThreshold) {
                                 logger.info(`ROI verified for ${log.id}.`);
+                                matchingLogIds.push(log.id);
                                 if (candidateEntries.tool_trajectory) {
                                     try {
                                         const totalQueryDuration = Date.now() - queryStartTime;
                                         console.log(`⏱️  [CACHE PERF] ✅ CACHE HIT (embedding+ROI) - Total: ${totalQueryDuration}ms`);
-                                        return { actions: JSON.parse(candidateEntries.tool_trajectory) };
+                                        return { actions: JSON.parse(candidateEntries.tool_trajectory), logIds: matchingLogIds };
                                     } catch (parseError) {
                                         logger.warn(`Failed to parse tool_trajectory for ${log.id}.`);
                                         continue;
@@ -765,16 +914,46 @@ export class Agent {
                                     continue;
                                 }
                             } else {
-                                logger.info(`ROI verification failed for ${log.id}.`);
+                                console.log(`ROI verification failed for ${log.id}. Distance ${distance.toFixed(4)} > threshold ${roiEmbeddingThreshold}`);
+                                
+                                // Debug: save ROI images for comparison
+                                try {
+                                    const debugDir = path.join(process.cwd(), 'debug_screenshots');
+                                    if (!fs.existsSync(debugDir)) {
+                                        fs.mkdirSync(debugDir, { recursive: true });
+                                    }
+                                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                                    
+                                    // Save current ROI
+                                    const cropX = candidateCoords.x - roiWidth / 2;
+                                    const cropY = candidateCoords.y - roiHeight / 2;
+                                    const currentRoiImage = await screenshot.crop(cropX, cropY, roiWidth, roiHeight);
+                                    await currentRoiImage.saveToFile(path.join(debugDir, `roi_verification_failed_current_${log.id}_${timestamp}.png`));
+                                    
+                                    // Save candidate ROI - handle URL (http/https/gs://) and base64 formats
+                                    if (candidateEntries.roi_screenshot_b64 && typeof candidateEntries.roi_screenshot_b64 === 'string') {
+                                        try {
+                                            const candidateRoiImage = await this._loadImageFromValue(candidateEntries.roi_screenshot_b64);
+                                            await candidateRoiImage.saveToFile(path.join(debugDir, `roi_verification_failed_candidate_${log.id}_${timestamp}.png`));
+                                            logger.info(`Saved ROI comparison images for failed verification (log ${log.id}, distance ${distance.toFixed(4)})`);
+                                        } catch (loadError) {
+                                            logger.warn(`Failed to load candidate ROI image for ${log.id}: ${(loadError as Error).message}`);
+                                        }
+                                    }
+                                } catch (debugError) {
+                                    logger.warn(`Failed to save ROI debug images: ${(debugError as Error).message}`);
+                                }
+                                
                                 continue;
                             }
                         } else {
                             logger.info(`Accepting ${log.id} based on global match.`);
+                            matchingLogIds.push(log.id);
                             if (candidateEntries.tool_trajectory) {
                                 try {
                                     const totalQueryDuration = Date.now() - queryStartTime;
                                     console.log(`⏱️  [CACHE PERF] ✅ CACHE HIT (embedding global) - Total: ${totalQueryDuration}ms`);
-                                    return { actions: JSON.parse(candidateEntries.tool_trajectory) };
+                                    return { actions: JSON.parse(candidateEntries.tool_trajectory), logIds: matchingLogIds };
                                 } catch (parseError) {
                                     logger.warn(`Failed to parse tool_trajectory for ${log.id}.`);
                                     continue;
@@ -797,9 +976,10 @@ export class Agent {
                                     logger.info(`ROI pHash: Candidate ${log.id}, distance ${distance} (threshold ${roiPhashThreshold})`);
                                     if (distance <= roiPhashThreshold) {
                                         logger.info(`ROI verified for ${log.id}. Using cache.`);
+                                        matchingLogIds.push(log.id);
                                         if (candidateEntries.tool_trajectory) {
                                             try {
-                                                return { actions: JSON.parse(candidateEntries.tool_trajectory) };
+                                                return { actions: JSON.parse(candidateEntries.tool_trajectory), logIds: matchingLogIds };
                                             } catch (parseError) {
                                                 logger.warn(`Failed to parse tool_trajectory for pHash hit ${log.id}: ${parseError}. Trying next candidate.`);
                                                 continue;
@@ -810,6 +990,32 @@ export class Agent {
                                         }
                                     } else {
                                         logger.info(`ROI verification failed for ${log.id}.`);
+                                        
+                                        // Debug: save ROI images for comparison
+                                        try {
+                                            const debugDir = path.join(process.cwd(), 'debug_screenshots');
+                                            if (!fs.existsSync(debugDir)) {
+                                                fs.mkdirSync(debugDir, { recursive: true });
+                                            }
+                                            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                                            
+                                            // Save current ROI (already cropped above)
+                                            await currentRoiImage.saveToFile(path.join(debugDir, `roi_phash_verification_failed_current_${log.id}_${timestamp}.png`));
+                                            
+                                            // Save candidate ROI - handle URL (http/https/gs://) and base64 formats
+                                            if (candidateEntries.roi_screenshot_b64 && typeof candidateEntries.roi_screenshot_b64 === 'string') {
+                                                try {
+                                                    const candidateRoiImage = await this._loadImageFromValue(candidateEntries.roi_screenshot_b64);
+                                                    await candidateRoiImage.saveToFile(path.join(debugDir, `roi_phash_verification_failed_candidate_${log.id}_${timestamp}.png`));
+                                                    logger.info(`Saved ROI pHash comparison images for failed verification (log ${log.id}, distance ${distance})`);
+                                                } catch (loadError) {
+                                                    logger.warn(`Failed to load candidate ROI image for pHash ${log.id}: ${(loadError as Error).message}`);
+                                                }
+                                            }
+                                        } catch (debugError) {
+                                            logger.warn(`Failed to save ROI pHash debug images: ${(debugError as Error).message}`);
+                                        }
+                                        
                                         continue;
                                     }
                                 } catch (error) {
@@ -818,9 +1024,10 @@ export class Agent {
                                 }
                             } else {
                                 logger.warn(`Candidate ${log.id} lacks ROI data. Accepting based on global match.`);
+                                matchingLogIds.push(log.id);
                                 if (candidateEntries.tool_trajectory) {
                                     try {
-                                        return { actions: JSON.parse(candidateEntries.tool_trajectory) };
+                                        return { actions: JSON.parse(candidateEntries.tool_trajectory), logIds: matchingLogIds };
                                     } catch (parseError) {
                                         logger.warn(`Failed to parse tool_trajectory for pHash global match ${log.id}: ${parseError}. Trying next candidate.`);
                                         continue;
@@ -833,9 +1040,10 @@ export class Agent {
                         } else {
                             // Candidate lacks ROI coords - accept based on global match
                             logger.info(`Candidate ${log.id} (pHash) lacks ROI data. Accepting based on global match.`);
+                            matchingLogIds.push(log.id);
                             if (candidateEntries.tool_trajectory) {
                                 try {
-                                    return { actions: JSON.parse(candidateEntries.tool_trajectory) };
+                                    return { actions: JSON.parse(candidateEntries.tool_trajectory), logIds: matchingLogIds };
                                 } catch (parseError) {
                                     logger.warn(`Failed to parse tool_trajectory for pHash global match ${log.id}: ${parseError}. Trying next candidate.`);
                                     continue;
@@ -859,7 +1067,7 @@ export class Agent {
         return null;
     }
 
-    private async populateCache(instruction: string, screenshot: Image, actions: Action[], firstActionCoords: { x: number; y: number } | null): Promise<void> {
+    private async populateCache(instruction: string, screenshot: Image, actions: Action[], firstActionCoords: { x: number; y: number } | null, logIdsToUpdate: number[] = []): Promise<void> {
         const { apiUrl, project, context, roiWidth, roiHeight, useImageEmbedding } = this.visualCacheConfig;
         
         logger.info("Input instruction:", instruction);
@@ -875,6 +1083,32 @@ export class Agent {
             'Content-Type': 'application/json',
             'Authorization': authHeader
         };
+        
+        // // Inject wait actions between click actions for more robust replay
+        // // Only add waits for sequences with >2 actions to avoid slowing down single-action replays
+        // let trajectoryToStore = actions;
+        // if (actions.length > 2) {
+        //     const enhancedActions: Action[] = [];
+        //     for (let i = 0; i < actions.length; i++) {
+        //         const action = actions[i];
+        //         enhancedActions.push(action);
+                
+        //         // Add wait after click actions (but not after the last action)
+        //         // Skip if the next action is already a wait to avoid consecutive waits
+        //         // Note: Click actions have variant 'mouse:click', not just 'click'
+        //         if (i < actions.length - 1 && action.variant === 'mouse:click') {
+        //             const nextAction = actions[i + 1];
+        //             // Only add wait if next action is not already a wait
+        //             if (nextAction.variant !== 'wait') {
+        //                 enhancedActions.push({
+        //                     variant: 'wait',
+        //                     seconds: 2
+        //                 } as Action);
+        //             }
+        //         }
+        //     }
+        //     trajectoryToStore = enhancedActions;
+        // }
         
         // Prepare entries based on embedding mode
         const entries: any = {
@@ -892,11 +1126,6 @@ export class Agent {
             const screenshotB64 = await screenshot.toBase64();
             entries.initial_screenshot_b64 = screenshotB64;
             
-            derivedLogsToCreate.push({
-                key: 'image_embedding',
-                equation: 'embed_image({log:initial_screenshot_b64})'
-            });
-            
             if (firstActionCoords) {
                 try {
                     const cropX = firstActionCoords.x - roiWidth / 2;
@@ -908,22 +1137,24 @@ export class Agent {
                     entries.first_action_coords = firstActionCoords;
                     storedCoords = firstActionCoords;
                     
-                    derivedLogsToCreate.push({
-                        key: 'roi_embedding',
-                        equation: 'embed_image({log:roi_screenshot_b64})'
-                    });
-                    
-                    logger.info(`Stored ROI base64 at coords (${firstActionCoords.x}, ${firstActionCoords.y})`);
+                    // Compute ROI embedding client-side and store directly in entries
+                    const roiEmbedding = await getEmbeddingForImage(roiB64);
+                    if (roiEmbedding && Array.isArray(roiEmbedding)) {
+                        entries.roi_embedding = roiEmbedding;
+                        logger.info(`Computed and stored ROI embedding (dimension: ${roiEmbedding.length}) at coords (${firstActionCoords.x}, ${firstActionCoords.y})`);
+                    } else {
+                        logger.warn(`Failed to compute ROI embedding for coords (${firstActionCoords.x}, ${firstActionCoords.y})`);
+                    }
                     
                     // Debug: save ROI
-                    try {
-                        const debugDir = path.join(process.cwd(), 'debug_screenshots');
-                        if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
-                        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-                        await roiImage.saveToFile(path.join(debugDir, `populate_roi_embedding_${timestamp}.png`));
-                    } catch (error) {
-                        logger.warn('Failed to save debug ROI:', error);
-                    }
+                    // try {
+                    //     const debugDir = path.join(process.cwd(), 'debug_screenshots');
+                    //     if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
+                    //     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    //     await roiImage.saveToFile(path.join(debugDir, `populate_roi_embedding_${timestamp}.png`));
+                    // } catch (error) {
+                    //     logger.warn('Failed to save debug ROI:', error);
+                    // }
                 } catch (error) {
                     logger.warn(`Failed to process ROI for embedding: ${(error as Error).message}`);
                 }
@@ -948,14 +1179,14 @@ export class Agent {
                     logger.info(`Computed ROI pHash: ${roiPHash} at coords (${firstActionCoords.x}, ${firstActionCoords.y})`);
                     
                     // Debug: save ROI
-                    try {
-                        const debugDir = path.join(process.cwd(), 'debug_screenshots');
-                        if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
-                        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-                        await roiImage.saveToFile(path.join(debugDir, `populate_roi_${roiPHash}_${timestamp}.png`));
-                    } catch (error) {
-                        logger.warn('Failed to save debug ROI:', error);
-                    }
+                    // try {
+                    //     const debugDir = path.join(process.cwd(), 'debug_screenshots');
+                    //     if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
+                    //     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    //     await roiImage.saveToFile(path.join(debugDir, `populate_roi_${roiPHash}_${timestamp}.png`));
+                    // } catch (error) {
+                    //     logger.warn('Failed to save debug ROI:', error);
+                    // }
                 } catch (error) {
                     logger.warn(`Failed to compute ROI pHash: ${(error as Error).message}`);
                 }
@@ -969,35 +1200,68 @@ export class Agent {
         };
         
         // Debug: save screenshot
-        try {
-            const debugDir = path.join(process.cwd(), 'debug_screenshots');
-            if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const mode = useImageEmbedding ? 'embedding' : 'phash';
-            await screenshot.saveToFile(path.join(debugDir, `populate_screenshot_${mode}_${timestamp}.png`));
-        } catch (error) {
-            logger.warn('Failed to save debug screenshot:', error);
-        }
+        // try {
+        //     const debugDir = path.join(process.cwd(), 'debug_screenshots');
+        //     if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
+        //     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        //     const mode = useImageEmbedding ? 'embedding' : 'phash';
+        //     await screenshot.saveToFile(path.join(debugDir, `populate_screenshot_${mode}_${timestamp}.png`));
+        // } catch (error) {
+        //     logger.warn('Failed to save debug screenshot:', error);
+        // }
         
-        const baseLogResponse = await fetch(`${apiUrl}/logs`, {
-            method: 'POST',
-            headers: authHeaders,
-            body: JSON.stringify(baseLogPayload)
-        });
+        let logEventId: number | null = null;
+        
+        if (logIdsToUpdate.length > 0) {
+            // Update existing cache entries in place
+            logger.info(`Updating ${logIdsToUpdate.length} existing cache entries in place.`);
+            
+            const updatePayload = {
+                logs: logIdsToUpdate,
+                project: project,
+                context: context,
+                entries: entries,
+                overwrite: true // Overwrite existing entries with new data
+            };
+            
+            const updateResponse = await fetch(`${apiUrl}/logs`, {
+                method: 'PUT',
+                headers: authHeaders,
+                body: JSON.stringify(updatePayload)
+            });
 
-        if (!baseLogResponse.ok) {
-            const errorText = await baseLogResponse.text();
-            logger.error("Base log error response:", errorText);
-            logger.warn(`Failed to create base log: ${errorText}`);
-            return; // Exit if base log creation failed
-        }
-        
-        const baseLogData = await baseLogResponse.json();
-        
-        const logEventId = baseLogData.log_event_ids?.[0];
-        if (!logEventId) {
-            logger.warn("Did not receive log_event_id. Cannot create derived logs.");
-            return;
+            if (!updateResponse.ok) {
+                const errorText = await updateResponse.text();
+                logger.error("Update log error response:", errorText);
+                logger.warn(`Failed to update cache entries: ${errorText}`);
+                return; // Exit if update failed
+            }
+            
+            // When updating, derived logs already exist, so we skip creating them
+            logger.info(`Successfully updated ${logIdsToUpdate.length} cache entries.`);
+            return; // Skip derived log creation when updating
+        } else {
+            // Create new cache entry
+            const baseLogResponse = await fetch(`${apiUrl}/logs`, {
+                method: 'POST',
+                headers: authHeaders,
+                body: JSON.stringify(baseLogPayload)
+            });
+
+            if (!baseLogResponse.ok) {
+                const errorText = await baseLogResponse.text();
+                logger.error("Base log error response:", errorText);
+                logger.warn(`Failed to create base log: ${errorText}`);
+                return; // Exit if base log creation failed
+            }
+            
+            const baseLogData = await baseLogResponse.json();
+            logEventId = baseLogData.log_event_ids?.[0];
+            
+            if (!logEventId) {
+                logger.warn("Did not receive log_event_id. Cannot create derived logs.");
+                return;
+            }
         }
         
         const createDerivedLog = async (key: string, equation: string) => {
