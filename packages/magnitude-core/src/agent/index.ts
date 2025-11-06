@@ -864,40 +864,35 @@ export class Agent {
                 // Collect all log IDs from matching candidates
                 const matchingLogIds: number[] = [];
                 
-                let currentRoiVector: number[] | null = null;
-                if (useImageEmbedding) {
-                    const firstCandidateCoords = results.logs[0]?.entries?.first_action_coords;
-                    if (firstCandidateCoords && typeof firstCandidateCoords.x === 'number' && typeof firstCandidateCoords.y === 'number') {
-                        try {
-                            const cropX = firstCandidateCoords.x - roiWidth / 2;
-                            const cropY = firstCandidateCoords.y - roiHeight / 2;
-                            const currentRoiImage = await screenshot.crop(cropX, cropY, roiWidth, roiHeight);
-                            const currentRoiB64 = await currentRoiImage.toBase64();
-                            // Get embedding for the current ROI once
-                            currentRoiVector = await getEmbeddingForImage(currentRoiB64);
-                            if (!currentRoiVector) {
-                                logger.warn("Failed to get precomputed ROI embedding. ROI verification will be skipped.");
-                            } else {
-                                logger.debug(`Successfully precomputed ROI embedding (dimension: ${currentRoiVector.length})`);
-                            }
-                        } catch (cropOrEmbedError) {
-                            logger.warn(`Error precomputing ROI embedding: ${(cropOrEmbedError as Error).message}. ROI verification will be skipped.`);
-                        }
-                    } else {
-                        logger.info("First cache candidate lacks ROI coords.");
-                    }
-                }
-                
                 for (const log of results.logs) {
                     const candidateEntries = log.entries;
                     const candidateCoords = candidateEntries?.first_action_coords;
                     
                     if (useImageEmbedding) {
-                        if (candidateCoords && typeof candidateCoords.x === 'number' && typeof candidateCoords.y === 'number' && currentRoiVector) {
+                        if (candidateCoords && typeof candidateCoords.x === 'number' && typeof candidateCoords.y === 'number') {
                             // Read ROI embedding directly from entries (computed client-side during populateCache)
                             const candidateRoiVector = candidateEntries?.roi_embedding;
                             if (!candidateRoiVector || !Array.isArray(candidateRoiVector)) {
                                 logger.warn(`Candidate ${log.id} ROI embedding vector missing. Skipping.`);
+                                continue;
+                            }
+                            
+                            // Compute current ROI embedding using THIS candidate's coordinates
+                            // (Each candidate may have different coordinates, so we need to compute per candidate)
+                            let currentRoiVector: number[] | null = null;
+                            let currentRoiImage: Image | null = null;
+                            try {
+                                const cropX = candidateCoords.x - roiWidth / 2;
+                                const cropY = candidateCoords.y - roiHeight / 2;
+                                currentRoiImage = await screenshot.crop(cropX, cropY, roiWidth, roiHeight);
+                                const currentRoiB64 = await currentRoiImage.toBase64();
+                                currentRoiVector = await getEmbeddingForImage(currentRoiB64);
+                                if (!currentRoiVector) {
+                                    logger.warn(`Failed to compute ROI embedding for candidate ${log.id}. Skipping.`);
+                                    continue;
+                                }
+                            } catch (cropOrEmbedError) {
+                                logger.warn(`Error computing ROI embedding for candidate ${log.id}: ${(cropOrEmbedError as Error).message}. Skipping.`);
                                 continue;
                             }
                             
@@ -931,11 +926,10 @@ export class Agent {
                                     }
                                     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
                                     
-                                    // Save current ROI
-                                    const cropX = candidateCoords.x - roiWidth / 2;
-                                    const cropY = candidateCoords.y - roiHeight / 2;
-                                    const currentRoiImage = await screenshot.crop(cropX, cropY, roiWidth, roiHeight);
-                                    await currentRoiImage.saveToFile(path.join(debugDir, `roi_verification_failed_current_${log.id}_${timestamp}.png`));
+                                    // Save current ROI (reuse already-cropped image)
+                                    if (currentRoiImage) {
+                                        await currentRoiImage.saveToFile(path.join(debugDir, `roi_verification_failed_current_${log.id}_${timestamp}.png`));
+                                    }
                                     
                                     // Save candidate ROI - handle URL (http/https/gs://) and base64 formats
                                     if (candidateEntries.roi_screenshot_b64 && typeof candidateEntries.roi_screenshot_b64 === 'string') {
