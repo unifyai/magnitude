@@ -204,6 +204,18 @@ export const waitAction = createAction({
     render: ({ seconds }) => `◴ wait for ${seconds}s`
 });
 
+export const saveStateAction = createAction({
+    name: 'browser:state:save',
+    description: "Save the current browser state (cookies, localStorage, sessionStorage) to a disk file. This is a SINGLE EXECUTION action that completes instantly with NO VISUAL CHANGES to the page. It operates silently in the background - do NOT call it multiple times or wait for page changes. Use this to preserve authentication state for future sessions. After calling once, the task is complete.",
+    schema: z.object({
+        name: z.string().describe("Name for the state file (e.g., 'midland_auth')")
+    }),
+    resolver: async ({ input: { name }, agent }) => {
+        await agent.require(BrowserConnector).getHarness().saveState(name);
+    },
+    render: ({ name }) => `💾 save browser state as '${name}'`
+});
+
 
 
 export const webActions = [
@@ -223,5 +235,6 @@ export const webActions = [
     keyboardBackspaceAction,
     keyboardSelectAllAction,
     waitAction,
+    saveStateAction,
 ] as const;
 

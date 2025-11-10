@@ -8,6 +8,9 @@ import { TabManager, TabState } from "./tabs";
 import { DOMTransformer } from "./transformer";
 import { Image } from '@/memory/image';
 import EventEmitter from "eventemitter3";
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 //import { StateComponent } from "@/facets";
 
 
@@ -261,7 +264,7 @@ export class WebHarness { // implements StateComponent
 
 
 
-        await this.page.waitForTimeout(500);
+        //await this.page.waitForTimeout(500);
         await this.waitForStability();
         //await this.visualizer.removeActionVisuals();
     }
@@ -423,6 +426,25 @@ export class WebHarness { // implements StateComponent
 
     async waitForStability(timeout?: number): Promise<void> {
         await this.stability.waitForStability(timeout);
+    }
+
+    private getStatePath(name: string): string {
+        const stateDir = path.join(os.homedir(), '.magnitude', 'browser_states');
+        // Ensure directory exists
+        if (!fs.existsSync(stateDir)) {
+            fs.mkdirSync(stateDir, { recursive: true });
+        }
+        // Sanitize name to be safe for filesystem
+        const safeName = name.replace(/[^a-z0-9_-]/gi, '_');
+        return path.join(stateDir, `${safeName}.json`);
+    }
+
+    async saveState(name: string): Promise<string> {
+        const statePath = this.getStatePath(name);
+        // This captures cookies, localStorage, and sessionStorage
+        await this.context.storageState({ path: statePath });
+        logger.info(`Browser state saved to ${statePath}`);
+        return statePath;
     }
 
     // async applyTransformations() {
