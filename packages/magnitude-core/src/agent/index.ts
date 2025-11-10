@@ -813,7 +813,7 @@ export class Agent {
                 project: project,
                 context: context,
                 filter_expr: filterClauses.join(' and '),
-                limit: 3,
+                limit: 10,
                 sorting: JSON.stringify(sortingObject)
             };
             
