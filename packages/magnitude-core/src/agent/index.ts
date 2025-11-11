@@ -315,6 +315,31 @@ export class Agent {
         return this.latestTaskMemory;
     }
 
+    async executeTrajectory(actions: Action[], options: { memory?: AgentMemory, recordObservations?: boolean } = {}): Promise<void> {
+        /**
+         * Fast path: Execute a hardcoded action trajectory without any cache lookup or LLM calls.
+         * Use this when you have a known sequence of actions to replay.
+         * 
+         * @param actions - Array of actions to execute in sequence
+         * @param options.memory - Optional memory to record actions in (creates new if not provided)
+         * @param options.recordObservations - Whether to record initial observations (default: false for speed)
+         */
+        const recordObservations = options.recordObservations ?? false;
+        const memory = options.memory ?? new AgentMemory(this.memoryOptions);
+        
+        this.latestTaskMemory = memory;
+        
+        // Optionally record initial observations (skip by default for max speed)
+        if (recordObservations) {
+            await this._recordConnectorObservations(memory);
+        }
+        
+        // Execute actions directly without any cache or LLM overhead
+        for (const action of actions) {
+            await this.exec(action, memory);
+        }
+    }
+
     async act(taskOrSteps: string | string[], options: ActOptions = {}): Promise<void> {
         const instructions = [
             ...(this.options.prompt ? [this.options.prompt] : []),
