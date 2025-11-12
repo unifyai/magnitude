@@ -89,7 +89,7 @@ export class Agent {
     private visualCacheConfig = {
         enabled: process.env.CACHE_ENABLED === 'true',
         apiUrl: process.env.UNIFY_BASE_URL || 'http://localhost:8000/v0',
-        project: process.env.UNIFY_PROJECT || 'Assistant',
+        project: process.env.UNIFY_PROJECT || 'Assistants',
         context: process.env.CACHE_CONTEXT || 'VisualSemanticCache',
         // Embedding-based caching (primary method when enabled)
         useImageEmbedding: process.env.CACHE_USE_IMAGE_EMBEDDING === 'true', // Controls whether to use embeddings or pHash
