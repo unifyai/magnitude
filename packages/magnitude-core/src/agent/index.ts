@@ -749,16 +749,16 @@ export class Agent {
                         mutable: true,
                         type: "str"
                     },
-                    initial_screenshot_b64: {
-                        description: "Base64 encoded screenshot at the start of the action",
-                        mutable: true,
-                        type: "image"
-                    },
-                    roi_screenshot_b64: {
-                        description: "Base64 encoded ROI (region of interest) screenshot around the first action",
-                        mutable: true,
-                        type: "image"
-                    },
+                    // initial_screenshot_b64: {
+                    //     description: "Base64 encoded screenshot at the start of the action",
+                    //     mutable: true,
+                    //     type: "image"
+                    // },
+                    // roi_screenshot_b64: {
+                    //     description: "Base64 encoded ROI (region of interest) screenshot around the first action",
+                    //     mutable: true,
+                    //     type: "image"
+                    // },
                     first_action_coords: {
                         description: "Coordinates (x, y) of the first action in the trajectory",
                         mutable: true,
@@ -957,15 +957,15 @@ export class Agent {
                                     }
                                     
                                     // Save candidate ROI - handle URL (http/https/gs://) and base64 formats
-                                    if (candidateEntries.roi_screenshot_b64 && typeof candidateEntries.roi_screenshot_b64 === 'string') {
-                                        try {
-                                            const candidateRoiImage = await this._loadImageFromValue(candidateEntries.roi_screenshot_b64);
-                                            await candidateRoiImage.saveToFile(path.join(debugDir, `roi_verification_failed_candidate_${log.id}_${timestamp}.png`));
-                                            logger.info(`Saved ROI comparison images for failed verification (log ${log.id}, distance ${distance.toFixed(4)})`);
-                                        } catch (loadError) {
-                                            logger.warn(`Failed to load candidate ROI image for ${log.id}: ${(loadError as Error).message}`);
-                                        }
-                                    }
+                                    // if (candidateEntries.roi_screenshot_b64 && typeof candidateEntries.roi_screenshot_b64 === 'string') {
+                                    //     try {
+                                    //         const candidateRoiImage = await this._loadImageFromValue(candidateEntries.roi_screenshot_b64);
+                                    //         await candidateRoiImage.saveToFile(path.join(debugDir, `roi_verification_failed_candidate_${log.id}_${timestamp}.png`));
+                                    //         logger.info(`Saved ROI comparison images for failed verification (log ${log.id}, distance ${distance.toFixed(4)})`);
+                                    //     } catch (loadError) {
+                                    //         logger.warn(`Failed to load candidate ROI image for ${log.id}: ${(loadError as Error).message}`);
+                                    //     }
+                                    // }
                                 } catch (debugError) {
                                     logger.warn(`Failed to save ROI debug images: ${(debugError as Error).message}`);
                                 }
@@ -1029,15 +1029,15 @@ export class Agent {
                                             await currentRoiImage.saveToFile(path.join(debugDir, `roi_phash_verification_failed_current_${log.id}_${timestamp}.png`));
                                             
                                             // Save candidate ROI - handle URL (http/https/gs://) and base64 formats
-                                            if (candidateEntries.roi_screenshot_b64 && typeof candidateEntries.roi_screenshot_b64 === 'string') {
-                                                try {
-                                                    const candidateRoiImage = await this._loadImageFromValue(candidateEntries.roi_screenshot_b64);
-                                                    await candidateRoiImage.saveToFile(path.join(debugDir, `roi_phash_verification_failed_candidate_${log.id}_${timestamp}.png`));
-                                                    logger.info(`Saved ROI pHash comparison images for failed verification (log ${log.id}, distance ${distance})`);
-                                                } catch (loadError) {
-                                                    logger.warn(`Failed to load candidate ROI image for pHash ${log.id}: ${(loadError as Error).message}`);
-                                                }
-                                            }
+                                            // if (candidateEntries.roi_screenshot_b64 && typeof candidateEntries.roi_screenshot_b64 === 'string') {
+                                            //     try {
+                                            //         const candidateRoiImage = await this._loadImageFromValue(candidateEntries.roi_screenshot_b64);
+                                            //         await candidateRoiImage.saveToFile(path.join(debugDir, `roi_phash_verification_failed_candidate_${log.id}_${timestamp}.png`));
+                                            //         logger.info(`Saved ROI pHash comparison images for failed verification (log ${log.id}, distance ${distance})`);
+                                            //     } catch (loadError) {
+                                            //         logger.warn(`Failed to load candidate ROI image for pHash ${log.id}: ${(loadError as Error).message}`);
+                                            //     }
+                                            // }
                                         } catch (debugError) {
                                             logger.warn(`Failed to save ROI pHash debug images: ${(debugError as Error).message}`);
                                         }
@@ -1149,8 +1149,8 @@ export class Agent {
         if (useImageEmbedding) {
             logger.info("Using embedding mode for cache population");
             
-            const screenshotB64 = await screenshot.toBase64();
-            entries.initial_screenshot_b64 = screenshotB64;
+            // const screenshotB64 = await screenshot.toBase64();
+            // entries.initial_screenshot_b64 = screenshotB64;
             
             if (firstActionCoords) {
                 try {
@@ -1159,7 +1159,7 @@ export class Agent {
                     const roiImage = await screenshot.crop(cropX, cropY, roiWidth, roiHeight);
                     const roiB64 = await roiImage.toBase64();
                     
-                    entries.roi_screenshot_b64 = roiB64;
+                    // entries.roi_screenshot_b64 = roiB64;
                     entries.first_action_coords = firstActionCoords;
                     storedCoords = firstActionCoords;
                     
