@@ -264,7 +264,7 @@ export class WebHarness { // implements StateComponent
 
 
 
-        //await this.page.waitForTimeout(500);
+        await this.page.waitForTimeout(500);
         await this.waitForStability();
         //await this.visualizer.removeActionVisuals();
     }
