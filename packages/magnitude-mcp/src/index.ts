@@ -186,7 +186,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
                 // Close existing
                 if (context) {
-                    await harness?.stop();
                     await context.close();
                     context = null;
                     harness = null;
@@ -232,8 +231,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 // Create harness
                 // Use Claude's virtual screen dimensions since we do not know that model might use the MCP server
                 harness = new WebHarness(context, {
-                    virtualScreenDimensions: { width: 1024, height: 768 },
-                    switchTabsOnActivity: true // detect user activity in the browser to try and keep active tab in sync
+                    virtualScreenDimensions: { width: 1024, height: 768 }
                 });
                 await harness.start();
 
@@ -369,14 +367,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 // Cleanup on exit
 process.on('SIGINT', async () => {
-    if (harness) await harness.stop();
     if (context) await context.close();
     await server.close();
     process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-    if (harness) await harness.stop();
     if (context) await context.close();
     await server.close();
     process.exit(0);
