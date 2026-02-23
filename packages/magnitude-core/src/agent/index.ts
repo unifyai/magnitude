@@ -129,7 +129,7 @@ export class Agent {
         let doPromptCaching = false;
         for (const client of llms ) {
             // If any LLM is prompt-caching compatible, turn on prompt caching overall for memory etc.
-            if (isClaude(client) && (client.provider === 'anthropic' || client.provider === 'claude-code')) {
+            if (isClaude(client) && (client.provider === 'anthropic' || client.provider === 'claude-code' || client.provider === 'openai-generic')) {
                 // Prompt-caching compatible client
 
                 if ('promptCaching' in client.options && client.options.promptCaching !== undefined) {
