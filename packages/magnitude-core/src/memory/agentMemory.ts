@@ -102,6 +102,7 @@ export class AgentMemory {
         return this.observations.slice(startIndex);
     }
 
+
     public isEmpty(): boolean {
         return this.observations.length === 0;
     }

@@ -81,6 +81,8 @@ export class Agent {
     
     //public readonly memory: AgentMemory;
     private doneActing: boolean;
+    private _paused: boolean = false;
+    private _pauseResolve: (() => void) | null = null;
 
     protected latestTaskMemory: AgentMemory;// | null = null;
 
@@ -144,6 +146,8 @@ export class Agent {
         this.models = new MultiModelHarness(llms);
         this.models.events.on('tokensUsed', (usage) => this.events.emit('tokensUsed', usage), this);
         this.doneActing = false;
+        this._paused = false;
+        this._pauseResolve = null;
 
         this.memoryOptions = {
             // TODO: maybe do if Gemini or other prompt caching supported providers as well
@@ -536,6 +540,9 @@ export class Agent {
 
             // Execute partial recipe
             for (const action of actions) {
+
+                await this._waitIfPaused();
+                if (this.doneActing) break;
                 if (signal.aborted) {
                     throw new AgentError("Action was interrupted by the user.", { variant: 'cancelled' });
                 }
@@ -552,6 +559,7 @@ export class Agent {
             // if (finished) {
             //     break;
             // }
+            await this._waitIfPaused();
             if (this.doneActing) {
                 if (this.visualCacheConfig.enabled && initialScreenshot && fullTrajectory.length > 0) {
                     logger.info("Task complete. Populating cache with full trajectory.");
@@ -1319,12 +1327,42 @@ export class Agent {
         this.doneActing = true;
     }
 
+    private async _waitIfPaused(): Promise<void> {
+        if (!this._paused) return;
+        this.events.emit('pause');
+        logger.info("Agent: Paused");
+        await new Promise<void>((resolve) => {
+            this._pauseResolve = resolve;
+        });
+    }
+
+    pause(): void {
+        this._paused = true;
+    }
+
+    resume(): void {
+        this._paused = false;
+        if (this._pauseResolve) {
+            this._pauseResolve();
+            this._pauseResolve = null;
+        }
+        this.events.emit('resume');
+        logger.info("Agent: Resumed");
+    }
+
+    get paused(): boolean {
+        return this._paused;
+    }
+
     async stop() {
         /**
          * Stop the agent and close the browser context.
          * May be called asynchronously and interrupt an agent in the middle of a action sequence.
          */
-        // set signal to cancelled?
+        this.doneActing = true;
+        if (this._paused) {
+            this.resume(); // unblock so loop can see doneActing and exit
+        }
         logger.info("Agent: Stopping connectors...");
         for (const connector of this.connectors) {
             try {
