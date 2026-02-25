@@ -87,22 +87,22 @@ export class Agent {
     protected latestTaskMemory: AgentMemory;// | null = null;
 
     private visualCacheConfig = {
-        enabled: process.env.CACHE_ENABLED === 'true',
+        enabled: process.env.UNITY_MAGNITUDE_CACHE_ENABLED === 'true',
         apiUrl: process.env.UNIFY_BASE_URL || 'http://localhost:8000/v0',
         project: process.env.UNIFY_PROJECT || 'Assistants',
-        context: process.env.CACHE_CONTEXT || 'VisualSemanticCache',
+        context: process.env.UNITY_MAGNITUDE_CACHE_CONTEXT || 'VisualSemanticCache',
         // Embedding-based caching (primary method when enabled)
-        useImageEmbedding: process.env.CACHE_USE_IMAGE_EMBEDDING === 'true', // Controls whether to use embeddings or pHash
-        imageEmbeddingThreshold: parseFloat(process.env.CACHE_IMAGE_EMBEDDING_THRESHOLD || '0.15'), // Max cosine distance for full image embedding
-        roiEmbeddingThreshold: parseFloat(process.env.CACHE_ROI_EMBEDDING_THRESHOLD || '0.15'), // Max cosine distance for ROI embedding
+        useImageEmbedding: process.env.UNITY_MAGNITUDE_CACHE_USE_IMAGE_EMBEDDING === 'true', // Controls whether to use embeddings or pHash
+        imageEmbeddingThreshold: parseFloat(process.env.UNITY_MAGNITUDE_CACHE_IMAGE_EMBEDDING_THRESHOLD || '0.15'), // Max cosine distance for full image embedding
+        roiEmbeddingThreshold: parseFloat(process.env.UNITY_MAGNITUDE_CACHE_ROI_EMBEDDING_THRESHOLD || '0.15'), // Max cosine distance for ROI embedding
         // pHash-based caching (fallback when embeddings disabled)
-        visualsimilarityThreshold: parseInt(process.env.CACHE_VISUAL_SIMILARITY_THRESHOLD || '35', 10), // Max hamming distance for pHash comparison
-        roiPhashThreshold: parseInt(process.env.CACHE_ROI_PHASH_THRESHOLD || '3', 10), // Max hamming distance for ROI pHash comparison
+        visualsimilarityThreshold: parseInt(process.env.UNITY_MAGNITUDE_CACHE_VISUAL_SIMILARITY_THRESHOLD || '35', 10), // Max hamming distance for pHash comparison
+        roiPhashThreshold: parseInt(process.env.UNITY_MAGNITUDE_CACHE_ROI_PHASH_THRESHOLD || '3', 10), // Max hamming distance for ROI pHash comparison
         // Common settings
-        textSimilarityThreshold: parseFloat(process.env.CACHE_TEXT_SIMILARITY_THRESHOLD || '0.1'), // Max cosine similarity for text comparison
+        textSimilarityThreshold: parseFloat(process.env.UNITY_MAGNITUDE_CACHE_TEXT_SIMILARITY_THRESHOLD || '0.1'), // Max cosine similarity for text comparison
         overwrite: process.env.UNIFY_OVERWRITE_PROJECT === 'true', // Whether to overwrite existing project/context
-        roiWidth: parseInt(process.env.CACHE_ROI_WIDTH || '100', 10), // Width of ROI around first interaction
-        roiHeight: parseInt(process.env.CACHE_ROI_HEIGHT || '100', 10), // Height of ROI around first interaction
+        roiWidth: parseInt(process.env.UNITY_MAGNITUDE_CACHE_ROI_WIDTH || '100', 10), // Width of ROI around first interaction
+        roiHeight: parseInt(process.env.UNITY_MAGNITUDE_CACHE_ROI_HEIGHT || '100', 10), // Height of ROI around first interaction
     };
     constructor(baseConfig: Partial<AgentOptions> = {}) {
         this.options = {
