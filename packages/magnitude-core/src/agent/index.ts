@@ -34,6 +34,7 @@ export interface ActOptions {
     // TODO: reimpl, or maybe for tc agent specifically
 	data?: RenderableContent,//string | Record<string, string>
     memory?: AgentMemory,// optional memory starting point
+    verify?: boolean, // when true, re-plan after executing to verify task completion
 }
 
 // Options for the startAgent helper function
