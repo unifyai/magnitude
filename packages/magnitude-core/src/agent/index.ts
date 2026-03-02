@@ -43,6 +43,7 @@ export interface ActOptions {
 	data?: RenderableContent,//string | Record<string, string>
     memory?: AgentMemory,// optional memory starting point
     override_cache?: boolean // if true, delete matching cache entries before execution
+    verify?: boolean, // when true, re-plan after executing to verify task completion
 }
 
 // Options for the startAgent helper function
