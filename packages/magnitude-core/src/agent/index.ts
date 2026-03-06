@@ -742,7 +742,7 @@ export class Agent {
 
             // Step 3: Create cache fields as mutable so they can be updated later
             const fieldsPayload = {
-                project: project,
+                project_name: project,
                 context: context,
                 fields: {
                     instruction: {
@@ -848,7 +848,7 @@ export class Agent {
             // }
             
             const queryPayload = {
-                project: project,
+                project_name: project,
                 context: context,
                 filter_expr: filterClauses.join(' and '),
                 limit: 10,
@@ -1226,7 +1226,7 @@ export class Agent {
         }
         
         const baseLogPayload = {
-            project,
+            project_name: project,
             context,
             entries
         };
@@ -1250,7 +1250,7 @@ export class Agent {
             
             const updatePayload = {
                 logs: logIdsToUpdate,
-                project: project,
+                project_name: project,
                 context: context,
                 entries: entries,
                 overwrite: true // Overwrite existing entries with new data
@@ -1298,7 +1298,7 @@ export class Agent {
         
         const createDerivedLog = async (key: string, equation: string) => {
             const derivedPayload = {
-                project, context, key, equation,
+                project_name: project, context, key, equation,
                 referenced_logs: { "log": [logEventId] }
             };
             
