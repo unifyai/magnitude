@@ -14,6 +14,17 @@ import * as os from 'os';
 //import { StateComponent } from "@/facets";
 
 
+// Anthropic's recommended maximum screenshot resolutions for computer-use models.
+// Screenshots are scaled down to the matching target when the viewport is larger,
+// preserving aspect ratio. No scaling if the viewport already fits or has no
+// matching aspect ratio (within 2% tolerance).
+// Reference: anthropic-quickstarts/computer-use-demo/tools/computer.py
+const MAX_SCALING_TARGETS = [
+    { width: 1024, height: 768 },   // XGA, 4:3
+    { width: 1280, height: 800 },   // WXGA, 16:10
+    { width: 1366, height: 768 },   // FWXGA, ~16:9
+];
+
 export interface WebHarnessOptions {
     //fallbackViewportDimensions?: { width: number, height: number}
     // Some LLM operate best on certain screen dims
@@ -56,7 +67,7 @@ export class WebHarness { // implements StateComponent
             await this.setActivePage(page);
             // need to wait for page to load before evaluating a script
             //page.on('load', () => { this.transformer.setActivePage(page); });
-            
+
             //console.log('tabs:', await this.tabs.getState())
 
         }, this);
@@ -117,23 +128,15 @@ export class WebHarness { // implements StateComponent
                 }
             }
         }
-        
+
         const base64data = buffer.toString('base64');
 
-        //console.log("Screenshot DATA:", base64data.substring(0, 100));
         const image = Image.fromBase64(base64data);
 
-        // Now, need to rescale the image based on DPR. This is so that:
-        // (1) Save on tokens, dont need huge high res images
-        // (2) More importantly, clicks happen in the standard resolution space, so need to do this for coordinates to be correct
-        //     for any agent not using a virtual screen space (e.g. those that aren't Claude)
+        // Rescale by 1/DPR so coordinates match CSS pixels
         const { width, height } = await image.getDimensions();
-        //console.log("Original screenshot dims:", { width, height });
-        //console.log("DPR-scaled dims:", { width: width / dpr, height: height / dpr });
         const rescaledImage = await image.resize(width / dpr, height / dpr);
-        //console.log("screenshot() final dims:", await rescaledImage.getDimensions());
 
-        //console.log("_locateTarget dims:", await screenshot.getDimensions());
         return rescaledImage;
 
         // return {
@@ -144,7 +147,7 @@ export class WebHarness { // implements StateComponent
         //     }
         // };
     }
- 
+
     // async goto(url: string) {
     //     // No need to redraw here anymore, the 'load' event listener handles it
     //     await this.page.goto(url);
@@ -178,12 +181,33 @@ export class WebHarness { // implements StateComponent
         }
     }
 
-    // safer might be Coordinate interface/obj tied to certain screen space dims
-    async transformCoordinates({ x, y }: { x: number, y: number }): Promise<{ x: number, y: number }> {
-        const virtual = this.options.virtualScreenDimensions;
-        if (!virtual) {
-            return { x, y };
+    /**
+     * Determine the scaling target for the given viewport dimensions.
+     * Implements Anthropic's aspect-ratio-aware scaling: matches the viewport's
+     * aspect ratio to the closest MAX_SCALING_TARGETS entry (within 2% tolerance),
+     * and only scales down (never up). Returns null if no scaling is needed.
+     */
+    getScalingTarget(vpWidth: number, vpHeight: number): { width: number; height: number } | null {
+        // If explicit virtualScreenDimensions were provided, use those directly
+        if (this.options.virtualScreenDimensions) {
+            return this.options.virtualScreenDimensions;
         }
+        const ratio = vpWidth / vpHeight;
+        for (const target of MAX_SCALING_TARGETS) {
+            if (Math.abs(target.width / target.height - ratio) < 0.02) {
+                if (target.width < vpWidth) {
+                    return target;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Scale coordinates from screenshot/virtual space UP to actual viewport space.
+     * Uses aspect-ratio-aware scaling at runtime based on the current viewport.
+     */
+    async transformCoordinates({ x, y }: { x: number, y: number }): Promise<{ x: number, y: number }> {
         let vp = this.page.viewportSize();
         if (!vp) {
             vp = await this.page.evaluate(() => ({
@@ -192,31 +216,20 @@ export class WebHarness { // implements StateComponent
             }));
         }
         if (!vp) throw new Error("Could not get viewport dimensions to transform coordinates");
+        const target = this.getScalingTarget(vp.width, vp.height);
+        if (!target) return { x, y };
         return {
-            x: x * (vp.width / virtual.width),
-            y: y * (vp.height / virtual.height),
+            x: Math.round(x * (vp.width / target.width)),
+            y: Math.round(y * (vp.height / target.height)),
         };
     }
 
     async click({ x, y }: { x: number, y: number }) {
         ({ x, y } = await this.transformCoordinates({ x, y }));
-        // console.log("x:", x);
-        // console.log("y:", y);
-        //await this.visualizer.visualizeAction(x, y);
-        //await this.page.mouse.click(x, y);
-        //await this.page.mouse.move(x, y, { steps: 20 });
-
-        //console.log('clicking:', x, y);
-
-        // const loc = this.page.getByText('Where are you going?');
-
-        // console.log('found:', loc);
-        
-        // await loc.click();
         await this._click(x, y);
-        
 
-        
+
+
         // await this.page.waitForTimeout(1000);
         // await this.page.mouse.click(x, y);
         // await this.page.waitForTimeout(1000);
@@ -259,7 +272,7 @@ export class WebHarness { // implements StateComponent
         //     targetElement.dispatchEvent(new MouseEvent('click', options));
 
         // }, { x, y });
-        
+
 
 
 
@@ -305,12 +318,12 @@ export class WebHarness { // implements StateComponent
         ({ x: x2, y: y2 } = await this.transformCoordinates({ x: x2, y: y2 }));
 
         //console.log(`Dragging: (${x1}, ${y1}) -> (${x2}, ${y2})`);
-        
+
         await this.page.mouse.move(x1, y1, { steps: 1 });
         await this.page.mouse.down();
         await this.visualizer.moveVirtualCursor(x1, y1);
         await this.page.waitForTimeout(500);
-        
+
         await Promise.all([
             this.page.mouse.move(x2, y2, { steps: 20 }),
             this.visualizer.moveVirtualCursor(x2, y2)
@@ -337,7 +350,7 @@ export class WebHarness { // implements StateComponent
         await this._type(content);
         await this.waitForStability();
     }
-    
+
     async scroll({ x, y, deltaX, deltaY }: { x: number, y: number, deltaX: number, deltaY: number }) {
         ({ x, y } = await this.transformCoordinates({ x, y }));
         await this.visualizer.moveVirtualCursor(x, y);
@@ -402,7 +415,7 @@ export class WebHarness { // implements StateComponent
                 throw error;
             }
         }
-        
+
         // This will now wait for the page to become visually and network-stable,
         // which is a much more reliable way to handle SPA navigation.
         await this.waitForStability();
