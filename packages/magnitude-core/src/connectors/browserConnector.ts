@@ -161,14 +161,23 @@ export class BrowserConnector implements AgentConnector {
             tabInfo += `${index === currentTabs.activeTab ? '[ACTIVE] ' : ''}${tab.title} (${tab.url})`;
         });
 
-        //console.log("this.options.screenshotMemoryLimit", this.options.screenshotMemoryLimit);
         const screenshotLimit = this.options.minScreenshots ?? DEFAULT_MIN_RETAINED_SCREENSHOTS;
-        //console.log("screenshotLimit:", screenshotLimit);
+        const transformedScreenshot = await this.transformScreenshot(currentState.screenshot);
+
+        const dims = await transformedScreenshot.getDimensions();
+        this.logger.debug({
+            screenshotWidth: dims.width,
+            screenshotHeight: dims.height,
+            tabCount: currentTabs.tabs.length,
+            activeTabIndex: currentTabs.activeTab,
+            activeUrl: currentTabs.tabs[currentTabs.activeTab]?.url,
+            screenshotLimit,
+        }, "collectObservations");
 
         observations.push(
             Observation.fromConnector(
                 this.id,
-                await this.transformScreenshot(currentState.screenshot),
+                transformedScreenshot,
                 { type: 'screenshot', limit: screenshotLimit, dedupe: true }
             )
         );
