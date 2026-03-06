@@ -475,7 +475,7 @@ export class Agent {
             const planStart = Date.now();
             try {
                 const memoryContext = await this.buildContext(memory);
-                logger.debug({ observationCount: memory.observations?.length ?? 0 }, "Built memory context for planning");
+                logger.debug("Built memory context for planning");
                 await retryOnError(
                     async () => {
                         ({ reasoning, actions } = await this.models.partialAct(
@@ -511,7 +511,7 @@ export class Agent {
                 reasoning,
                 actions,
                 planningMs: planMs,
-                observationCount: memory.observations?.length ?? 0,
+                observationCount: 0,
             });
 
             this.events.emit('thought', reasoning);
