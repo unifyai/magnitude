@@ -76,21 +76,28 @@ export class BrowserConnector implements AgentConnector {
                     const rewritten = route.request().url().replace(original, replacement);
                     console.log(`[url-mapping] Intercepted: ${route.request().url()} -> ${rewritten}`);
                     try {
+                        const reqHeaders = route.request().headers() as Record<string, string>;
+                        const filteredHeaders: Record<string, string> = {};
+                        for (const [k, v] of Object.entries(reqHeaders)) {
+                            if (!['host', 'origin', 'referer'].includes(k.toLowerCase())) {
+                                filteredHeaders[k] = v;
+                            }
+                        }
                         const resp = await fetch(rewritten, {
                             method: route.request().method(),
-                            headers: Object.fromEntries(
-                                Object.entries(route.request().headers())
-                                    .filter(([k]: [string, unknown]) => !['host', 'origin', 'referer'].includes(k.toLowerCase()))
-                            ),
+                            headers: filteredHeaders,
                             redirect: 'manual',
                         });
                         console.log(`[url-mapping] Fetched ${rewritten} -> status=${resp.status}`);
+                        const respHeaders: Record<string, string> = {};
+                        resp.headers.forEach((v: string, k: string) => {
+                            if (k.toLowerCase() !== 'transfer-encoding') {
+                                respHeaders[k] = v;
+                            }
+                        });
                         await route.fulfill({
                             status: resp.status,
-                            headers: Object.fromEntries(
-                                [...resp.headers.entries()]
-                                    .filter(([k]: [string, unknown]) => k.toLowerCase() !== 'transfer-encoding')
-                            ),
+                            headers: respHeaders,
                             body: Buffer.from(await resp.arrayBuffer()),
                         });
                     } catch (err) {
