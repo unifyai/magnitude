@@ -6,8 +6,7 @@ import z from 'zod';
 import EventEmitter from 'eventemitter3';
 import { jsonToObservableData, MultiMediaJson, observableDataToJson } from './serde';
 import { applyMask, maskObservations } from './masking';
-import { mergeMessages } from './util';
-import { Image as BamlImage} from '@boundaryml/baml';
+import { Image } from './image';
 
 // export interface AgentMemoryEvents {
 //     'thought': (thought: string) => void;
@@ -28,10 +27,6 @@ export interface AgentMemoryOptions {
     instructions?: string | null,
     promptCaching?: boolean,
     thoughtLimit?: number, // TTL for thoughts
-}
-
-export interface MemoryRenderOptions {
-
 }
 
 // export interface FreezeState {
@@ -70,7 +65,7 @@ export class AgentMemory {
         return this.options.instructions;
     }
 
-    public async render(options?: MemoryRenderOptions): Promise<MultiMediaMessage[]> {
+    public async render(): Promise<MultiMediaMessage[]> {
         if (this.options.promptCaching && this.cacheControlIndices.length >= CACHE_CONTROL_LIMIT) {
             this.freezeMask = undefined;
             this.cacheControlIndices = [];
@@ -99,20 +94,14 @@ export class AgentMemory {
         return messages;
     }
 
-    public async simpleRender(): Promise<(BamlImage | string)[]> {
-        // Render with no filtering, no masking, no cache control
-        //let messages: MultiMediaMessage[] = [];
-        let content: (BamlImage | string)[] = [];
-        for (const observation of this.observations) {
-            const message = await observation.render({
-                prefix: observation.source.startsWith('action:taken') || observation.source.startsWith('thought') ?
-                    [`[${new Date(observation.timestamp).toTimeString().split(' ')[0]}]: `] : []
-            });
-            // ignore message stuff, just push content
-            content = [...content, ...message.content];
-        }
-        return content;
+    public get observationCount(): number {
+        return this.observations.length;
     }
+
+    public getObservationsSlice(startIndex: number): Observation[] {
+        return this.observations.slice(startIndex);
+    }
+
 
     public isEmpty(): boolean {
         return this.observations.length === 0;
@@ -180,5 +169,16 @@ export class AgentMemory {
         //     ...(this.instructions ? { instructions: this.instructions } : {}),
         //     observations: observations
         // };
+    }
+
+    public getLatestScreenshot(): Image | null {
+        // Iterate backwards to find the most recent screenshot observation
+        for (let i = this.observations.length - 1; i >= 0; i--) {
+            const obs = this.observations[i];
+            if (obs.retention?.type === 'screenshot' && obs.content instanceof Image) {
+                return obs.content;
+            }
+        }
+        return null;
     }
 }

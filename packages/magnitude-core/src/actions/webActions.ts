@@ -1,62 +1,9 @@
 import { ActionDefinition, ActionPayload, createAction } from ".";
 import { z } from "zod";
-import { BrowserConnector } from "@/connectors/browserConnector"; // Changed from WebInteractionFacet
-import { AgentError } from "@/agent/errors"; // For error handling
-import { Agent } from "@/agent"; // Import Agent type for agent parameter
+import { BrowserConnector } from "@/connectors/browserConnector";
+import { AgentError } from "@/agent/errors";
+import { Agent } from "@/agent";
 
-// For separate grounding
-export const clickTargetAction = createAction({
-    name: 'mouse:click',
-    description: "Click something",
-    schema: z.object({
-        target: z.string().describe("Where exactly to click"),
-    }),
-    resolver: async ({ input: { target }, agent }) => {
-        const web = agent.require(BrowserConnector);
-        const harness = web.getHarness();
-        const screenshot = await web.getLastScreenshot();
-        const { x, y } = await web.requireGrounding().locateTarget(screenshot, target);
-        await harness.click({ x, y });
-    },
-    //render: ({ x, y}) => `⊙ Clicked (${})`
-});
-
-// For separate grounding
-// export const clickTargetAndType = createAction({
-//     name: 'browser:type',
-//     description: "Click something and type into it",
-//     schema: z.object({
-//         target: z.string().describe("Where exactly to click before typing"),
-//         content: z.string().describe("Content to type, insert sequences <enter> or <tab> for those keypresses respectively."),
-//     }),
-//     resolver: async ({ input: { target, content }, agent }) => {
-//         const web = agent.require(BrowserConnector);
-//         const harness = web.getHarness();
-//         const screenshot = await web.getLastScreenshot();
-//         const { x, y } = await web.requireGrounding().locateTarget(screenshot, target);
-//         await harness.clickAndType({ x, y, content });
-//     }
-// });
-
-// For separate grounding
-export const scrollTargetAction = createAction({
-    name: 'mouse:scroll',
-    description: "Hover mouse over target and scroll",
-    schema: z.object({
-        target: z.string().describe("Somewhere specific inside the container to scroll in"),
-        deltaX: z.number().int().describe("Pixels to scroll horizontally"),
-        deltaY: z.number().int().describe("Pixels to scroll vertically"),
-    }),
-    resolver: async ({ input: { target, deltaX, deltaY }, agent }) => {
-        const web = agent.require(BrowserConnector);
-        const harness = web.getHarness();
-        const screenshot = await web.getLastScreenshot();
-        const { x, y } = await web.requireGrounding().locateTarget(screenshot, target);
-        await harness.scroll({ x, y, deltaX, deltaY });
-    }
-});
-
-// For grounded planner
 export const clickCoordAction = createAction({
     name: 'mouse:click',
     description: "Click something",
@@ -160,7 +107,18 @@ export const keyboardSelectAllAction = createAction({
     render: () => `⬚ select all`
 });
 
-// For grounded planner
+export const keyboardKeyAction = createAction({
+    name: 'keyboard:key',
+    description: "Press a key or key combination (for non-text keys like F11, Escape, arrows, or combos like Control+c). Use '+' to combine modifier keys.",
+    schema: z.object({
+        key: z.string().describe("Key or combo to press (e.g., 'F11', 'Escape', 'ArrowDown', 'Control+c', 'Control+Shift+t')"),
+    }),
+    resolver: async ({ input: { key }, agent }) => {
+        await agent.require(BrowserConnector).getHarness().keyPress(key);
+    },
+    render: ({ key }) => key.includes('+') ? `⌨ hotkey ${key}` : `⌨ key '${key}'`
+});
+
 export const scrollCoordAction = createAction({
     name: 'mouse:scroll',
     description: "Hover mouse over target and scroll",
@@ -191,6 +149,20 @@ export const switchTabAction = createAction({
         await harness.switchTab({ index });
     },
     render: ({ index }) => `⧉ switch to tab ${index}`
+});
+
+export const closeTabAction = createAction({
+    name: 'browser:tab:close',
+    description: "Close a tab by index",
+    schema: z.object({
+        index: z.number().int().describe("Index of tab to close"),
+    }),
+    resolver: async ({ input: { index }, agent }) => {
+        const webConnector = agent.require(BrowserConnector);
+        const harness = webConnector.getHarness();
+        await harness.closeTab({ index });
+    },
+    render: ({ index }) => `✖ close tab ${index}`
 });
 
 export const newTabAction = createAction({
@@ -244,38 +216,38 @@ export const waitAction = createAction({
     render: ({ seconds }) => `◴ wait for ${seconds}s`
 });
 
-// export const webActions = [
-//     clickTargetAction,
-//     clickTargetAndType,
-//     scrollTargetAction,
-//     switchTabAction,
-// ] as const;
+export const saveStateAction = createAction({
+    name: 'browser:state:save',
+    description: "Save the current browser state (cookies, localStorage, sessionStorage) to a disk file. This is a SINGLE EXECUTION action that completes instantly with NO VISUAL CHANGES to the page. It operates silently in the background - do NOT call it multiple times or wait for page changes. Use this to preserve authentication state for future sessions. After calling once, the task is complete.",
+    schema: z.object({
+        name: z.string().describe("Name for the state file (e.g., 'midland_auth')")
+    }),
+    resolver: async ({ input: { name }, agent }) => {
+        await agent.require(BrowserConnector).getHarness().saveState(name);
+    },
+    render: ({ name }) => `💾 save browser state as '${name}'`
+});
 
 
-export const agnosticWebActions = [
-    newTabAction,
-    switchTabAction,
-    navigateAction,
-    typeAction,
-    keyboardEnterAction,
-    keyboardTabAction,
-    keyboardBackspaceAction,
-    keyboardSelectAllAction,
-    waitAction,
-] as const;
 
-export const coordWebActions = [
+export const webActions = [
     clickCoordAction,
     mouseDoubleClickAction,
     mouseRightClickAction,
     scrollCoordAction,
     mouseDragAction,
-    //typeAction
+    newTabAction,
+    switchTabAction,
+    closeTabAction,
+    navigateAction,
+    goBackAction, 
+    typeAction,
+    keyboardEnterAction,
+    keyboardTabAction,
+    keyboardBackspaceAction,
+    keyboardSelectAllAction,
+    keyboardKeyAction,
+    waitAction,
+    saveStateAction,
 ] as const;
 
-export const targetWebActions = [
-    clickTargetAction,
-    //typeAction,
-    //clickTargetAndType,
-    scrollTargetAction
-] as const;

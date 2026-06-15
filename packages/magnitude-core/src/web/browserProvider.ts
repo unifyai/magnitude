@@ -4,15 +4,18 @@ import crypto from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import logger from "@/logger";
 import { Logger } from 'pino';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 
 const DEFAULT_BROWSER_OPTIONS: LaunchOptions = {
     headless: false,
     args: ["--disable-gpu", "--disable-blink-features=AutomationControlled"],
 };
 
-export type BrowserOptions = { instance: Browser; contextOptions?: BrowserContextOptions; }
-    | { cdp: string; contextOptions?: BrowserContextOptions; }
-    | { launchOptions?: LaunchOptions; contextOptions?: BrowserContextOptions; }
+export type BrowserOptions = { instance: Browser; contextOptions?: BrowserContextOptions; storageStateName?: string; }
+    | { cdp: string; contextOptions?: BrowserContextOptions; storageStateName?: string; }
+    | { launchOptions?: LaunchOptions; contextOptions?: BrowserContextOptions; storageStateName?: string; }
     | { context: BrowserContext };
 
 interface ActiveBrowser {
@@ -44,6 +47,12 @@ export class BrowserProvider {
         }
 
         return (globalThis as any).__magnitude__.browserProvider;
+    }
+
+    private getStatePath(name: string): string {
+        const stateDir = path.join(os.homedir(), '.magnitude', 'browser_states');
+        const safeName = name.replace(/[^a-z0-9_-]/gi, '_');
+        return path.join(stateDir, `${safeName}.json`);
     }
 
     private async _launchOrReuseBrowser(options: LaunchOptions): Promise<ActiveBrowser> {
@@ -89,15 +98,17 @@ export class BrowserProvider {
 
         const context = await browser.newContext(contextOptions);
 
-        // Get viewport dimensions from context options or use defaults
-        const viewport = contextOptions?.viewport || { width: 1024, height: 768 };
-        const deviceScaleFactor = contextOptions?.deviceScaleFactor || 1;
-
-        // Apply emulation settings to any new pages created
-        context.on('page', async (page) => {
-            const cdpSession = await page.context().newCDPSession(page);
-            await this._applyEmulationSettings(cdpSession, viewport.width, viewport.height, deviceScaleFactor);
-        });
+        // When viewport is explicitly null the page follows the browser
+        // window size dynamically (resizing the window reflows content).
+        // Only pin the viewport via CDP when a fixed size is requested.
+        const resolvedViewport = contextOptions?.viewport;
+        if (resolvedViewport) {
+            const deviceScaleFactor = contextOptions?.deviceScaleFactor || 1;
+            context.on('page', async (page) => {
+                const cdpSession = await page.context().newCDPSession(page);
+                await this._applyEmulationSettings(cdpSession, resolvedViewport.width, resolvedViewport.height, deviceScaleFactor);
+            });
+        }
 
         activeBrowserEntry.activeContextsCount++;
 
@@ -120,11 +131,27 @@ export class BrowserProvider {
             parseInt(process.env.DEVICE_PIXEL_RATIO) :
             process.platform === 'darwin' ? 2 : 1;
         
-        const contextOptions = {
+        let contextOptions: BrowserContextOptions = {
             ...DEFAULT_BROWSER_CONTEXT_OPTIONS,
             deviceScaleFactor: dpr,
-            ...(options && 'contextOptions' in options && options.contextOptions ? options.contextOptions : {})//options.browser?.contextOptions
+            ...(options && 'contextOptions' in options && options.contextOptions ? options.contextOptions : {})
         };
+
+        if (contextOptions.viewport === null) {
+            delete contextOptions.deviceScaleFactor;
+        }
+
+        // INJECT STORAGE STATE IF PROVIDED
+        if (options && 'storageStateName' in options && options.storageStateName) {
+            const statePath = this.getStatePath(options.storageStateName);
+            if (fs.existsSync(statePath)) {
+                this.logger.info(`Loading storage state from: ${statePath}`);
+                // This is the magic Playwright line that loads cookies/storage BEFORE page load
+                contextOptions.storageState = statePath;
+            } else {
+                this.logger.warn(`Requested storage state '${options.storageStateName}' not found at ${statePath}`);
+            }
+        }
 
         options = { ...options, contextOptions };
 

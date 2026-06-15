@@ -2,7 +2,7 @@ import { AgentConnector } from ".";
 //import { Observation, BamlRenderable } from "@/memory";
 import { WebHarness } from "@/web/harness";
 import { ActionDefinition } from '@/actions';
-import { agnosticWebActions, coordWebActions, targetWebActions } from '@/actions/webActions';
+import { webActions } from '@/actions/webActions';
 import { Browser, BrowserContext, BrowserContextOptions, LaunchOptions } from "playwright";
 import { BrowserOptions, BrowserProvider } from "@/web/browserProvider";
 import logger from "@/logger";
@@ -10,8 +10,6 @@ import { Logger } from 'pino';
 import { TabState } from '@/web/tabs';
 import { Observation } from "@/memory/observation";
 import { Image } from "@/memory/image";
-import { GroundingClient } from "@/ai/types";
-import { GroundingService, moondreamTargetingInstructions } from "@/ai/grounding";
 import { ActionVisualizerOptions } from "@/web/visualizer";
 
 // export type BrowserOptions = ({ instance: Browser } | { launchOptions?: LaunchOptions }) & {
@@ -34,10 +32,10 @@ export interface BrowserConnectorOptions {
     browser?: BrowserOptions
     url?: string
     //browserContextOptions?: BrowserContextOptions
-    grounding?: GroundingClient
     virtualScreenDimensions?: { width: number, height: number },
     minScreenshots?: number,
-    visuals?: ActionVisualizerOptions
+    visuals?: ActionVisualizerOptions,
+    urlMappings?: Record<string, string>
 }
 
 export interface BrowserConnectorStateData {
@@ -52,7 +50,6 @@ export class BrowserConnector implements AgentConnector {
     private browser?: Browser;
     private context!: BrowserContext;
     private logger: Logger;
-    private grounding?: GroundingService;
 
     constructor(options: BrowserConnectorOptions = {}) {
         // console.log("options", options)
@@ -61,25 +58,63 @@ export class BrowserConnector implements AgentConnector {
         this.logger = logger.child({
             name: `connectors.${this.id}`
         });
-        if (this.options.grounding) {
-            this.grounding = new GroundingService({ client: this.options.grounding });
-        }
     }
 
-    requireGrounding(): GroundingService {
-        if (!this.grounding) throw new Error("Grounding not configured on web connector");
-        return this.grounding;
-    }
 
     async onStart(): Promise<void> {
         this.logger.info("Starting...");
-        
+
         this.logger.info("Creating new browser context.");
 
         this.context = await BrowserProvider.getInstance().newContext(this.options.browser);
 
+        if (this.options.urlMappings) {
+            for (const [original, replacement] of Object.entries(this.options.urlMappings)) {
+                console.log(`[url-mapping] Registering: ${original} -> ${replacement}`);
+
+                const handler = async (route: any) => {
+                    const rewritten = route.request().url().replace(original, replacement);
+                    console.log(`[url-mapping] Intercepted: ${route.request().url()} -> ${rewritten}`);
+                    try {
+                        const reqHeaders = route.request().headers() as Record<string, string>;
+                        const filteredHeaders: Record<string, string> = {};
+                        for (const [k, v] of Object.entries(reqHeaders)) {
+                            if (!['host', 'origin', 'referer'].includes(k.toLowerCase())) {
+                                filteredHeaders[k] = v;
+                            }
+                        }
+                        const resp = await fetch(rewritten, {
+                            method: route.request().method(),
+                            headers: filteredHeaders,
+                            redirect: 'manual',
+                        });
+                        console.log(`[url-mapping] Fetched ${rewritten} -> status=${resp.status}`);
+                        const respHeaders: Record<string, string> = {};
+                        resp.headers.forEach((v: string, k: string) => {
+                            if (k.toLowerCase() !== 'transfer-encoding') {
+                                respHeaders[k] = v;
+                            }
+                        });
+                        await route.fulfill({
+                            status: resp.status,
+                            headers: respHeaders,
+                            body: Buffer.from(await resp.arrayBuffer()),
+                        });
+                    } catch (err) {
+                        console.error(`[url-mapping] Fetch failed for ${rewritten}: ${err}`);
+                        await route.abort('connectionfailed');
+                    }
+                };
+
+                // Use glob patterns instead of function matcher for patchright compatibility
+                await this.context.route(original, handler);
+                await this.context.route(`${original}/**`, handler);
+                console.log(`[url-mapping] Routes registered for ${original}`);
+            }
+        }
+
         //const contextOptions = this.options.browser && 'contextOptions' in this.options.browser ? this.options.browser.contextOptions : {};
-        
+
         this.harness = new WebHarness(this.context, {
             //fallbackViewportDimensions: contextOptions?.viewport ?? { width: 1024, height: 768 },
             virtualScreenDimensions: this.options.virtualScreenDimensions,
@@ -98,10 +133,6 @@ export class BrowserConnector implements AgentConnector {
 
     async onStop(): Promise<void> {
         this.logger.info("Stopping...");
-        if (this.harness) {
-            await this.harness.stop();
-            this.logger.info("WebHarness cleaned up.");
-        }
         if (this.context) {
             await this.context.close();
             this.logger.info("Browser context closed.");
@@ -113,15 +144,9 @@ export class BrowserConnector implements AgentConnector {
     }
 
     getActionSpace(): ActionDefinition<any>[] {
-        if (this.grounding) {
-            // Separate grounding
-            return [...targetWebActions, ...agnosticWebActions];
-        } else {
-            // Planner is grounded
-            return [...coordWebActions, ...agnosticWebActions];
-        }
+        return [...webActions];
     }
-    
+
     // public get page(): Page {
     //     if (!this.harness || !this.harness.page) {
     //         throw new Error("WebInteractionConnector: Harness or Page is not available. Ensure onStart has completed.");
@@ -152,11 +177,18 @@ export class BrowserConnector implements AgentConnector {
     }
 
     async transformScreenshot(screenshot: Image): Promise<Image> {
-        if (this.options.virtualScreenDimensions) {
-            return await screenshot.resize(this.options.virtualScreenDimensions.width, this.options.virtualScreenDimensions.height);
-        } else {
-            return screenshot;
+        const harness = this.getHarness();
+        let vp = harness.page.viewportSize();
+        if (!vp) {
+            vp = await harness.page.evaluate(() => ({
+                width: window.innerWidth,
+                height: window.innerHeight
+            }));
         }
+        if (!vp) return screenshot;
+        const target = harness.getScalingTarget(vp.width, vp.height);
+        if (!target) return screenshot;
+        return await screenshot.resize(target.width, target.height);
     }
 
     public async getLastScreenshot(): Promise<Image> {
@@ -206,8 +238,6 @@ export class BrowserConnector implements AgentConnector {
     }
 
     async getInstructions(): Promise<void | string> {
-        if (this.grounding) {
-            return moondreamTargetingInstructions;
-        }
+        return;
     }
 }

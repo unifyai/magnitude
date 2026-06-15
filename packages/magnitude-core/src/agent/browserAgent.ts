@@ -9,7 +9,6 @@ import { renderMinimalAccessibilityTree } from "@/web/util";
 import { narrateAgent, narrateBrowserAgent } from "./narrator";
 import { PartitionOptions, partitionHtml, MarkdownSerializerOptions, serializeToMarkdown } from 'magnitude-extract';
 import EventEmitter from "eventemitter3";
-import { retry } from "@/common/retry";
 
 // export interface StartAgentWithWebOptions {
 //     agentBaseOptions?: Partial<AgentOptions>;
@@ -76,7 +75,19 @@ async function getFullPageContent(page: Page): Promise<string> {
             await iframeHandle.evaluate((iframeNode, { content }) => {
                 // Create a new div element to hold the iframe's content
                 const div = document.createElement('div');
-                div.innerHTML = content;
+
+                // Use DOMParser to handle Trusted Types restrictions
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(content, 'text/html');
+
+                // Move all body children to the div
+                while (doc.body.firstChild) {
+                    div.appendChild(doc.body.firstChild);
+                }
+
+                // Also preserve any head elements that might be important (styles, etc)
+                const headElements = doc.head.querySelectorAll('style, link[rel="stylesheet"]');
+                headElements.forEach(el => div.appendChild(el.cloneNode(true)));
 
                 // Add a data-attribute to mark that this was an expanded iframe
                 div.dataset.expandedFromIframe = 'true';
@@ -120,10 +131,7 @@ export class BrowserAgent extends Agent {
     async extract<T extends Schema>(instructions: string, schema: T): Promise<z.infer<T>> {
         this.browserAgentEvents.emit('extractStarted', instructions, schema);
         //const htmlContent = await this.page.content();
-        const htmlContent = await retry(
-            async () => await getFullPageContent(this.page),
-            { retries: 5, delay: 200, exponential: true }
-        );
+        const htmlContent = await getFullPageContent(this.page);
         // const accessibilityTree = await this.page.accessibility.snapshot({ interestingOnly: true });
         // const pageRepr = renderMinimalAccessibilityTree(accessibilityTree);
 

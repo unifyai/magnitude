@@ -9,7 +9,6 @@ export const allBrowserAgentRoles: BrowserAgentRole[] = ['act', 'extract', 'quer
 // Approximately mirrors https://docs.boundaryml.com/ref/llm-client-providers
 export type LLMClient = (AnthropicClient | ClaudeCodeClient | BedrockClient | GoogleAIClient | GoogleVertexClient | OpenAIClient | OpenAIGenericClient | AzureOpenAIClient) &
     { roles?: BrowserAgentRole[] };
-export type GroundingClient = MoondreamClient;
 
 export interface AnthropicClient {
     provider: 'anthropic',
@@ -58,12 +57,10 @@ export interface GoogleVertexClient {
     provider: 'vertex-ai',
     options: {
         model: string,
-        location?: string,
+        location: string,
         baseUrl?: string,
         projectId?: string,
         credentials?: string | object,
-        // Needed for anthropic models on vertex
-        anthropicVersion?: string
         // passed to generationConfig
         temperature?: number,
     }
@@ -96,17 +93,11 @@ export interface OpenAIGenericClient {
         baseUrl: string,
         apiKey?: string,
         temperature?: number,
+        promptCaching?: boolean,
         headers?: Record<string, string>
     }
 }
 
-export interface MoondreamClient {
-    provider: 'moondream',
-    options: {
-        baseUrl?: string,
-        apiKey?: string
-    }
-}
 
 
 export interface LLMClientIdentifier {

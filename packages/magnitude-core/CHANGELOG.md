@@ -1,5 +1,36 @@
 # magnitude-core
 
+## 0.3.1
+
+### Patch Changes
+
+- [`b1771a4`](https://github.com/magnitudedev/browser-agent/commit/b1771a4ee6e0d5064e67fd3de52be13eabbe023b) Thanks [@ddwang](https://github.com/ddwang)! - pause resume api
+
+- [`dedb7c6`](https://github.com/magnitudedev/browser-agent/commit/dedb7c644ffd629f08896bac205b22152075050b) Thanks [@anerli](https://github.com/anerli)! - change default model to haiku 4.5
+
+- [`2ef1102`](https://github.com/magnitudedev/browser-agent/commit/2ef110264e65e06f2dff0d60ffb5cd36ae636a6e) Thanks [@DmitryGvozd12](https://github.com/DmitryGvozd12)! - fix inflated cumulative token counting
+
+## 0.3.0
+
+### Minor Changes
+
+- [`265a2ab`](https://github.com/sagekit/magnitude/commit/265a2ab348ec916f6382d3ad1dfe572b55e33090) Thanks [@anerli](https://github.com/anerli)! - drop support for separated grounding to reduce dependency issues and simplify code
+
+## 0.3.0-beta.0
+
+### Minor Changes
+
+- [`265a2ab`](https://github.com/sagekit/magnitude/commit/265a2ab348ec916f6382d3ad1dfe572b55e33090) Thanks [@anerli](https://github.com/anerli)! - drop support for separated grounding to reduce dependency issues and simplify code
+
+## 0.2.32
+
+### Patch Changes
+
+- [`b1ee0c2`](https://github.com/sagekit/magnitude/commit/b1ee0c225ee33ac22f96a8c1828d6101921e57fc) Thanks [@anerli](https://github.com/anerli)! - - new MCP server for interacting with browser with persistent sessions
+  - fix innerHTML assignment bugs causing issues for cursor visual and data extraction on google sites
+  - fix cursor visual not having fixed positioning when scrolling main document
+  - fix screenshot not breaking out of retry loop on success
+
 ## 0.2.31
 
 ### Patch Changes

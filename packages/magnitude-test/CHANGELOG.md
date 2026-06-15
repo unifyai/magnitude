@@ -1,5 +1,43 @@
 # magnitude-test
 
+## 0.3.13
+
+### Patch Changes
+
+- Updated dependencies [[`b1771a4`](https://github.com/magnitudedev/browser-agent/commit/b1771a4ee6e0d5064e67fd3de52be13eabbe023b), [`dedb7c6`](https://github.com/magnitudedev/browser-agent/commit/dedb7c644ffd629f08896bac205b22152075050b), [`2ef1102`](https://github.com/magnitudedev/browser-agent/commit/2ef110264e65e06f2dff0d60ffb5cd36ae636a6e)]:
+  - magnitude-core@0.3.1
+
+## 0.3.12
+
+### Patch Changes
+
+- [`265a2ab`](https://github.com/sagekit/magnitude/commit/265a2ab348ec916f6382d3ad1dfe572b55e33090) Thanks [@anerli](https://github.com/anerli)! - drop support for separated grounding to reduce dependency issues and simplify code
+
+- Updated dependencies [[`265a2ab`](https://github.com/sagekit/magnitude/commit/265a2ab348ec916f6382d3ad1dfe572b55e33090)]:
+  - magnitude-core@0.3.0
+
+## 0.3.12-beta.0
+
+### Patch Changes
+
+- [`265a2ab`](https://github.com/sagekit/magnitude/commit/265a2ab348ec916f6382d3ad1dfe572b55e33090) Thanks [@anerli](https://github.com/anerli)! - drop support for separated grounding to reduce dependency issues and simplify code
+
+- Updated dependencies [[`265a2ab`](https://github.com/sagekit/magnitude/commit/265a2ab348ec916f6382d3ad1dfe572b55e33090)]:
+  - magnitude-core@0.3.0-beta.0
+
+## 0.3.11
+
+### Patch Changes
+
+- [#131](https://github.com/sagekit/magnitude/pull/131) [`9d4b8a5`](https://github.com/sagekit/magnitude/commit/9d4b8a52badd6d5c39d3357b8a1713bd875154d6) Thanks [@ewired](https://github.com/ewired)! - Code structure change to improve IPC for future reworking and fix a build issue with a circular dependency.
+
+- [#134](https://github.com/sagekit/magnitude/pull/134) [`510c24e`](https://github.com/sagekit/magnitude/commit/510c24e9ae85b9497a133f6ae93c9ccde3da56f5) Thanks [@ewired](https://github.com/ewired)! - magnitude-test now shows rich data in --debug logs including agent thoughts, token usage and known costs. --plain is now available for easily readable plain text logs. display.thoughts is now available in magnitude.config.ts to show thoughts in the TUI.
+
+- [`9123917`](https://github.com/sagekit/magnitude/commit/9123917e4dd8be30687b43be6797d152fdffc571) Thanks [@anerli](https://github.com/anerli)! - fix: add array llm client type to test config
+
+- Updated dependencies [[`b1ee0c2`](https://github.com/sagekit/magnitude/commit/b1ee0c225ee33ac22f96a8c1828d6101921e57fc)]:
+  - magnitude-core@0.2.32
+
 ## 0.3.10
 
 ### Patch Changes
