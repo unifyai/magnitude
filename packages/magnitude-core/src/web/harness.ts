@@ -311,6 +311,69 @@ export class WebHarness { // implements StateComponent
         await this.waitForStability();
     }
 
+    /**
+     * Move the cursor to (x, y) along a randomized cubic-bezier path with
+     * ease-in-out timing, emitting many small mouse.move events (like a human
+     * hand) instead of a single teleport. Intended for anti-bot pacing on
+     * scripted trajectories — `click`/`scroll` still snap for speed.
+     *
+     * The start point is the last known cursor position (falling back to the
+     * viewport centre). Two control points are offset from the straight line
+     * by a random fraction of the travel distance, so the arc bows gently and
+     * never repeats. Step count and per-step delay scale with distance.
+     */
+    async moveHumanlike(
+        { x, y }: { x: number, y: number },
+        options?: { transform?: boolean, steps?: number }
+    ) {
+        const rawX = x, rawY = y;
+        if (options?.transform ?? true) ({ x, y } = await this.transformCoordinates({ x, y }));
+
+        const vp = this.page.viewportSize() ?? { width: 1024, height: 768 };
+        const start = this.getCursorPosition() ?? {
+            x: Math.round(vp.width / 2),
+            y: Math.round(vp.height / 2),
+        };
+
+        const dist = Math.hypot(x - start.x, y - start.y);
+        const steps = Math.max(
+            12,
+            Math.min(60, options?.steps ?? Math.round(dist / 8) + 12)
+        );
+
+        const jitter = () => (Math.random() - 0.5) * 2; // [-1, 1]
+        const bow = Math.min(120, dist * 0.2);
+        const c1 = {
+            x: start.x + (x - start.x) * 0.33 + jitter() * bow,
+            y: start.y + (y - start.y) * 0.33 + jitter() * bow,
+        };
+        const c2 = {
+            x: start.x + (x - start.x) * 0.66 + jitter() * bow,
+            y: start.y + (y - start.y) * 0.66 + jitter() * bow,
+        };
+
+        for (let i = 1; i <= steps; i++) {
+            const t = i / steps;
+            // ease-in-out cubic: accelerate away, decelerate into the target
+            const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+            const m = 1 - e;
+            const px = m*m*m*start.x + 3*m*m*e*c1.x + 3*m*e*e*c2.x + e*e*e*x;
+            const py = m*m*m*start.y + 3*m*m*e*c1.y + 3*m*e*e*c2.y + e*e*e*y;
+            await this.page.mouse.move(px, py);
+            await this.page.waitForTimeout(4 + Math.random() * 12);
+        }
+
+        // Land exactly on target and keep the visual cursor in sync.
+        await Promise.all([
+            this.page.mouse.move(x, y),
+            this.visualizer.moveVirtualCursor(x, y),
+        ]);
+        logger.debug(
+            { rawX, rawY, finalX: Math.round(x), finalY: Math.round(y), steps },
+            "moveHumanlike"
+        );
+    }
+
     async type({ content }: { content: string }) {
         await this._type(content);
         await this.waitForStability();
