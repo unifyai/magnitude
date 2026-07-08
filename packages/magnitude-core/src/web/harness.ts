@@ -4,6 +4,7 @@ import { PageStabilityAnalyzer } from "./stability";
 import { parseTypeContent } from "./util";
 import { ActionVisualizer, ActionVisualizerOptions } from "./visualizer";
 import logger from "@/logger";
+import { formatLastBrowserLifecycleHint } from "./browserLifecycleDiagnostics";
 import { TabManager, TabState } from "./tabs";
 import { DOMTransformer } from "./transformer";
 import { Image } from '@/memory/image';
@@ -30,6 +31,8 @@ export interface WebHarnessOptions {
     // Some LLM operate best on certain screen dims
     virtualScreenDimensions?: { width: number, height: number }
     visuals?: ActionVisualizerOptions
+    sessionId?: string
+    sessionLabel?: string
 }
 
 export interface WebHarnessEvents {
@@ -57,7 +60,10 @@ export class WebHarness { // implements StateComponent
         this.stability = new PageStabilityAnalyzer({ disableVisualStability: true });
         this.visualizer = new ActionVisualizer(this.context, this.options.visuals ?? {});
         this.transformer = new DOMTransformer();
-        this.tabs = new TabManager(context);
+        this.tabs = new TabManager(context, {
+            sessionId: options.sessionId,
+            sessionLabel: options.sessionLabel,
+        });
 
         // this.context.on('page', (page: Page) => {
         //     this.setActivePage(page);
@@ -93,7 +99,8 @@ export class WebHarness { // implements StateComponent
     async start() {
         if (this.context.pages().length > 0) {
             // If context already contains a page, set it as active
-            this.tabs.setActivePage(this.context.pages()[0]);
+            this.tabs.registerExistingPages();
+            this.tabs.setActivePage(this.context.pages()[0], "harness_start_existing_page");
         } else {
             await this.context.newPage();
             // Other logic for page tracking is automatically handled by TabManager
@@ -118,7 +125,12 @@ export class WebHarness { // implements StateComponent
             } catch (err) {
                 const error = err as Error;
                 if (error.message.includes('Target page, context or browser has been closed')) {
-                    throw new Error("Attempted to take screenshot but page, context or browser is closed");
+                    const hint = formatLastBrowserLifecycleHint();
+                    throw new Error(
+                        hint
+                            ? `Attempted to take screenshot but page, context or browser is closed. ${hint}`
+                            : "Attempted to take screenshot but page, context or browser is closed",
+                    );
                 }
                 if (attempt >= retries) {
                     throw new Error(`Unable to capture screenshot after retries, error: ${error.message}`);
@@ -257,7 +269,11 @@ export class WebHarness { // implements StateComponent
         // await this.visualizer.moveVirtualCursor(x, y);
         // await this.page.mouse.move(x, y, { steps: 20 });
         await this.visualizer.hideAll(); // hide / show pointer because no-pointer is not always consistent and visualizer can block click
-        await this.page.mouse.click(x, y);
+        await this.page.mouse.click(x, y, {
+            button: options?.button ?? "left",
+            clickCount: options?.clickCount,
+            delay: options?.delay,
+        });
         await this.visualizer.showAll();
     }
 
